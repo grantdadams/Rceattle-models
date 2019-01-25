@@ -17,16 +17,15 @@ ss_run <- Rceattle(data_list = BS2017SS,
                    silent = TRUE)
 
 # The you can plot the model results using using
-plot_biomass(ceattle_list =  list(ss_run))
-plot_recruitment(ceattle_list =  list(ss_run))
-
+plot_biomass(Rceattle =  ss_run)
+plot_recruitment(Rceattle =  ss_run)
 
 
 # For the 2017 multispecies model starting from the single species parameters, the following can be specified:
 data(BS2017MS) # ?BS2017MS for more information on the data 
 
 ms_run <- Rceattle(data_list = BS2017MS,
-                   inits = ss_run$estimated_params, # Initial parameters  from single species
+                   inits = ss_run$estimated_params, # Initial parameters from single species ests
                    file_name = NULL, # Don't save
                    debug = 0, # Estimate
                    random_rec = FALSE, # No random recruitment
@@ -36,8 +35,8 @@ ms_run <- Rceattle(data_list = BS2017MS,
 
 
 # We can plot both runs as well:
-plot_biomass(ceattle_list =  list(ms_run, ss_run), model_names = c("MS", "SS"))
-plot_recruitment(ceattle_list =  list(ms_run, ss_run), model_names = c("MS", "SS"))
+plot_biomass(Rceattle =  list(ms_run, ss_run), model_names = c("MS", "SS"))
+plot_recruitment(Rceattle =  list(ms_run, ss_run), model_names = c("MS", "SS"))
 
 
 # Data can be simulated from the estimated quantities using `sim_mod`:
@@ -73,7 +72,14 @@ ss_re <- Rceattle(
   inits = NULL, # Initial parameters = 0
   file_name = NULL, # Don't save
   debug = 0, # Estimate
-  random_rec = TRUE, # No random recruitment
+  random_rec = TRUE, # Random recruitment
   msmMode = 0, # Single species mode
   avgnMode = 0,
   silent = TRUE)
+
+# If we want to extract the cpp file
+cpp_directory <- system.file("executables",package="Rceattle")
+TMBfilename <- "ceattle_v01_02"
+cpp_file <- paste0(cpp_directory, "/", TMBfilename, ".cpp")
+cpp_file <- file(cpp_file)
+cpp_file <- readLines(cpp_file)
