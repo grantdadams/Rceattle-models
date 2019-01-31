@@ -28,15 +28,15 @@ ms_run <- Rceattle(data_list = BS2017MS,
                    inits = ss_run$estimated_params, # Initial parameters from single species ests
                    file_name = NULL, # Don't save
                    debug = 0, # Estimate
+                   niter = 10,
                    random_rec = FALSE, # No random recruitment
                    msmMode = 1, # Holsman et al empirical suitability
                    avgnMode = 0,
                    silent = TRUE)
 
-
 # We can plot both runs as well:
-plot_biomass(Rceattle =  list(ms_run, ss_run), model_names = c("MS", "SS"))
-plot_recruitment(Rceattle =  list(ms_run, ss_run), model_names = c("MS", "SS"))
+plot_biomass(Rceattle =  list(ss_run, ms_run), model_names = c("SS", "MS"))
+plot_recruitment(Rceattle =  list(ss_run, ms_run), model_names = c("SS", "MS"))
 
 
 # Data can be simulated from the estimated quantities using `sim_mod`:
