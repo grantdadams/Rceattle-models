@@ -64,7 +64,7 @@ ms_run3 <- Rceattle(data_list = BS2017MS,
 ###################################################
 # Run with length log-normal
 ms_run4 <- Rceattle(data_list = BS2017MS,
-                    inits = ss_no_re$estimated_params, # Initial parameters = 0
+                    inits = mod$estimated_params, # Initial parameters = 0
                     file_name = "2019 Think Tank/Models/ms_diet4", # Don't save
                     debug = 0, # Estimate
                     random_rec = FALSE, # No random recruitment

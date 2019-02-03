@@ -44,4 +44,4 @@ for(a in 1:12){
   
 }
 
-jnl <- cbind(mod$quantities$jnll_comp, mod1$quantities$jnll_comp,mod2$quantities$jnll_comp,mod3$quantities$jnll_comp )
+jnl <- cbind(mod$quantities$jnll_comp, mod1$quantities$jnll_comp,mod2$quantities$jnll_comp)
