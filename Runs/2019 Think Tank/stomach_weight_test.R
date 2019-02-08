@@ -7,10 +7,19 @@ data(BS2017MS)
 # Run in single species mode
 ss_no_re <- Rceattle(data_list = BS2017SS,
                      inits = NULL, # Initial parameters = 0
-                     file_name = "2019 Think Tank/Models/ss_no_re", # Don't save
+                     file_name = NULL, # Don't save
                      debug = 0, # Estimate
                      random_rec = FALSE, # No random recruitment
                      msmMode = 0, # Single species mode
+                     avgnMode = 0,
+                     silent = TRUE)
+
+ms_no_re <- Rceattle(data_list = BS2017SS,
+                     inits = ss_no_re$estimated_params, # Initial parameters = 0
+                     file_name = NULL, # Don't save
+                     debug = 0, # Estimate
+                     random_rec = FALSE, # No random recruitment
+                     msmMode = 1, # Single species mode
                      avgnMode = 0,
                      silent = TRUE)
 
@@ -22,15 +31,15 @@ for(i in 1:length(stom_tau_vec)){
   for(j in 1:6){
     ###################################################
     # Run with length log-normal
+    BS2017MS$stom_tau <- stom_tau_vec[i]
     ms_run <- Rceattle(data_list = BS2017MS,
                         inits = ss_no_re$estimated_params, # Initial parameters = 0
-                        file_name = "2019 Think Tank/Models/diet_mod", # Don't save
+                        file_name = NULL, # Don't save
                         debug = 0, # Estimate
                         random_rec = FALSE, # No random recruitment
-                        msmMode = 1, # Single species mode
+                        msmMode = 1, # Multi species mode
                         suitMode = j,
                         avgnMode = 0,
-                        stom_tau = stom_tau_vec[i],
                         silent = TRUE)
     run_mat[i,j] <- sum(!is.na(ms_run$sdrep$sd))
   }
@@ -91,6 +100,7 @@ map$phi <- as.factor(1:length(map$phi))
 
 
 for(i in 1:length(stom_tau_vec)){
+  BS2017MS$stom_tau <- stom_tau_vec[i]
   ###################################################
   # Run with length log-normal
   ms_run7 <- Rceattle(data_list = BS2017MS,
@@ -101,7 +111,6 @@ for(i in 1:length(stom_tau_vec)){
                       msmMode = 1, # Single species mode
                       map = map,
                       suitMode = 4,
-                      stom_tau = stom_tau_vec[i],
                       avgnMode = 0,
                       silent = TRUE)
   
@@ -117,7 +126,6 @@ for(i in 1:length(stom_tau_vec)){
                       msmMode = 1, # Single species mode
                       map = map,
                       suitMode = 5,
-                      stom_tau = stom_tau_vec[i],
                       avgnMode = 0,
                       silent = TRUE)
   run_mat[i,8] <- sum(!is.na(ms_run8$sdrep$sd))
@@ -133,7 +141,6 @@ for(i in 1:length(stom_tau_vec)){
                       map = map,
                       suitMode = 6,
                       avgnMode = 0,
-                      stom_tau = stom_tau_vec[i],
                       silent = TRUE)
   run_mat[i,9] <- sum(!is.na(ms_run9$sdrep$sd))
 }
