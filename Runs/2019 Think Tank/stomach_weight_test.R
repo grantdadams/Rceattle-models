@@ -33,7 +33,7 @@ for(i in 1:length(stom_tau_vec)){
     # Run with length log-normal
     BS2017MS$stom_tau <- stom_tau_vec[i]
     ms_run <- Rceattle(data_list = BS2017MS,
-                        inits = ss_no_re$estimated_params, # Initial parameters = 0
+                        inits = ms_no_re$estimated_params, # Initial parameters = 0
                         file_name = NULL, # Don't save
                         debug = 0, # Estimate
                         random_rec = FALSE, # No random recruitment
