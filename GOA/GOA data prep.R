@@ -1,16 +1,21 @@
 library(Rceattle)
 library(r4ss)
+library(plyr)
 
 data(BS2017SS) # ?BS2017SS for more information on the data 
 GOA2018SS <- BS2017SS
 
 ###########################################################
-# PCod
+# READ IN DATA
 ###########################################################
-# Read in data
+# PCOD
 pcod_dat <- r4ss::SS_readdat_3.30(file = "Data/data-raw/GOA/Pcod 2018/data2018.dat")
 
 
+
+##################################################
+# GENERAL SPECIFICATIONS
+##################################################
 # styr
 GOA2018SS$styr <- pcod_dat$styr # 1977 is the start year for cod
 #FIXME - check with other species
@@ -33,11 +38,18 @@ GOA2018SS$nages[2] <- pcod_dat$Nages
 #FIXME do not change
 
 
+##################################################
+# FISHERY DATA
+##################################################
+# Clear data
+GOA2018SS$fsh_comp <- GOA2018SS$fsh_comp[-c(1:nrow(GOA2018SS$fsh_comp)),]
+
+
 # fsh_control
 # 3 fisheries
 pcod_fsh_control <- GOA2018SS$fsh_control
 pcod_fsh_control
-pcod_fsh_control$Fishery_name <- c("Pcod_longline", "Pcod_pot", "Pcod_trawl")
+pcod_fsh_control$Fishery_name <- c("Pcod_trawl", "Pcod_longline", "Pcod_pot") # in datfile Trawl = 1, LL = 2, pot = 3
 pcod_fsh_control$Fishery_code <- c(1:3) # 1:3 fishery name
 pcod_fsh_control$Species <- rep(2, 3) # Setting 2 = cod
 pcod_fsh_control$Selectivity <- rep(3, 3) # Using double-logistic for everything
@@ -47,9 +59,80 @@ pcod_fsh_control$Comp_N_bins <- rep(20, 3)# 20 ages for age comp
 pcod_fsh_control$Catch_units <- rep(1, 3) # Catch is weight
 
 GOA2018SS$fsh_control <- pcod_fsh_control
+#---------------------------------------------
+# fsh_emp_sel
+# PCOD has none
+
+#---------------------------------------------
+# fsh_biom
+head(GOA2018SS$fsh_biom)
+
+# PCod
+pcod_dat$fleetinfo
+pcod_fsh_biom <- pcod_dat$catch
+pcod_fsh_biom <- pcod_fsh_biom[which(pcod_fsh_biom$V1 > 0),]
+
+# re-order for CEATTLE
+pcod_fsh_biom <- data.frame( Fishery_name = rep(NA, nrow(pcod_fsh_biom)),
+                             Fishery_code = as.numeric(pcod_fsh_biom$V3),
+                             Species = rep(2, nrow(pcod_fsh_biom)),
+                             Year = as.numeric(pcod_fsh_biom$V1),
+                             Month = as.numeric(pcod_fsh_biom$V2),
+                             Observation = as.numeric(pcod_fsh_biom$V4),
+                             CV = as.numeric(pcod_fsh_biom$V5))
+# Change survey name
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 1)] <- "Pcod_trawl" 
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 2)] <- "Pcod_longline" 
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 3)] <- "Pcod_pot"
+
+GOA2018SS$fsh_biom <- pcod_fsh_biom
 
 
-# srv_control
+
+#---------------------------------------------
+# fsh_comp
+
+# Pcod length comp
+# BT(4) is age, LL(5) is length
+pcod_dat$fleetinfo
+pcod_fsh_age_comp <- pcod_dat$lencomp
+pcod_fsh_age_comp <- pcod_fsh_age_comp[which(pcod_fsh_age_comp$FltSvy %in% c(1:3)),] # Get the ones the trawl(1), LL (2), pot(3)
+
+# Get info
+pcod_fsh_comp <- 
+  data.frame( Fishery_name = rep(NA, nrow(pcod_fsh_age_comp)),
+              Fishery_code = as.numeric(pcod_fsh_age_comp$FltSvy),
+              Species = rep(2, nrow(pcod_fsh_age_comp)),
+              Year = as.numeric(pcod_fsh_age_comp$Yr),
+              Month = as.numeric(pcod_fsh_age_comp$Seas),
+              Sample_size = as.numeric(pcod_fsh_age_comp$Nsamp))
+
+# Change survey name
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 1)] <- "Pcod_trawl" 
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 2)] <- "Pcod_longline" 
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 3)] <- "Pcod_pot"
+
+# get comp
+pcod_comp <- pcod_fsh_age_comp[,7:ncol(pcod_fsh_age_comp)]
+pcod_comp[] <- lapply(pcod_comp, function(x) as.numeric(as.character(x)))
+colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
+
+# combine
+pcod_fsh_comp <- cbind(pcod_fsh_comp, pcod_comp)
+GOA2018SS$fsh_comp <- rbind.fill(GOA2018SS$fsh_comp, pcod_fsh_comp)
+
+
+
+
+##################################################
+# SURVEY DATA
+##################################################
+# rearange arrays
+GOA2018SS$srv_emp_sel  <- GOA2018SS$srv_emp_sel[-c(1:nrow(GOA2018SS$srv_emp_sel)),]
+GOA2018SS$srv_comp <- GOA2018SS$srv_comp[-c(1:nrow(GOA2018SS$srv_comp)),]
+
+
+# srv_control #FltSRV 4 = BT Trawl, 5 = LL SRV
 pcod_srv_control <- GOA2018SS$srv_control
 pcod_srv_control <- pcod_srv_control[-c(2,4),]
 pcod_srv_control$Survey_name <- c("Pcod_bt_survey", "Pcod_ll_survey")
@@ -64,19 +147,123 @@ pcod_srv_control$Catch_units <- rep(2, 2) # Survey is numbers
 GOA2018SS$srv_control <- pcod_srv_control
 
 
+
+#---------------------------------------------
+# srv_emp_sel
+# PCOD has none
+
+
+
+#---------------------------------------------
+# srv_biom
+head(GOA2018SS$srv_biom)
+
+# PCod
+pcod_dat$fleetinfo
+pcod_srv_biom <- pcod_dat$CPUE
+pcod_srv_biom <- pcod_srv_biom[which(pcod_srv_biom$index %in% c(4,5)),] # Get the ones the BT and longline
+
+# re-order for CEATTLE
+pcod_srv_biom <- data.frame( Survey_name = rep(NA, nrow(pcod_srv_biom)),
+                             Survey_code = as.numeric(pcod_srv_biom$index) -3,
+                             Species = rep(2, nrow(pcod_srv_biom)),
+                             Year = pcod_srv_biom$year,
+                             Month = pcod_srv_biom$seas,
+                             Observation = pcod_srv_biom$obs,
+                             CV = pcod_srv_biom$se_log)
+# Change survey name
+pcod_srv_biom$Survey_name[which(pcod_srv_biom$Survey_code == 1)] <- "Pcod_bt_survey"
+pcod_srv_biom$Survey_name[which(pcod_srv_biom$Survey_code == 2)] <- "Pcod_ll_survey"
+
+GOA2018SS$srv_biom <- pcod_srv_biom
+
+
+#---------------------------------------------
+# srv_comp
+
+# # Pcod age comp
+# # BT(4) is age, LL(5) is length
+# pcod_dat$fleetinfo
+# pcod_srv_age_comp <- pcod_dat$agecomp
+# pcod_srv_age_comp <- pcod_srv_age_comp[which(pcod_srv_age_comp$FltSvy%in% c(4,5)),] # Get the ones the BT and longline
+# 
+# # Get info
+# pcod_srv_comp <- 
+#   data.frame( Survey_name = rep(NA, nrow(pcod_srv_age_comp)),
+#                                  Survey_code = as.numeric(pcod_srv_age_comp$FltSvy) -3,
+#                                  Species = rep(2, nrow(pcod_srv_age_comp)),
+#                                  Year = as.numeric(pcod_srv_age_comp$Yr),
+#                                  Month = as.numeric(pcod_srv_age_comp$Seas),
+#               Sample_size = as.numeric(pcod_srv_age_comp$Nsamp))
+# 
+# # Change survey name
+# pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 1)] <- "Pcod_bt_survey"
+# pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 2)] <- "Pcod_ll_survey"
+# 
+# # get comp
+# pcod_comp <- pcod_srv_age_comp[,which(colnames(pcod_srv_age_comp) %in% paste0("a", 1:100))]
+# colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
+# 
+# # combine
+# pcod_srv_comp <- cbind(pcod_srv_comp, pcod_comp)
+# GOA2018SS$srv_comp <- rbind.fill(GOA2018SS$srv_comp, pcod_srv_comp)
+
+
+
+# Pcod length comp
+# BT(4) is age, LL(5) is length
+pcod_dat$fleetinfo
+pcod_srv_age_comp <- pcod_dat$lencomp
+pcod_srv_age_comp <- pcod_srv_age_comp[which(pcod_srv_age_comp$FltSvy%in% c(4,5)),] # Get the ones the BT and longline
+
+# Get info
+pcod_srv_comp <- 
+  data.frame( Survey_name = rep(NA, nrow(pcod_srv_age_comp)),
+              Survey_code = as.numeric(pcod_srv_age_comp$FltSvy) -3,
+              Species = rep(2, nrow(pcod_srv_age_comp)),
+              Year = as.numeric(pcod_srv_age_comp$Yr),
+              Month = as.numeric(pcod_srv_age_comp$Seas),
+              Sample_size = as.numeric(pcod_srv_age_comp$Nsamp))
+
+# Change survey name
+pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 1)] <- "Pcod_bt_survey"
+pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 2)] <- "Pcod_ll_survey"
+
+# get comp
+pcod_comp <- pcod_srv_age_comp[,7:ncol(pcod_srv_age_comp)]
+pcod_comp[] <- lapply(pcod_comp, function(x) as.numeric(as.character(x)))
+colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
+
+# combine
+pcod_srv_comp <- cbind(pcod_srv_comp, pcod_comp)
+GOA2018SS$srv_comp <- rbind.fill(GOA2018SS$srv_comp, pcod_srv_comp)
+
+
+
+##################################################
+# AGE AND GROWTH
+##################################################
+# rearange arrays
+GOA2018SS$wt <- array(NA, dim = c(GOA2018SS$nyrs, max(GOA2018SS$nages), GOA2018SS$nspp) )
+GOA2018SS$Mn_LatAge <- matrix(NA, nrow = GOA2018SS$nspp, ncol = max(GOA2018SS$nages))
+GOA2018SS$pmature <- matrix(NA, nrow = GOA2018SS$nspp, ncol = max(GOA2018SS$nages))
+GOA2018SS$propF <- matrix(NA, nrow = GOA2018SS$nspp, ncol = max(GOA2018SS$nages))
+GOA2018SS$aLW <- matrix(NA, nrow = 2, ncol = GOA2018SS$nspp)
+
+#---------------------------------------------
 # age_trans_matrix 
 # FIXME ask steve about this...
 
 
+#---------------------------------------------
 # wt
-GOA2018SS$wt <- array(NA, dim = c(GOA2018SS$nyrs, max(GOA2018SS$nages), GOA2018SS$nspp) )
 # FIXME: Ask steve about empirical weight-at-age
 # using von Bert parameters and weight-at-length parameters from:
 # Barbeaux, S., Aydin, K., Fissel, B., Holsman, K., Laurel, B., and Palsson, W. 2018. Chapter 2 : Assessment of the Pacific cod stock in the Gulf of Alaska.
 # Von bertalanffy parameters from pg 23 = 
-pcod_Linf = 99.46; pcod_k = 0.1966; pcod_t0 = -0.11
+pcod_Linf = 99.46; pcod_k = 0.1966; pcod_t0 = -0.11 # Length is cm
 # Weight-at-length parameters from pg 23: 
-pcod_alpha = 5.631*10^(-6); pcod_beta = 3.1306
+pcod_alpha = 5.631*10^(-6); pcod_beta = 3.1306 # weight is kg
 pcod_ages <- 1:GOA2018SS$nages[2]
 
 # Fill in growth
@@ -85,14 +272,45 @@ for(i in 1:nrow(GOA2018SS$wt[,,2])){
 }
 
 
-# "fday" 
-#FIXME - get from K
+#---------------------------------------------
+# "aLW"  
+# Used for time-varying length-based suitability estimation
+
+# Pcod
+GOA2018SS$aLW[,2] <- c(pcod_alpha, pcod_beta)
 
 
-# "Pyrs" 
-#FIXME - get from K
+#---------------------------------------------
+# "Mn_LatAge"
+
+# Pcod
+GOA2018SS$Mn_LatAge[2,pcod_ages] <- (pcod_Linf * (1 -  exp(-pcod_k * (pcod_ages - pcod_t0))))
 
 
+#---------------------------------------------
+# "pmature" 
+
+# Pcod
+# Pcod uses a length based maturity schedule with the following parameters
+# Pcod also mature at a smaller size in the GOA
+pcod_l50 = 53.7 #cm #  pg. 24
+pcod_slope = -0.27365 # Slope of logistic eq pg. 24
+pcod_intercept = -pcod_l50 * pcod_slope # L50 = - intercept/slope
+curve(1/(1+exp(-(pcod_intercept + pcod_slope * x))), from = 0 , to = 120) # This looks off
+curve(1/(1+exp((pcod_intercept + pcod_slope * x))), from = 0 , to = 120) # This is reasonable
+
+GOA2018SS$pmature[2,pcod_ages] <- 1 / (1 + exp( pcod_intercept + pcod_slope * GOA2018SS$Mn_LatAge[2,pcod_ages]))
+
+
+#---------------------------------------------
+# "propF"  
+
+# Pcod
+GOA2018SS$propF[2,pcod_ages] <- 0.5 #FIXME, ask steve about this
+
+##################################################
+# STOMACH DATA
+##################################################
 # "Uobs"             
 #FIXME - extract from diet data
 
@@ -108,80 +326,81 @@ for(i in 1:nrow(GOA2018SS$wt[,,2])){
 # "UobsWtAge"       
 #FIXME - extract from diet data
 
+# "other_food" 
+# Don't change for now, makes little impact
 
-# "Mn_LatAge"
-GOA2018SS$Mn_LatAge <- matrix(NA, nrow = GOA2018SS$nspp, ncol = max(GOA2018SS$nages))
-GOA2018SS$Mn_LatAge[2,pcod_ages] <- (pcod_Linf * (1 -  exp(-pcod_k * (pcod_ages - pcod_t0))))
+##################################################
+# ENVIRONMENTAL
+##################################################
+# "nTyrs" 
+GOA2018SS$nTyrs <- GOA2018SS$nyrs
+#FIXME check with other species
 
 
-# "nTyrs"           
-
-
-# "Tyrs"             
-
+# "Tyrs"
+# Taking from CFSR bottom temperature
+# FIXME - talk to K
 
 # "BTempC"          
+# FIXME - talk to K
 
 
-# "other_food"       
 
-
+##################################################
+# BIOENERGETICS
+##################################################
 # "C_model"          
+# Dont change use the Wisconsin model
+GOA2018SS$C_model
 
+# "fday" 
+#FIXME - get from K
+
+# "Pyrs" 
+#FIXME - get from K
 
 # "Pvalue"           
-
+# FIXME - talk to K
 
 # "Ceq"              
-
+# Dont change use the Thornton and Lessem
 
 # "CA"               
-
+# FIXME - talk to K
 
 # "CB"              
-
+# FIXME - talk to K
 
 # "Qc"               
-
+# FIXME - talk to K
 
 # "Tco"             
-
+# FIXME - talk to K
 
 # "Tcm"              
-
+# FIXME - talk to K
 
 # "Tcl"              
-
+# FIXME - talk to K
 
 # "CK1"              
-
+# FIXME - talk to K
 
 # "CK4"
+# FIXME - talk to K
 
 
 # "S_a"              
+# Not used
 
 
-# "aLW"              
-
+##################################################
+# MORTALITY
+##################################################         
 
 # "M1_base"         
+# FIXME - talk to K
+       
 
 
-# "propF"           
 
-
-# "pmature"          
-
-
-# fsh_emp_sel
-
-# srv_emp_sel
-
-# fsh_comp
-
-# srv_comp
-
-# fsh_biom
-
-# srv_biom
