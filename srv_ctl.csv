@@ -1,0 +1,5 @@
+"","Survey_name","Survey_code","Species","Selectivity","Nselages","Comp_type","Comp_N_bins","Catch_units","Estimate_q","log_q_start"
+"1","BT_Pollock",1,1,1,NA,1,12,1,0,0
+"2","BT_Cod",2,2,1,NA,2,25,1,0,0
+"3","BT_ATF",3,3,1,NA,2,25,1,0,0
+"4","EIT_Pollock",4,1,0,NA,1,12,1,1,-6.7025
