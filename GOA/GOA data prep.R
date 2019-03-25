@@ -17,11 +17,13 @@ pcod_dat <- r4ss::SS_readdat_3.30(file = "Data/data-raw/GOA/Pcod 2018/data2018.d
 # GENERAL SPECIFICATIONS
 ##################################################
 # styr
-GOA2018SS$styr <- pcod_dat$styr # 1977 is the start year for cod
+GOA2018SS$styr[1] <- 1970 # 1961 is the start year for ATF
+GOA2018SS$styr[2] <- 1977 # 1977 is the start year for cod
+GOA2018SS$styr[3] <- 1961 # 1961 is the start year for ATF
 #FIXME - check with other species
 
 # endyr
-GOA2018SS$endyr <- pcod_dat$endyr # 2018 is the start year for cod 
+GOA2018SS$endyr <- 2018 # 2018 is the end year for cod, ATF
 #FIXME - check with other species
 
 # nspp
@@ -31,7 +33,9 @@ GOA2018SS$nspp <- 3 #FIXME add in halibut later
 GOA2018SS$nyrs <- length(GOA2018SS$styr : GOA2018SS$endyr)
 
 # Nages
-GOA2018SS$nages[2] <- pcod_dat$Nages
+GOA2018SS$nages[1] <- 10 #COD
+GOA2018SS$nages[2] <- pcod_dat$Nages #COD
+GOA2018SS$nages[3] <- 21 #ATF
 
 
 # stom_tau
@@ -44,8 +48,10 @@ GOA2018SS$nages[2] <- pcod_dat$Nages
 # Clear data
 GOA2018SS$fsh_comp <- GOA2018SS$fsh_comp[-c(1:nrow(GOA2018SS$fsh_comp)),]
 
-
+#---------------------------------------------
 # fsh_control
+
+# Pcod
 # 3 fisheries
 pcod_fsh_control <- GOA2018SS$fsh_control
 pcod_fsh_control
@@ -59,8 +65,15 @@ pcod_fsh_control$Comp_N_bins <- rep(20, 3)# 20 ages for age comp
 pcod_fsh_control$Catch_units <- rep(1, 3) # Catch is weight
 
 GOA2018SS$fsh_control <- pcod_fsh_control
+
+
+# Pollock
+pollock_fsh_control <- readxl::read_excel()
+
 #---------------------------------------------
 # fsh_emp_sel
+
+# Pollock has none
 # PCOD has none
 
 #---------------------------------------------
@@ -78,7 +91,7 @@ pcod_fsh_biom <- data.frame( Fishery_name = rep(NA, nrow(pcod_fsh_biom)),
                              Species = rep(2, nrow(pcod_fsh_biom)),
                              Year = as.numeric(pcod_fsh_biom$V1),
                              Month = as.numeric(pcod_fsh_biom$V2),
-                             Observation = as.numeric(pcod_fsh_biom$V4),
+                             Observation = as.numeric(pcod_fsh_biom$V4) * 1000, # convert tons to kg
                              CV = as.numeric(pcod_fsh_biom$V5))
 # Change survey name
 pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 1)] <- "Pcod_trawl" 
@@ -283,6 +296,11 @@ GOA2018SS$aLW[,2] <- c(pcod_alpha, pcod_beta)
 #---------------------------------------------
 # "Mn_LatAge"
 
+# Pollock
+pllock_linf = 65.2 #cm
+pollock_k <- 0.3
+GOA2018SS$Mn_LatAge[1,1:10] <- (pllock_linf * (1 -  exp(-pollock_k * (1:10))))
+
 # Pcod
 GOA2018SS$Mn_LatAge[2,pcod_ages] <- (pcod_Linf * (1 -  exp(-pcod_k * (pcod_ages - pcod_t0))))
 
@@ -300,6 +318,9 @@ curve(1/(1+exp(-(pcod_intercept + pcod_slope * x))), from = 0 , to = 120) # This
 curve(1/(1+exp((pcod_intercept + pcod_slope * x))), from = 0 , to = 120) # This is reasonable
 
 GOA2018SS$pmature[2,pcod_ages] <- 1 / (1 + exp( pcod_intercept + pcod_slope * GOA2018SS$Mn_LatAge[2,pcod_ages]))
+
+# Pollock 
+GOA2018SS$pmature[1,1:10] <- c(0.00000,	0.00043,	0.02158,	0.29393,	0.59592,	0.84358,	0.92750,	0.96872,	0.98761,	0.99314)
 
 
 #---------------------------------------------
