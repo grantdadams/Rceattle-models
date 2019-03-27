@@ -199,24 +199,24 @@ GOA2018SS$srv_biom <- pcod_srv_biom
 # pcod_dat$fleetinfo
 # pcod_srv_age_comp <- pcod_dat$agecomp
 # pcod_srv_age_comp <- pcod_srv_age_comp[which(pcod_srv_age_comp$FltSvy%in% c(4,5)),] # Get the ones the BT and longline
-# 
+#
 # # Get info
-# pcod_srv_comp <- 
+# pcod_srv_comp <-
 #   data.frame( Survey_name = rep(NA, nrow(pcod_srv_age_comp)),
 #                                  Survey_code = as.numeric(pcod_srv_age_comp$FltSvy) -3,
 #                                  Species = rep(2, nrow(pcod_srv_age_comp)),
 #                                  Year = as.numeric(pcod_srv_age_comp$Yr),
 #                                  Month = as.numeric(pcod_srv_age_comp$Seas),
 #               Sample_size = as.numeric(pcod_srv_age_comp$Nsamp))
-# 
+#
 # # Change survey name
 # pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 1)] <- "Pcod_bt_survey"
 # pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 2)] <- "Pcod_ll_survey"
-# 
+#
 # # get comp
 # pcod_comp <- pcod_srv_age_comp[,which(colnames(pcod_srv_age_comp) %in% paste0("a", 1:100))]
 # colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
-# 
+#
 # # combine
 # pcod_srv_comp <- cbind(pcod_srv_comp, pcod_comp)
 # GOA2018SS$srv_comp <- rbind.fill(GOA2018SS$srv_comp, pcod_srv_comp)
