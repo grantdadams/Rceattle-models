@@ -6,7 +6,7 @@ data(BS2017MS)
 # Run in single species mode
 ss_no_re <- Rceattle(data_list = BS2017SS,
                      inits = NULL, # Initial parameters = 0
-                     file_name = "2019 Think Tank/Models/ss_no_re", # Don't save
+                     file_name = NULL, # Don't save
                      debug = 0, # Estimate
                      random_rec = FALSE, # No random recruitment
                      msmMode = 0, # Single species mode
