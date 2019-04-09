@@ -6,8 +6,15 @@ devtools::install_github("grantdadams/Rceattle", auth_token = "4925b42ac46f1e0ae
 library(Rceattle)
 data(BS2017SS) # ?BS2017SS for more information on the data 
 
+# Write data to excel
+Rceattle::write_excel(data_list = BS2017SS, file = "BS2017SS.xlsx")
+
+# Change the data how you want in excel
+# Read the data back in
+mydata <- Rceattle::read_excel( file = "BS2017SS.xlsx")
+
 # Then the model can be fit by setting `msmMode = 0` using the `Rceattle` function:
-ss_run <- Rceattle(data_list = BS2017SS,
+ss_run <- Rceattle(data_list = mydata,
                    inits = NULL, # Initial parameters = 0
                    file_name = NULL, # Don't save
                    debug = 0, # Estimate

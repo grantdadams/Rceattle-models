@@ -87,16 +87,17 @@ pcod_fsh_biom <- pcod_fsh_biom[which(pcod_fsh_biom$V1 > 0),]
 
 # re-order for CEATTLE
 pcod_fsh_biom <- data.frame( Fishery_name = rep(NA, nrow(pcod_fsh_biom)),
-                             Fishery_code = as.numeric(pcod_fsh_biom$V3),
+                             Fishery_code = as.numeric(pcod_fsh_biom$V3) + 1,
                              Species = rep(2, nrow(pcod_fsh_biom)),
+                             Sex = rep(0, nrow(pcod_fsh_biom)),
                              Year = as.numeric(pcod_fsh_biom$V1),
                              Month = as.numeric(pcod_fsh_biom$V2),
                              Observation = as.numeric(pcod_fsh_biom$V4) * 1000, # convert tons to kg
                              CV = as.numeric(pcod_fsh_biom$V5))
 # Change survey name
-pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 1)] <- "Pcod_trawl" 
-pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 2)] <- "Pcod_longline" 
-pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 3)] <- "Pcod_pot"
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 2)] <- "Pcod_trawl" 
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 3)] <- "Pcod_longline" 
+pcod_fsh_biom$Fishery_name[which(pcod_fsh_biom$Fishery_code == 4)] <- "Pcod_pot"
 
 GOA2018SS$fsh_biom <- pcod_fsh_biom
 
@@ -114,16 +115,18 @@ pcod_fsh_age_comp <- pcod_fsh_age_comp[which(pcod_fsh_age_comp$FltSvy %in% c(1:3
 # Get info
 pcod_fsh_comp <- 
   data.frame( Fishery_name = rep(NA, nrow(pcod_fsh_age_comp)),
-              Fishery_code = as.numeric(pcod_fsh_age_comp$FltSvy),
+              Fishery_code = as.numeric(pcod_fsh_age_comp$FltSvy)+1,
               Species = rep(2, nrow(pcod_fsh_age_comp)),
+              Sex = rep(0, nrow(pcod_fsh_age_comp)),
+              Age0_Length1 = rep(1, nrow(pcod_fsh_age_comp)),
               Year = as.numeric(pcod_fsh_age_comp$Yr),
               Month = as.numeric(pcod_fsh_age_comp$Seas),
               Sample_size = as.numeric(pcod_fsh_age_comp$Nsamp))
 
 # Change survey name
-pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 1)] <- "Pcod_trawl" 
-pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 2)] <- "Pcod_longline" 
-pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 3)] <- "Pcod_pot"
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 2)] <- "Pcod_trawl" 
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 3)] <- "Pcod_longline" 
+pcod_fsh_comp$Fishery_name[which(pcod_fsh_comp$Fishery_code == 4)] <- "Pcod_pot"
 
 # get comp
 pcod_comp <- pcod_fsh_age_comp[,7:ncol(pcod_fsh_age_comp)]
