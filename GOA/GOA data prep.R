@@ -197,34 +197,34 @@ GOA2018SS$srv_biom <- pcod_srv_biom
 #---------------------------------------------
 # srv_comp
 
-# # Pcod age comp
-# # BT(4) is age, LL(5) is length
-# pcod_dat$fleetinfo
-# pcod_srv_age_comp <- pcod_dat$agecomp
-# pcod_srv_age_comp <- pcod_srv_age_comp[which(pcod_srv_age_comp$FltSvy%in% c(4,5)),] # Get the ones the BT and longline
-#
-# # Get info
-# pcod_srv_comp <-
-#   data.frame( Survey_name = rep(NA, nrow(pcod_srv_age_comp)),
-#                                  Survey_code = as.numeric(pcod_srv_age_comp$FltSvy) -3,
-#                                  Species = rep(2, nrow(pcod_srv_age_comp)),
-#                                  Year = as.numeric(pcod_srv_age_comp$Yr),
-#                                  Month = as.numeric(pcod_srv_age_comp$Seas),
-#               Sample_size = as.numeric(pcod_srv_age_comp$Nsamp))
-#
-# # Change survey name
-# pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 1)] <- "Pcod_bt_survey"
-# pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 2)] <- "Pcod_ll_survey"
-#
-# # get comp
-# pcod_comp <- pcod_srv_age_comp[,which(colnames(pcod_srv_age_comp) %in% paste0("a", 1:100))]
-# colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
-#
-# # combine
-# pcod_srv_comp <- cbind(pcod_srv_comp, pcod_comp)
-# GOA2018SS$srv_comp <- rbind.fill(GOA2018SS$srv_comp, pcod_srv_comp)
+# Pcod age comp
+# BT(4) is age, LL(5) is length
+pcod_dat$fleetinfo
+pcod_srv_age_comp <- pcod_dat$agecomp
+pcod_srv_age_comp <- pcod_srv_age_comp[which(pcod_srv_age_comp$FltSvy %in% c(-4,5)),] # Get the ones the BT and longline
 
+# Get info
+pcod_srv_comp <-
+  data.frame( Survey_name = rep(NA, nrow(pcod_srv_age_comp)),  
+                                 Survey_code = -1 * as.numeric(pcod_srv_age_comp$FltSvy) + 1,
+                                 Species = rep(2, nrow(pcod_srv_age_comp)),
+                                 Year = as.numeric(pcod_srv_age_comp$Yr),
+                                 Month = as.numeric(pcod_srv_age_comp$Seas),
+              Sample_size = as.numeric(pcod_srv_age_comp$Nsamp))
 
+# Change survey name
+pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 5)] <- "Pcod_bt_survey"
+pcod_srv_comp$Survey_name[which(pcod_srv_comp$Survey_code == 6)] <- "Pcod_ll_survey"
+
+# get comp
+pcod_comp <- pcod_srv_age_comp[,which(colnames(pcod_srv_age_comp) %in% paste0("a", 1:100))]
+colnames(pcod_comp) <- paste0("Comp_", 1:ncol(pcod_comp))
+
+# combine
+pcod_srv_comp <- cbind(pcod_srv_comp, pcod_comp)
+GOA2018SS$srv_comp <- rbind.fill(GOA2018SS$srv_comp, pcod_srv_comp)
+
+write.csv(pcod_srv_comp, file = "pcod_srv_comp.csv")
 
 # Pcod length comp
 # BT(4) is age, LL(5) is length
@@ -426,5 +426,19 @@ GOA2018SS$C_model
 # FIXME - talk to K
        
 
+# ALK
+library(r4ss)
+output <- SS_output(dir = "C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA/Pcod 2018/GOApcod_Appendix2.3/2018 GOA Pacific cod figures and Files/Model18.10.44")
+SSplotAgeMatrix(output)
 
+ALK <- output$ALK
+dim(ALK)
+alk_list <- list()
+rotate <- function(x) t(apply(x, 2, rev))
+alk_list[[1]] <- as.data.frame(rotate(ALK[,,1]))
+alk_list[[2]] <- as.data.frame(rotate(ALK[,,2]))
+alk_list[[1]] <- cbind(rownames(alk_list[[1]]), alk_list[[1]])
+alk_list[[2]] <- cbind(rownames(alk_list[[2]]), alk_list[[2]])
 
+library(writexl)
+write_xlsx(alk_list, path = "GOA/Pcod 2018/PCod_ALK.xlsx")
