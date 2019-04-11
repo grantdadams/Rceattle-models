@@ -21,8 +21,15 @@ ss_run <- Rceattle::fit_mod(data_list = mydata,
                             silent = TRUE)
 ss_run$quantities$jnll_comp
 
-check_dat <- cbind( mydata$srv_comp[which(mydata$srv_comp$Survey_code > 4), 1:8], ss_run$quantities$srv_comp_hat[which(mydata$srv_comp$Survey_code > 4),])
 
+ss_run <- Rceattle::fit_mod(data_list = mydata,
+                            inits = NULL, # Initial parameters = 0
+                            file = NULL, # Don't save
+                            debug = 0, # Estimate
+                            random_rec = FALSE, # No random recruitment
+                            msmMode = 0, # Single species mode
+                            silent = TRUE)
+ss_run$identified$param_list
 
 # Type ?fit_mod for more details
 
