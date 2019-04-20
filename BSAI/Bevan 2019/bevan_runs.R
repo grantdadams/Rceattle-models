@@ -25,11 +25,11 @@ ss_run <- Rceattle::fit_mod(data_list = BS2017SS,
 file_name <- c("BSAI/Bevan 2019/Figures/ss_runs")
 
 library(oce)
-line_cols <- oceColorsViridis(4)
+line_cols <- oceColorsViridis(3)
 
 # The you can plot the model results using using
-plot_biomass(Rceattle =  ss_run, model_names = "SS no F", file = file_name, incl_proj = TRUE, lwd = 4, line_col = line_cols[1])
-plot_recruitment(Rceattle =  ss_run)
+plot_biomass(Rceattle =  ss_run, model_names = "Single-species no fishing", file = file_name, incl_proj = TRUE, lwd = 5, line_col = line_cols[1])
+plot_recruitment(Rceattle =  ss_run, incl_proj = T)
 
 
 # For the a multispecies model starting from the single species parameters, the following can be specified to load the data:
@@ -49,11 +49,11 @@ ms_run <- Rceattle::fit_mod(data_list = BS2017MS,
 
 # We can plot both runs as well:
 mod_list <- list(ss_run, ms_run)
-mod_names <- c("SS no F", "MS no F")
+mod_names <- c("Single-species no fishing", "Multi-species no fishing")
 
 file_name <- c("BSAI/Bevan 2019/Figures/ms_runs_no_proj")
 # Plot biomass trajectory
-plot_biomass(Rceattle = mod_list, model_names = mod_names, file = file_name, incl_proj = TRUE, lwd = 4, line_col = line_cols[1:2])
+plot_biomass(Rceattle = mod_list, model_names = mod_names, file = file_name, incl_proj = TRUE, lwd = 5, line_col = line_cols[1:2])
 
 
 ################################################
@@ -82,7 +82,7 @@ ms_run_proj <- Rceattle::fit_mod(data_list = BS2017MS,
 # plot
 file_name <- c("BSAI/Bevan 2019/Figures/ms_runs")
 mod_list <- list(ss_run, ms_run, ms_run_proj)
-mod_names <- c("SS no F", "MS no F", "MS mean historical F")
+mod_names <- c("Single-species no fishing", "Multi-species no fishing", "Multi-species mean historical fishing rate")
 
 # Plot biomass trajectory
-plot_biomass(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE, file = file_name, lwd = 4, line_col = line_cols[1:3])
+plot_biomass(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE, file = file_name, lwd = 5, line_col = line_cols[1:3])
