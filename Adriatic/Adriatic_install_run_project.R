@@ -28,7 +28,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v3.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v4.xlsx")
 
 
 ################################################
@@ -41,7 +41,7 @@ inits$ln_mn_rec <- c(9,9,9)
 ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = inits, # Initial parameters = 0
                             file = NULL, # Don't save
-                            debug = 0, # Do not estimate. Set to zero to estimate.
+                            debug = 0, # Estimate. Set to 1 to not estimate.
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
                             silent = TRUE)
@@ -51,6 +51,12 @@ ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
 species_names <- c("Hake", "Sardine", "Anchovy")
 plot_biomass(Rceattle =  ss_run, species = species_names)
 plot_recruitment(Rceattle =  ss_run, species = species_names)
+
+# Plot diagnostics
+plot_catch(Rceattle =  ss_run)
+plot_index(Rceattle =  ss_run)
+plot_srv_comp(Rceattle =  ss_run)
+plot_fsh_comp(Rceattle =  ss_run)
 
 
 # For the a multispecies model starting from the single species parameters, the following can be specified to load the data:
@@ -139,4 +145,4 @@ mod_names <- c("SS", "MS no F", "MS mean historical F", "MS mean historical F w 
 
 # Plot biomass trajectory
 plot_biomass(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
-plot_recruitment(Rceattle = mod_list, model_names = mod_names, add_ci = TRUE, incl_proj = TRUE)
+plot_recruitment(Rceattle = mod_list, model_names = mod_names, add_ci = TRUE, incl_proj = TRUE, species = species_names)
