@@ -34,9 +34,6 @@ adriatic_data <- Rceattle::read_excel(file = "Adriatic_v5.xlsx")
 ################################################
 # Estimation
 ################################################
-inits <- build_params(adriatic_data)
-inits$ln_mn_rec <- c(9,9,9)
-
 # Then the model can be fit by setting `msmMode = 0` using the `Rceattle` function:
 ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = inits, # Initial parameters = 0
