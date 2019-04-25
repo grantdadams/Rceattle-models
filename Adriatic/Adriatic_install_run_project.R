@@ -28,7 +28,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v4.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v5.xlsx")
 
 
 ################################################
@@ -44,7 +44,8 @@ ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             debug = 0, # Estimate. Set to 1 to not estimate.
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
-                            silent = TRUE)
+                            silent = TRUE,
+                            recompile = TRUE)
 # Type ?fit_mod for more details
 
 # The you can plot the model results using using  
