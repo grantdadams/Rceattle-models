@@ -5,10 +5,14 @@
 
 # Install devtools if you don't already have it
 install.packages("devtools")
-# Install TMB and rtools
+# On Windows install the Rtools matching your R-version.Install rtools (https://cran.r-project.org/bin/windows/Rtools/).
+# Install TMB 
 # Instructions can be found here for non-pc: https://github.com/kaskr/adcomp/wiki/Download
 install.packages('TMB', type = 'source')
 # Try "TMB::runExample(all = TRUE)" to see if TMB works
+# Most common errors are related to package versioning or installation failure
+# Please make sure that the r session is restarted
+# installing the packages "glue" and "Rcpp" may have to be done independently
 
 # Install Rceattle
 devtools::install_github("grantdadams/Rceattle", auth_token = "4925b42ac46f1e0aefd671e9dc0c1cf1b3157017")
@@ -35,7 +39,6 @@ adriatic_data <- Rceattle::read_excel(file = "Adriatic_v8.xlsx")
 # Estimation
 ################################################
 inits <- build_params(adriatic_data)
-inits$ln_mn_rec <- c(9,9,9)
 
 # Then the model can be fit by setting `msmMode = 0` using the `Rceattle` function:
 ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
@@ -44,7 +47,8 @@ ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             debug = 0, # Estimate. Set to 1 to not estimate.
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
-                            silent = TRUE)
+                            silent = TRUE,
+                            recompile = TRUE)
 # Type ?fit_mod for more details
 
 # The you can plot the model results using using  
