@@ -28,7 +28,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v4.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v8.xlsx")
 
 
 ################################################
@@ -66,12 +66,12 @@ data("BS2017MS") # Note: the only difference is the residual mortality is lower
 ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = ss_run$estimated_params, # Initial parameters from single species ests
                             file = NULL, # Don't save
-                            debug = 1, # Do not estimate. Set to zero to estimate.
-                            niter = 10, # 10 iterations around population and predation dynamics
+                            debug = 0, # Do not estimate. Set to zero to estimate.
+                            niter = 4, # 10 iterations around population and predation dynamics
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # MSVPA based
                             suitMode = 0, # empirical suitability
-                            silent = TRUE)
+                            silent = FALSE)
 
 # We can plot both runs as well:
 mod_list <- list(ss_run, ms_run)
