@@ -12,7 +12,7 @@ install.packages('TMB', type = 'source')
 # Try "TMB::runExample(all = TRUE)" to see if TMB works
 # Most common errors are related to package versioning or installation failure
 # Please make sure that the r session is restarted
-# For example, installing the packages "glue" and "Rcpp" may have to be done independently
+# installing the packages "glue" and "Rcpp" may have to be done independently
 
 # Install Rceattle
 devtools::install_github("grantdadams/Rceattle", auth_token = "4925b42ac46f1e0aefd671e9dc0c1cf1b3157017")
@@ -32,7 +32,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v8.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v5.xlsx")
 
 
 ################################################
@@ -70,8 +70,8 @@ data("BS2017MS") # Note: the only difference is the residual mortality is lower
 ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = ss_run$estimated_params, # Initial parameters from single species ests
                             file = NULL, # Don't save
-                            debug = 0, # Do not estimate. Set to zero to estimate.
-                            niter = 3, # 10 iterations around population and predation dynamics
+                            debug = 1, # Do not estimate. Set to zero to estimate.
+                            niter = 10, # 10 iterations around population and predation dynamics
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # MSVPA based
                             suitMode = 0, # empirical suitability
@@ -107,7 +107,7 @@ ms_run_proj <- Rceattle::fit_mod(data_list = adriatic_data,
                                  inits = ms_run$estimated_params, # Initial parameters from single species ests
                                  file = NULL, # Don't save
                                  debug = TRUE, # Do not estimate. Not changing parameters right now
-                                 niter = 3, # 10 iterations around population and predation dynamics
+                                 niter = 10, # 10 iterations around population and predation dynamics
                                  random_rec = FALSE, # No random recruitment
                                  msmMode = 1, # MSVPA based
                                  suitMode = 0, # empirical suitability
@@ -136,7 +136,7 @@ ms_run_proj2 <- Rceattle::fit_mod(data_list = adriatic_data,
                                   inits = ms_run$estimated_params, # Initial parameters from single species ests
                                   file = NULL, # Don't save
                                   debug = TRUE, # Do not estimate. Not changing parameters right now
-                                  niter = 3, # 10 iterations around population and predation dynamics
+                                  niter = 10, # 10 iterations around population and predation dynamics
                                   random_rec = FALSE, # No random recruitment
                                   msmMode = 1, # MSVPA based
                                   suitMode = 0, # empirical suitability
@@ -150,4 +150,3 @@ mod_names <- c("SS", "MS no F", "MS mean historical F", "MS mean historical F w 
 # Plot biomass trajectory
 plot_biomass(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
 plot_recruitment(Rceattle = mod_list, model_names = mod_names, add_ci = TRUE, incl_proj = TRUE, species = species_names)
-
