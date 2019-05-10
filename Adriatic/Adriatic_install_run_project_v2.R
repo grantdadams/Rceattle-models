@@ -32,7 +32,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v8.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v9.xlsx")
 
 
 ################################################
@@ -71,7 +71,7 @@ ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = ss_run$estimated_params, # Initial parameters from single species ests
                             file = NULL, # Don't save
                             debug = 0, # Do not estimate. Set to zero to estimate.
-                            niter = 3, # 10 iterations around population and predation dynamics
+                            niter = 5, # 10 iterations around population and predation dynamics
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # MSVPA based
                             suitMode = 0, # empirical suitability

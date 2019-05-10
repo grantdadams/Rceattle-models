@@ -12,7 +12,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v8_age5_hake.xlsx")
+adriatic_data <- Rceattle::read_excel(file = "Adriatic_v10.xlsx")
 
 
 ################################################
@@ -39,7 +39,7 @@ ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # Single species mode
                             silent = TRUE,
-                            niter = 10)
+                            niter = 6)
 # Type ?fit_mod for more details
 
 

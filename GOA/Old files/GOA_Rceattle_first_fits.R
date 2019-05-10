@@ -4,7 +4,7 @@ library(Rceattle)
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_excel( file = "GOA2017SS_v3_from_1977_v2.xlsx")
+mydata <- Rceattle::read_excel( file = "GOA2017SS_v3_from_1977_v2_no_pot.xlsx")
 
 
 ################################################
@@ -12,7 +12,6 @@ mydata <- Rceattle::read_excel( file = "GOA2017SS_v3_from_1977_v2.xlsx")
 ################################################
 inits <- build_params(mydata)
 inits$ln_mn_rec <- c(4,4,4)
-inits$ln_mean_F <- c(-0.8, -0.8, -0.8, -1.5, -2)
 
 
 ss_run <- Rceattle::fit_mod(data_list = mydata,
