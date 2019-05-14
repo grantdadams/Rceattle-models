@@ -1,0 +1,1023 @@
+---
+institute: Alaska Fisheries Science Center, National Marine Fisheries Service, NOAA,
+  7600 Sand Point Way N.E., Bld. 4, Seattle, Washington 98115
+output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document:
+    df_print: kable
+    fig_caption: yes
+    theme: flatly
+  header-includes:
+  - \usepackage{inputenc}
+  - \usepackage{unicode-math}
+  - \pagenumbering{gobble}
+
+  word_document:
+    fig_caption: yes
+    fig_width: 4
+    keep_md: yes
+---
+
+---
+```{r echo=FALSE, results='hide',fig.show = 'hide'}
+  
+  #library(captioner)
+  # library(captioner)
+  # table_nums <- captioner(prefix = "Table")
+  # table_nums(name = "placeholder", caption = "Placeholder")
+#  - \usepackage{amsmath}
+  # - \usepackage{caption}
+  # - \usepackage{float}
+
+  # <!-- \captionsetup[table]{labelformat=empty} -->
+  # <!-- \captionsetup[figure]{labelformat=empty} -->
+  # 
+  # 
+  # 
+  # 
+  # <!-- You can find placeholder table in `r table_nums(name = "placeholder",  display = "cite")` -->
+    rm(list=ls())
+    current_yr<-2017  # use this to get vals for the table for current_yr+1 and current_yr +2
+  	filenm<-"assmnt_2017"
+  	modelnm<-"assmnt_2017"
+  
+  	DIR_main<-"~/GitHub/CEATTLE"
+  	doc<-file.path(DIR_main,"docs/2017_MSMassmnt")
+  	#main<-file.path(DIR_main,"runs")
+  	main<-(file.path(doc,"data/runs"))
+  	setwd(doc)
+  	fl_0<-file.path(main,paste0(filenm,"_0"))
+  	fl_2<-file.path(main,paste0(filenm,"_2"))
+    load(file.path(fl_2,"R_figures/plotdata.Rdata"))
+  #load("~/GitHub/CEATTLE/runs/assmnt_2017_0/projections/F40_info.Rdata")
+  #load("~/GitHub/CEATTLE/runs/assmnt_2017_2/projections/B0_target.Rdata")  # defunct?
+  #load("~/GitHub/CEATTLE/runs/assmnt_2017_2/projections/ABC1.Rdata")  # Load ABC data
+
+  load(file.path(fl_0,"B0_list.Rdata")) # loads B0_list
+  #load(file.path(fl_0,"BatF40.Rdata"))  # loads BatF40 summary with all the vals needed for the table
+  load(file=file.path(fl_2,"/maxABC.Rdata"))
+   load(file=file.path(fl_2,"/FABC1.Rdata"))
+   load(file=file.path(fl_2,"/FABC2.Rdata"))
+   #load(file="~/GitHub/CEATTLE/runs/assmnt_2017_2/assmntStuff.Rdata")
+      	
+  
+  
+  if(1==10){
+     
+      plot_M2(coll=c(colors()[330],"black"),ltyy=c(2,1))
+      quartz.save(file="Fig1.jpg",type="jpg",dpi=500, width=4,height=6)
+      plot_propM()
+      quartz.save(file="Fig2.jpg",type="jpg",dpi=500, width=6,height=4)
+       plot_eaten3(units=1e9)
+  	  quartz.save(file="Fig3.jpg",type="jpg",dpi=500, width=4,height=6)
+  }
+  s<-1;tt1<-c(mean= mean(ceattle_2$M2_1[,s]),
+	  sd=sd(ceattle_2$M2_1[,s]),
+	  lower= mean(ceattle_2$M2_1[,s])-1.95*(sd(ceattle_2$M2_1[,s])),
+	  upper= mean(ceattle_2$M2_1[,s])+1.95*(sd(ceattle_2$M2_1[,s])),
+	  se=sd(ceattle_2$M2_1[,s])/sqrt(length(ceattle_2$M2_1[,s])),
+	  se.lower= mean(ceattle_2$M2_1[,s])-1.95*(sd(ceattle_2$M2_1[,s])/sqrt(length(ceattle_2$M2_1[,s]))),
+	  se.upper= mean(ceattle_2$M2_1[,s])+1.95*(sd(ceattle_2$M2_1[,s])/sqrt(length(ceattle_2$M2_1[,s]))))
+  s<-1;tt2<-c(mean= mean(ceattle_2$M2_2[,s]),
+  	sd=sd(ceattle_2$M2_2[,s]),
+  	lower= mean(ceattle_2$M2_2[,s])-1.95*(sd(ceattle_2$M2_2[,s])),
+  	upper= mean(ceattle_2$M2_2[,s])+1.95*(sd(ceattle_2$M2_2[,s])),
+  	se=sd(ceattle_2$M2_2[,s])/sqrt(length(ceattle_2$M2_2[,s])),
+  	se.lower= mean(ceattle_2$M2_2[,s])-1.95*(sd(ceattle_2$M2_2[,s])/sqrt(length(ceattle_2$M2_2[,s]))),
+  	se.upper= mean(ceattle_2$M2_2[,s])+1.95*(sd(ceattle_2$M2_2[,s])/sqrt(length(ceattle_2$M2_2[,s]))))
+  
+  s<-1;tt3<-c(mean= mean(ceattle_2$M2_3[,s]),
+  	sd=sd(ceattle_2$M2_3[,s]),
+  	lower= mean(ceattle_2$M2_3[,s])-1.95*(sd(ceattle_2$M2_3[,s])),
+  	upper= mean(ceattle_2$M2_3[,s])+1.95*(sd(ceattle_2$M2_3[,s])),
+  	se=sd(ceattle_2$M2_3[,s])/sqrt(length(ceattle_2$M2_3[,s])),
+  	se.lower= mean(ceattle_2$M2_3[,s])-1.95*(sd(ceattle_2$M2_3[,s])/sqrt(length(ceattle_2$M2_3[,s]))),
+  	se.upper= mean(ceattle_2$M2_3[,s])+1.95*(sd(ceattle_2$M2_3[,s])/sqrt(length(ceattle_2$M2_3[,s]))))
+  
+  table1<-data.frame(rbind(plk=tt1,pcod=tt2,atf=tt3))  # table of mean mortality
+  #tmpp<-plot_propM()
+  allM2<-(M2_est_1[[1]][,1])+(M2_est_1[[2]][,1])+(M2_est_1[[3]][,1])
+  mnpropM<-matrix(0,3,3)
+        mnpropM[1,1]<-mean((M2_est_1[[1]][,1])/allM2)
+  			mnpropM[1,2]<-mean((M2_est_1[[2]][,1])/allM2)
+  			mnpropM[1,3]<-mean((M2_est_1[[3]][,1])/allM2)
+  			tmpp<-mnpropM
+  			
+    nyrs<-length(ceattle_0$M2_1[,1])  			
+    mort_table<-list()
+    #;colnames(mort_table)<-c("SSM","MSM");rownames(mort_table)<-c("plk","pcod","atf")
+      mort_table[[1]]<-c(rev(ceattle_0$M2_1[,1]+ceattle_0$M1_1[1,1])[1],
+                         rev(ceattle_2$M2_1[,1]+ceattle_2$M1_1[1,1])[1])
+      mort_table[[2]]<-c(rev(ceattle_0$M2_2[,1]+ceattle_0$M1_2[1,1])[1],
+                         rev(ceattle_2$M2_2[,1]+ceattle_2$M1_2[1,1])[1])
+      mort_table[[3]]<-c(rev(ceattle_0$M2_3[,1]+ceattle_0$M1_3[1,1])[1],
+                         rev(ceattle_2$M2_3[,1]+ceattle_2$M1_3[1,1])[1])
+      mort_table_3pls<-list()
+          mort_table_3pls[[1]]<-c(mean(apply(ceattle_0$M2_1[,-(1:2)],2,mean)+ceattle_0$M1_1[1,-(1:2)]),
+                                  mean(apply(ceattle_2$M2_1[,-(1:2)],2,mean)+ceattle_2$M1_1[1,-(1:2)]))
+          mort_table_3pls[[2]]<-c(mean(apply(ceattle_0$M2_2[,-(1:2)],2,mean)+ceattle_0$M1_2[1,-(1:2)]),
+                                  mean(apply(ceattle_2$M2_2[,-(1:2)],2,mean)+ceattle_2$M1_2[1,-(1:2)]))
+          mort_table_3pls[[3]]<-c(mean(apply(ceattle_0$M2_3[,-(1:2)],2,mean)+ceattle_0$M1_3[1,-(1:2)]),
+                                  mean(apply(ceattle_2$M2_3[,-(1:2)],2,mean)+ceattle_2$M1_3[1,-(1:2)]))
+
+    #|2016 total (age 3+) biomass (t)       | 1.46468e+07| 15043940.000| 1313105.000| 1308296.000| 517976.000| 513575.000|
+      Bio_3pls<-list()
+      # Bio_3pls[[1]]<-c(sum(ceattle_0$biomassByage_1[nyrs,-(1:2)]),
+      #                  sum(ceattle_2$biomassByage_1[nyrs,-(1:2)]))
+      # Bio_3pls[[2]]<-c(sum(ceattle_0$biomassByage_2[nyrs,-(1:2)]),
+      #                  sum(ceattle_2$biomassByage_2[nyrs,-(1:2)]))
+      # Bio_3pls[[3]]<-c(sum(ceattle_0$biomassByage_3[nyrs,-(1:2)]),
+      #                  sum(ceattle_2$biomassByage_3[nyrs,-(1:2)]))
+      # nages<-c(ceattle_0$nages_1,ceattle_0$nages_2,ceattle_0$nages_3)
+      
+     Bio_3pls[[1]]<-c(sum( (ceattle_0$N_1[nyrs+1,]*  ceattle_0$wt_1[nyrs,][1:nages[1]])[-(1:2)] ),
+                      sum( (ceattle_2$N_1[nyrs+1,]*  ceattle_2$wt_1[nyrs,][1:nages[1]])[-(1:2)] ))
+    Bio_3pls[[2]]<-c(sum( (ceattle_0$N_2[nyrs+1,]*  ceattle_0$wt_2[nyrs,][1:nages[2]])[-(1:2)] ),
+                      sum( (ceattle_2$N_2[nyrs+1,]*  ceattle_2$wt_2[nyrs,][1:nages[2]])[-(1:2)] ))
+    Bio_3pls[[3]]<-c(sum( (ceattle_0$N_3[nyrs+1,]*  ceattle_0$wt_3[nyrs,][1:nages[3]])[-(1:2)] ),
+                      sum( (ceattle_2$N_3[nyrs+1,]*  ceattle_2$wt_3[nyrs,][1:nages[3]])[-(1:2)] ))
+    #|2016 SSB (female spawning biomass; t) | 5.41804e+06|  5570280.000|  241631.000|  239867.000| 375576.000| 372533.000|
+      SSB<-list()
+      # SSB[[1]]<-c(rev(ceattle_0$BiomassSSB_1[1,])[1],
+      #             rev(ceattle_2$BiomassSSB_1[1,])[1])
+      # 
+      # SSB[[2]]<-c(rev(ceattle_0$BiomassSSB_2[1,])[1],
+      #             rev(ceattle_2$BiomassSSB_2[1,])[1])
+      # 
+      # SSB[[3]]<-c(rev(ceattle_0$BiomassSSB_3[1,])[1],
+      #             rev(ceattle_2$BiomassSSB_3[1,])[1])
+  #load(file.path(fl_0,"projections",paste0(modelnm,"_setB0_0_1_14/results/proj.Rdata"))); m_0_1_14<-proj ; rm(proj) # loads the proj data file
+    #load(file.path(fl_2,"projections",paste0(modelnm,"_setB0_2_1_14/results/proj.Rdata"))); m_2_1_14<-proj ; rm(proj)
+     load(file.path(fl_0,"projections",paste0(modelnm,"_0_1_3/results/proj.Rdata"))); m_0_1_3<-proj ; rm(proj) # loads the proj data file
+    load(file.path(fl_2,"projections",paste0(modelnm,"_2_1_3/results/proj.Rdata"))); m_2_1_3<-proj ; rm(proj)
+        
+      yy<-which(m_0_1_3$ts$years==current_yr+1)
+      SSB[[1]]<-c(m_0_1_3$ts$SSB[yy][4,],
+                  m_2_1_3$ts$SSB[yy][4,])
+      SSB[[2]]<-c(m_0_1_3$ts$SSB[yy][5,],
+                  m_2_1_3$ts$SSB[yy][5,])
+      SSB[[3]]<-c(m_0_1_3$ts$SSB[yy][6,],
+                  m_2_1_3$ts$SSB[yy][6,])
+
+      getsub<-function(tt=F40_1_3[[2]][[1]],scn=1,ftyr=nyrs_fut,cr="1.9",sp=1){
+        rr<-which(tt$species%in%sp&tt$Scenario%in%scn&tt$future_year%in%ftyr&tt$Control_rule%in%cr)
+        return(tt[rr,])
+      }
+
+    mk_row<-function(cnm="targetSSB0",dat=B0_list,rr=1:3,roundn=0){
+      ssm<-dat[[1]][rr,cnm]
+      msm<-dat[[2]][rr,cnm]
+      return ( paste0(formatC(  round(as.vector(rbind(ssm,msm)),roundn)  , 
+                                format="d", big.mark=","),collapse="|"))
+    }
+   
+    #load(file.path(fl_0,"projections",paste0(modelnm,"_setB0_0_5_14/results/proj.Rdata"))); m_0_5_14<-proj ; rm(proj) # loads the proj data file
+    #load(file.path(fl_2,"projections",paste0(modelnm,"_setB0_2_5_14/results/proj.Rdata"))); m_2_5_14<-proj ; rm(proj)
+    
+   yrs<-as.numeric(names(m_0_1_3$ts$catch))
+   maxABCrow_1<-paste0( formatC(round(as.vector(rbind(
+                           m_0_1_3$ts$catch[,which(yrs==current_yr+1)][4:6],
+                           m_2_1_3$ts$catch[,which(yrs==current_yr+1)][4:6]))), 
+                           format="d", big.mark=","),collapse="|")
+   maxABCrow_2<-paste0( formatC(round(as.vector(rbind(
+                           m_0_1_3$ts$catch[,which(yrs==current_yr+2)][4:6],
+                           m_2_1_3$ts$catch[,which(yrs==current_yr+2)][4:6]))), 
+                           format="d", big.mark=","),collapse="|")
+   # ABCrow_1<-paste0( formatC(round(as.vector(rbind(
+   #                         m_0_1_14$ts$catch[,which(yrs==current_yr+1)][4:6],
+   #                         m_2_1_14$ts$catch[,which(yrs==current_yr+1)][4:6]))), 
+   #                         format="d", big.mark=","),collapse="|")
+   # ABCrow_2<-paste0( formatC(round(as.vector(rbind(
+   #                         m_0_1_14$ts$catch[,which(yrs==current_yr+2)][4:6],
+   #                         m_2_1_14$ts$catch[,which(yrs==current_yr+2)][4:6]))), 
+   #                         format="d", big.mark=","),collapse="|")
+   
+   mod<-ceattle_0
+     tmptab<-rbind(
+        fsh_sel_like=as.numeric(unlist(mod[grep("fsh_sel_like",names(mod))])),
+        fsh_age_like=as.numeric(unlist(mod[grep("fsh_age_like",names(mod))])),
+        fsh_cat_like=as.numeric(unlist(mod[grep("fsh_cat_like",names(mod))])),
+        srv_sel_like=as.numeric(unlist(mod[grep("srv_sel_like",names(mod))])),
+        srv_age_like=as.numeric(unlist(mod[grep("srv_age_like",names(mod))])),
+        srv_bio_like=as.numeric(unlist(mod[grep("srv_bio_like",names(mod))]))        )
+     colnames(tmptab)<-paste0("sp",1:3)
+      loglike0<-data.frame(t(tmptab));rownames(loglike0)<-paste0("sp",1:3)
+    mod<-ceattle_2
+     tmptab<-rbind(
+        fsh_sel_like=as.numeric(unlist(mod[grep("fsh_sel_like",names(mod))])),
+        fsh_age_like=as.numeric(unlist(mod[grep("fsh_age_like",names(mod))])),
+        fsh_cat_like=as.numeric(unlist(mod[grep("fsh_cat_like",names(mod))])),
+        srv_sel_like=as.numeric(unlist(mod[grep("srv_sel_like",names(mod))])),
+        srv_age_like=as.numeric(unlist(mod[grep("srv_age_like",names(mod))])),
+        srv_bio_like=as.numeric(unlist(mod[grep("srv_bio_like",names(mod))]))        )
+     loglike2<-data.frame(t(tmptab));rownames(loglike2)<-paste0("sp",1:3)
+     #eit_age_like+eit_srv_like
+       
+        
+      ## calculate correlation of survey biomass
+      mod<-ceattle_0
+    cor_table_0<-data.frame(rbind(
+      srvyB=c(
+        cor( as.numeric(mod["srv_bio_1"][[1]]),as.numeric(mod["srv_bio_hat_1"][[1]]) ),
+        cor( as.numeric(mod["srv_bio_2"][[1]]),as.numeric(mod["srv_bio_hat_2"][[1]]) ),
+        cor( as.numeric(mod["srv_bio_3"][[1]]),as.numeric(mod["srv_bio_hat_3"][[1]]) )),
+      srvyA=c(
+        cor( as.numeric(mod["srv_age_obs_1"][[1]]),as.numeric(mod["srv_age_hat_1"][[1]]) ),
+        cor( as.numeric(mod["srv_age_obs_2"][[1]]),as.numeric(mod["srv_age_hat_2"][[1]]) ),
+        cor( as.numeric(mod["srv_age_obs_3"][[1]]),as.numeric(mod["srv_age_hat_3"][[1]]) )),
+      Cnum=c(
+        cor( as.numeric(mod["tc_biom_obs_1"][[1]]),as.numeric(mod["obs_catch_hat_1"][[1]]) ),
+        cor( as.numeric(mod["tc_biom_obs_2"][[1]]),as.numeric(mod["obs_catch_hat_2"][[1]]) ),
+        cor( as.numeric(mod["tc_biom_obs_3"][[1]]),as.numeric(mod["obs_catch_hat_3"][[1]]) )) ))
+      mod<-ceattle_2
+    cor_table_2<-data.frame(rbind(
+      srvyB=c(
+        cor( as.numeric(mod["srv_bio_1"][[1]]),as.numeric(mod["srv_bio_hat_1"][[1]]) ),
+        cor( as.numeric(mod["srv_bio_2"][[1]]),as.numeric(mod["srv_bio_hat_2"][[1]]) ),
+        cor( as.numeric(mod["srv_bio_3"][[1]]),as.numeric(mod["srv_bio_hat_3"][[1]]) )),
+      srvyA=c(
+        cor( as.numeric(mod["srv_age_obs_1"][[1]]),as.numeric(mod["srv_age_hat_1"][[1]]) ),
+        cor( as.numeric(mod["srv_age_obs_2"][[1]]),as.numeric(mod["srv_age_hat_2"][[1]]) ),
+        cor( as.numeric(mod["srv_age_obs_3"][[1]]),as.numeric(mod["srv_age_hat_3"][[1]]) )),
+      Cnum=c(
+        cor( as.numeric(mod["tc_biom_obs_1"][[1]]),as.numeric(mod["obs_catch_hat_1"][[1]]) ),
+        cor( as.numeric(mod["tc_biom_obs_2"][[1]]),as.numeric(mod["obs_catch_hat_2"][[1]]) ),
+        cor( as.numeric(mod["tc_biom_obs_3"][[1]]),as.numeric(mod["obs_catch_hat_3"][[1]]) )) ))
+    
+    
+    
+      # fshA=cbind(
+      #   cor( (mod["fsh_age_obs_1"][[1]]),(mod["fsh_age_hat_1"][[1]]) ),
+      #   cor( (mod["fsh_age_obs_2"][[1]]),(mod["fsh_age_hat_2"][[1]]) ),
+      #   cor( (mod["fsh_age_obs_3"][[1]]),(mod["fsh_age_hat_3"][[1]]) )),
+      # srvy=cbind(
+      #   cor( as.numeric(mod["tc_biom_obs_1"][[1]]),as.numeric(mod["tc_biom_hat_1"][[1]]) ),
+      #   cor( as.numeric(mod["tc_biom_obs_2"][[1]]),as.numeric(mod["tc_biom_hat_2"][[1]]) ),
+      #   cor( as.numeric(mod["tc_biom_obs_3"][[1]]),as.numeric(mod["tc_biom_hat_3"][[1]]) )))
+      # 
+    # $obs_eit, eit_hat
+    #   
+    #     fsh_age_hat_3
+    #    tc_obs_3, tc_hat_3
+    #    tc_biom_obs_3
+    #    tc_biom_hat_3
+       grep("tc_biom",names(ceattle_2))
+       
+       # calculate ABC for 2018
+       s<-1
+       getC<-function(s,m=2,y=nyrs,max=F){
+          eval(parse(text=paste0("mod<-ceattle_",m) ))
+          if(max){
+              if(m==0)  F2018<-B0_list[[1]]$F40_pls1[s]
+              if(m==2)  F2018<-B0_list[[2]]$F40_pls1[s]
+          }else{
+               if(m==0)  F2018<-B0_list[[1]]$Fabc[s]
+               if(m==2)  F2018<-B0_list[[2]]$Fabc[s]           
+          }
+          
+           eval(parse(text=paste0( "Fage<-(mod$fsh_sel_",s,"[1,1:nages[",s,"]]*F2018)" ) ))
+            eval(parse(text=paste0( "M<-mod$M1_",s,"[1,1:nages[",s,"]]+mod$M2_",s,"[nyrs,1:nages[",s,"]]")))
+            eval(parse(text=paste0( "N2018<-(mod$AvgN_",s,"[",y,",1:nages[",s,"]]*(1-exp(-(M+Fage))))")))
+           eval(parse(text=paste0( "C2018<-sum((Fage/(M+Fage))*mod$wt_",s,"[",y,",1:nages[",s,"]]*N2018)")))
+          return(list(C=C2018,N=N2018,Fage=Fage,M=M,F=F2018))
+       }
+      
+       C2018<-paste0(formatC(round(c(
+         getC(s=1,m=0,max=F)$C,
+         getC(s=1,m=2,max=F)$C,
+         getC(s=2,m=0,max=F)$C,
+         getC(s=2,m=2,max=F)$C,
+         getC(s=3,m=0,max=F)$C,
+         getC(s=3,m=2,max=F)$C)), format="d", big.mark=","),collapse="|")
+       maxC2018<-paste0(formatC(round(c(
+         getC(s=1,m=0,max=T)$C,
+         getC(s=1,m=2,max=T)$C,
+         getC(s=2,m=0,max=T)$C,
+         getC(s=2,m=2,max=T)$C,
+         getC(s=3,m=0,max=T)$C,
+         getC(s=3,m=2,max=T)$C)), format="d", big.mark=","),collapse="|")
+       
+       # get mean F:
+       mnF3<-matrix(0,nyrs,2);colnames(mnF3)<-c("ssm","msm");rownames<-years
+       mnF1<-mnF2<-mnF3<-mnF3
+       for(i in 1:nyrs){
+         mnF1[i,1]<-(ceattle_0$F_1[i,]/ceattle_0$fsh_sel_1[1,])[1]
+         mnF1[i,2]<-(ceattle_2$F_1[i,]/ceattle_2$fsh_sel_1[1,])[1]
+         
+         mnF2[i,1]<-(ceattle_0$F_2[i,]/ceattle_0$fsh_sel_2[1,])[1]
+         mnF2[i,2]<-(ceattle_2$F_2[i,]/ceattle_2$fsh_sel_2[1,])[1]
+         
+         mnF3[i,1]<-(ceattle_0$F_3[i,]/ceattle_0$fsh_sel_3[1,])[1]
+         mnF3[i,2]<-(ceattle_2$F_3[i,]/ceattle_2$fsh_sel_3[1,])[1]
+       }
+       
+       temp<-data.frame(read.csv("/Users/kholsman/GitHub/CEATTLE/docs/2017_MSMassmnt/data/EBS_BT.csv"))
+       BT<-temp[,2]; BT_yr<-temp[,1]
+        oldD<-c(4.10105,2.516943,3.676969,2.2501,2.8018,2.3213,2.3817,1.8734,
+                3.176,2.2496,2.8416,2.331,2.6126,1.9293,2.9354,1.5245,1.6686,
+                3.361,2.6293,3.1681,0.9527,2.0855,2.5022,3.1109,3.6863,3.2467,
+                3.3043,1.7913,1.7062,1.2461,1.5379,1.5781,2.4104,0.9576,1.7741,
+                2.9928,3.3022,4.5,2.6)
+      romsD<-c(4.10105,2.899531,3.224109,1.924708,2.681245,1.365911,1.188078,
+               1.304252,2.747148,1.598101,2.551962,1.962929,1.830883,0.9680234,
+               2.945677,1.759007,1.101053,2.596248,1.946634,3.210328,0.8406364,
+               2.269684,2.39882,2.61226,3.632114,3.206721,3.320268,2.131563,
+               1.474108,1.285678,1.379501,0.9129241,1.662642,0.6849821)
+      romsSST<-c(8.383647,8.005092,9.220455,6.665765,9.753227,8.994972,5.443338,
+                 5.715056,6.97778,7.579359,7.969646,8.654622,7.307674,6.591507,
+                 8.520948,6.32929,7.244779,7.896445,10.32064,8.049729,4.941675,
+                 8.368113,7.193832,8.621339,8.495763,9.101472,8.729188,6.937627,
+                 6.469272,4.978557,5.810558,5.303474,5.565965,4.146672,4.146672,
+                 4.146672,4.146672,4.146672,7.023004368)
+      yrsD<-1979:2017
+       newT<-rep(0,length(yrsD))
+       newT[which(yrsD%in%BT_yr)]<-BT
+       newT[which(yrsD%in%BT_yr==FALSE)]<-romsD[1:3]
+       
+       
+       SST<-temp[,3]
+       newSST<-rep(0,length(yrsD))
+       newSST[which(yrsD%in%BT_yr)]<-SST
+       newSST[which(yrsD%in%BT_yr==FALSE)]<-romsSST[1:3]
+       
+       mn<-mean(temp[-(35:38),2]);sd<-sd(temp[-(37:38),2]); se<-sd/length(temp[-(37:38),2])  # 1982-2015 mean
+       coll<-rep("gray",length(temp[-(37:38),2]))
+       wrm<-which(temp[-(37:38),2]>=(mn+1*sd));cld<-which(temp[-(37:38),2]<=(mn-1*sd))
+       coll[wrm]<-colors()[35] ;coll[cld]<-colors()[124]
+       
+       plotTemp<-function(w=6,h=4){
+         #dev.new(width=w,height=h)    
+         plot(BT_yr,BT,type="b",axes=FALSE,xlim=c(1979,2018),
+                  ylim=c(0,5),ylab="Bottom Temperature oC",xlab="Year")
+             points(yrsD,newT,pch="*",type="b",cex=1.5)
+             points(BT_yr,BT,pch=16,col=coll)
+             
+             axis(1);axis(2,las=2)
+             axis(1,at=c(1900,2100));axis(2,at=c(-100,100))
+              abline(h=mn,lty=1);abline(h=mn+1.95*sd,lty=2);abline(h=mn-1.95*sd,lty=2)
+              m<-lm(BT~ny, data=data.frame(ny=yrsD,BT=newT))
+               ms<-lm(BT~ny, data=data.frame(ny=BT_yr,BT=BT))
+               #abline(a=coef(ms)[1],b=coef(ms)[2])
+          
+       }
+       promMtbl<-plot_propM()
+        #dev.new(width=w,height=h)   
+       #plotTemp()
+       #quartz.save("/Users/kholsman/GitHub/CEATTLE/docs/2017_MSMassmnt/Figs/temp.jpg",dpi=300)
+       #,message=FALSE,include=FALSE
+       
+       
+      	tier3<-function(Fin,Bratio,alpha=0.05){
+          maxFabc<-Bratio*0 
+          if(any(Bratio>1)) maxFabc[Bratio>1]<-Fin[Bratio>1]
+          if(any(alpha<Bratio&Bratio<=1))
+              maxFabc[alpha<Bratio&Bratio<=1]<-Fin[alpha<Bratio&Bratio<=1]*
+                      ((Bratio[alpha<Bratio&Bratio<=1]-alpha)/(1-alpha))
+          if(any(Bratio<alpha)) maxFabc[Bratio<alpha]<-0
+          return(maxFabc)
+        }
+      Bratio1<-c(m_0_1_3$ts$SSB[1,nyrs]/B0_list$setBfvals[1,1],
+                 m_0_1_3$ts$SSB[2,nyrs]/B0_list$setBfvals[2,1],
+                 m_0_1_3$ts$SSB[3,nyrs]/B0_list$setBfvals[3,1])
+      
+      Bratio2<-c(m_2_1_3$ts$SSB[1,nyrs]/B0_list$setBfvals[1,2],
+                 m_2_1_3$ts$SSB[2,nyrs]/B0_list$setBfvals[2,2],
+                 m_2_1_3$ts$SSB[3,nyrs]/B0_list$setBfvals[3,2])
+      
+     B0_list$SSBny<-rbind(
+              c(m_0_1_3$ts$SSB[1,nyrs],
+                 m_0_1_3$ts$SSB[2,nyrs],
+                 m_0_1_3$ts$SSB[3,nyrs]),
+              c(m_2_1_3$ts$SSB[1,nyrs],
+                 m_2_1_3$ts$SSB[2,nyrs],
+                 m_2_1_3$ts$SSB[3,nyrs]))
+     B0_list$Ftarget<-cbind(B0_list[[1]]$F40_pls1[1:3],B0_list[[2]]$F40_pls1[1:3])
+      B0_list$FABC<-FABC1
+      B0_list$Ftier3<-rbind(
+        tier3(
+              Fin=FABC1[1,],
+              Bratio=	Bratio1),
+        tier3(
+              Fin=FABC1[2,],
+              Bratio=	Bratio2))
+        
+        save.image("assessment.Rdata")
+        
+        table2row<-function(tabl=B0_list$efctv_B2100ratio,nr=3,comma=FALSE){
+          tmpc<-as.numeric(c(tabl[1,],tabl[2,],tabl[3,]))
+         if(comma){
+            paste0(formatC(round(tmpc,nr), format="d", big.mark=","), collapse ="| ")
+          }else{
+            paste0(round(tmpc,nr), collapse ="| ")
+          }
+          
+        }
+   
+    
+```
+# 2017 Multi-species Stock Assessment for walleye pollock, Pacific cod, and arrowtooth flounder in the Eastern Bering Sea  
+### Kirstin K. Holsman, James N. Ianelli, Kerim Aydin  
+
+#### kirstin.holsman@noaa.gov 
+
+*November 2017*   
+
+Alaska Fisheries Science Center, 
+National Marine Fisheries Service, NOAA,  
+7600 Sand Point Way N.E.,
+Seattle, Washington 98115
+  
+*******
+
+## Executive Summary  
+
+This is a three species stock assessment for walleye pollock (_Gadus chalcogrammus_), Pacific cod (_Gadus macrocephalus_) and arrowtooth flounder (_Atheresthes stomias_), from the Eastern Bering Sea (EBS), Alaska updated from Holsman et al.(2016). Results are presented from models estimated and projected without trophic interactions (single-species mode, SSM) and with trophic interactions (multi-species mode, MSM). The main features and settings for this multispecies model include:
+
+* Predation natural mortality is age specific and annually varying (M2). Residual (non-predation) natural mortality (M1) is age specific but not-annually varying and differs slightly from current assessments for each species (see Table 3 below).
+* Predator overlap index is set to 1 for all species (i.e., all prey are available to all predators).
+* A Ricker stock recruitment curve is fit internally to recruitment estimates without environmental covariates.
+* Weights at age for pollock are based on values from the 2017 SAFE report; for Pacific cod and arrowtooth, they are calculated outside of the model using a temperature-dependent von Bertalanffy for 1979-2012 and assume 2012 weight at ages for 2013-2017. For projections, all three species use temperature-specfic weights at age using the temperature-dependent von Bertalanffy for 1979-2012.
+* Acoustic trawl survey selectivity was set equal to the SAFE report model estimates.
+* Fisheries selectivity and survey selectivity are age specific but constant over time.
+* Predator-prey suitability is age-specific but constant over time.
+* Arrowtooth flounder stock is treated as sexes combined (weight at age is calculated separately for males and females and combined using a mortality-based mean).
+* Maturity schedules are based on 2012 assessments and differ slightly from SAFE assessments.
+
+### Key updates from the 2016 assessment:
+* Survey biomass and age composition from the NMFS bottom trawl survey and fishery observer database was updated through 2017. Acoustic trawl survey estimates were update to 2017 for pollock. Bottom temperature from the survey was updated through 2017.
+* Pacific cod residual natural mortality ($\mathrm{M1}_{ij}$ was set to 0.47 to match the current Pacific cod assessment).
+* Projections to derive ABC include a sequential method for determining universal B0, and include the constraint that $\mathrm{SSB}_F>0.35\mathrm{SSB}_0$ for all years in the projection.
+
+
+### Key updates from the original Holsman et al. 2016 paper include: 
+
+* For single species mode, the residual mortality matches that of current single species assessment models for pollock, Pacific cod, and arrowtooth flounder. The multi-species mode uses the same residual mortality vectors except for the ages 1 and 2 mortality rates for pollock, which were adjusted downward to 0.01 and 0.30, respectively.
+* A universal $B_0$ approach for estimating ABC for single- and multi-species modes.
+* Pacific cod fishery composition data is based on lengths rather than model estimates of catch at age.
+* Bottom temperature is based on average survey bottom temperatures (observed) for the Bering Sea and are updated through 2015.
+* Only one harvest control rule is presented here; find the harvest rate that results in spawning biomass at 40% of unfished biomass (for all three species simultaneously) given that $\mathrm{SSB}_F>0.35\mathrm{SSB}_0$ for all years in the projection.
+
+### Summary of assessment results for 2017:
+
+Results from model runs show that pollock total and spawning biomass remains relatively high and similar to the past 4 years; there is a slight increase in estimates of 2017 spawning biomass for pollock. Pacific cod total biomass remains relatively high, but may be declining relative to 2015 and 2016, driven in part by low survey indices in 2017 which declined `r round(1-(ceattle_2$srv_bio_2[1,36]/ceattle_2$srv_bio_2[1,35]),2)*100` % from 2016 values. Total biomass of Pacific cod in the model declined `r round((1-ceattle_2$Biomass_2[1,39]/ceattle_2$Biomass_2[1,38]),2)*100` % between 2016 and 2017; female spawning biomass continues to increase moderately but steadily after a low in 2008. Arrowtooth total and spawning biomass estimates suggest continued declines after a peak in 2008.
+
+Pollock recruitment is down in 2017 for the third year in a row and is lower than estimates for the past ten years (i.e., since 2006). Pacific cod recruitment has also been low for three years, and the 2017 estimate of age 1 recruitment (2016 year class) is at the lowest estimated point in the 39 year timeseries. Estimates of Arrowtooth flounder recruitment are below average.
+
+For ABC estimates the model was projected through the year 2104 (to attain relative equilibrium). This allowed estimating a proxy for B40% using the approach of Holsman et al. (2016) and Moffitt et al. (2016) where the model is projected under no fishing (simultaneously for pollock and Pacific cod, then for arrowtooth), and then projected under fishing to iteratively solve for the harvest rate that results in and average of 40% of unfished biomass in the last 5 years of the projection (2098-2103), with the constraint that spawning biomass under fishing is always greater than 35% unfished biomass during the projection years. 
+
+This method for estimating ABC resulted in a harvest rate that corresponds to about `r round(B0_list$efctv_B2100ratio,2)[1,1]*100 `% $B_0$ for pollock, `r round(B0_list$efctv_B2100ratio,2)[2,1]*100 `% for Pacific cod, and `r round(B0_list$efctv_B2100ratio,2)[3,1]*100 `% for arrowtooth flounder for single species models, and about `r round(B0_list$efctv_B2100ratio,2)[1,2]*100 `%,  `r round(B0_list$efctv_B2100ratio,2)[2,2]*100 `%, and `r round(B0_list$efctv_B2100ratio,2)[3,2]*100 `% for pollock, Pacific cod, and arrowtooth flounder using the multispecies model.
+
+
+
+\pagebreak  
+
+
+#### As estimated or recommended this year (2017) for:
+
+| Quantity                                |        Walleye pollock| |        Pacific cod|   |     Arrowtooth flounder| |
+|:--------------------------------------------|-----------:|------------:|-----------:|-----------:|----------:|----------:|
+|                                      |         SSM|          MSM|         SSM|         MSM|        SSM|        MSM|
+||||||||
+|2017 M (age 1)                    |`r paste0(round( unlist(mort_table),3),collapse ="| ")`|
+|2017 Average 3+ M                 |`r paste0(round( unlist(mort_table_3pls),3), collapse ="| ")`|
+|Projected (age 3+) $B_{2018}$ (t)         |`r paste0(formatC(round( unlist(Bio_3pls),0), format="d", big.mark=","),collapse ="| ")`|
+|Projected $SSB_{2018}$(t)                      |`r paste0(formatC(round( unlist(SSB),0), format="d", big.mark=","),collapse ="| ")`|
+|*Projected $SSB_{0,target}$(t)    |`r  table2row(tabl=B0_list$setB0vals,comma=T,nr=0)`|
+|*Projected $SSB_{target}$(t)        |`r  table2row(tabl=B0_list$setBfvals,comma=T,nr=0)`|
+|**Target 2100 $B/B_0$ |`r  table2row(tabl=B0_list$efctv_B2100ratio,comma=F,nr=3)`|
+| $F_{target}$                      |`r  table2row(tabl=B0_list$Ftarget,comma=F,nr=3)`|
+| $F_{ABC,2018}$                   |`r  table2row(tabl=t(B0_list$FABC),comma=F,nr=3)`|
+|$\mathrm{ABC}_{target}$|`r maxABCrow_1`|
+| $\mathrm{ABC}$                            |`r  table2row(tabl=t(maxABC),comma=T,nr=0)`|  
+> _* SSB is based on the projected SSB at 2100 (equilibrium)_  
+> _** Target biomass ratios at year 2100 are based on Fmsy proxy of $B/B_0$=0.4, given the constraint that $B/B_0 >$ 0.35 for every projection year._  
+
+#### As estimated or recommended in 2016 for:
+
+|                                      |        Walleye pollock| |        Pacific cod|   |     Arrowtooth flounder| |
+|:-------------------------------|-----------:|------------:|-----------:|-----------:|----------:|----------:|
+|                                      |         SSM|          MSM|         SSM|         MSM|        SSM|        MSM|
+||||||||
+|2016 M (natural mortality age 1)      |       0.900|	       1.790|	      0.340|	     0.960|	     0.269|	     0.825|
+|2016 Average 3+ M (across ages)       |       0.300|	      0.315	|       0.340|	     0.340|	     0.226|	     0.228|
+|2016 total (age 3+) biomass (t)       |  14,646,800| 	15,039,635| 	1,313,105| 	 1,308,217| 	 517,976| 	 513,564|
+|2016 SSB (female spawning biomass; t) |   5,418,040| 	 5,568,810| 	  241,631|	   239,855| 	 375,576| 	 372,527|
+|*Projected $SSB_0$ (t)                   |  5,332,960| 	 3,961,210| 435,039| 	 415,105| 	 482,457| 	 447,489|
+|*Projected $SSB_{40\%}$ (t)|	 2,135,160| 	 1,584,430| 	 174,503| 	 166,030| 	 192,974| 	 178,986| 
+|**Projected $SSB_{mMSY}$|	 3,016,420| 	 3,665,360| 	 160,413| 	 153,413| 	 3,858| 	 7,902| 
+|$ABC_{2100}$ (t)|	 2,364,920| 	 2,425,890| 	 172,224| 	 174,966| 	 30,941| 	 33,190| 
+|**$mMSY_{2100}$ (t)|	 2,075,700| 	 2,749,000| 	 172,208| 	 176,166| 	 1,658| 	 3,529| 
+|$F_{40\%}$	|0.772|	1.353|	0.334|	0.359|	0.106|	0.121|
+|$F_{mMSY}$|	0.385|	0.443|	0.367|	0.396|	0.279|	0.287|  
+> _* SSB is based on the projected SSB at 2100 (equilibrium)_  
+> _** mMSY is aggregate multi-species yield_
+
+### Response to SSC and Plan Team comments
+#### General comments:
+#### Comments specific the Multi-species stock assessment model (CEATTLE)
+
+***
+
+>_SSC: CEATTLE (Climate-Enhanced, Age-based model with Temperature-specific Trophic Linkages and Energetics, Holsman et al.): Ongoing work on a multispecies, age-structured population work is presented in a supplement to the SAFE. It is being developed as a strategic approach to examine trophic linkages and environmental drivers among walleye pollock, Pacific cod, and arrowtooth flounder. It is not meant as an operational replacement for the main single-species models for these stocks, but rather to help explain some of the mechanisms driving the results from the single-species models. Results from CEATTLE agree reasonably well with single-species models and offer additional insights into stock dynamics. For example, the predicted high predation mortality on pollock of the 2015 year class is noteworthy, which is presumably a combination of changes in abundance of the three species and temperature effects on consumption/metabolism. The SSC encourages further work on model development in CEATTLE, including the addition of other species (Pacific halibut, fur seals, Steller sea lions) and investigating its potential use in management strategy evaluation _
+
+>We appreciate the Council's support for the CEATTLE model and are continuing to develop methods to incorporate Pacific halibut and Northern fur seals into the model. The model is also a core method being used in the Alaska Climate Change Integrated Modeling project (ACLIM) to evaluate management strategy performance under future climate conditions. Initial results from that project were presented to the Council and AP in October 2017.  
+<!-- *** -->
+
+<!-- >_comment _ -->
+
+<!-- >response -->
+
+<!-- *** -->
+
+\pagebreak
+
+## Introduction
+### MSCAA models for evaluating annually varying M
+
+Multi-species statistical catch-at-age models (MSCAA) are an example of a class of multi-species ‘Models with Intermediate Complexity for Ecosystem assessments’ (i.e., MICE; Plagányi et al., 2014), which have particular utility in addressing both strategic and tactical EBFM questions (Hollowed et al. 2013; Fogarty 2014; Link and Browman 2014; Plagányi et al., 2014). MSCAA models may increase forecast accuracy, may be used to evaluate propagating effects of observation and process error on biomass estimates (e.g., Curti 2013; Ianelli et al., 2016), and can quantify climate and trophic interactions on species productivity. As such MSCAA models can address long recognized limitations of prevailing single species management, notably non-stationarity in mortality and biological reference points, and may help reduce risk of overharvest (Link 2010; Plagányi et al., 2014; Fogarty 2014). Because multispecies biological reference points (MBRPs) from MSCAA model are conditioned on the abundance of other species in the model (Collie and Gislason 2001; Plagányi et al., 2014; Fogarty 2014), they may also have utility in setting harvest limits for multi-species fleets, evaluating population dynamics in marine reserves or non-fishing areas, and quantifying trade-offs that emerge among fisheries that impact multiple species in a food web (see reviews in Pikitch et al., 2004; Link 2010; Levin et al., 2013; Link and Browman 2014; Fogarty 2014). 
+
+Depending on their structure, MSCAA models can be used to evaluate climate- and fisheries-driven changes to trophodynamic processes, recruitment, and species abundance (Plagányi et al., 2014). MSCAA models differ somewhat among systems and species, but most use abundance and diet data to estimate fishing mortality, recruitment, stock size, and predation mortality simultaneously for multiple species in a statistical framework. Similar to age structured single species stock assessment models widely used to set harvest limits, MSCAA models are based on a population dynamics model, the parameters of which are estimated using survey and fishery data and maximum likelihood methods (e.g., Jurado-Molina et al., 2005; Kinzey and Punt, 2009; Van Kirk et al., 2010; Kempf 2010; Curti et al., 2013; Tsehaye et al., 2014). Unlike most single-species models (but see Hollowed et al. 2000b; Spencer et al. 2016), MSCAA models additionally separate natural mortality into residual and annually varying predation mortality, and model the latter as a series of predator-prey functional responses. Thus, natural mortality rates for each species in MSCAA models depend on the abundance of predators in a given year and vary annually with changes in recruitment and harvest of each species in the model.
+
+MSCAA models have specific utility in quantifying direct and indirect effects of fisheries harvest on species abundance and size distributions (see reviews in Hollowed et al., 2000a, 2013; Link 2010; Fogarty 2014; Link and Browman 2014; Plagányi et al., 2014), which is important for EBFM and trade-off analyses of various management strategies. Rapidly shifting climate conditions are also of growing concern in fisheries management as changes in physical processes are known to influence individual growth, survival, and reproductive success of fish and shellfish (Hanson et al., 1997; Kitchell et al., 1977; Morita et al., 2010; Hollowed et al., 2013, Cheung et al., 2015). Climate-driven changes in water temperature can directly impact metabolic costs, prey consumption, and somatic or gonadal tissue growth, with attendant indirect effects on survival, production, and sustainable harvest rates (e.g., Hanson et al., 1997; Morita et al., 2010, Cheung et al., 2015). Temperature-dependent predation, foraging, metabolic, and growth rates are common in more complex spatially-explicit food web or whole of ecosystem models such as GADGET (e.g., Howell and Bogstad 2010; Taylor et al., 2007), Atlantis (e.g., Fulton et al., 2011; Kaplan et al., 2012; 2013), and FEAST (Ortiz et al., 2016). Temperature functions for growth and predation can also be incorporated into MSCAA models, allowing this class of models to be used to evaluate interacting climate, trophodynamic, and fishery influences on recommended fishing mortality rates.
+
+Numerous studies point to the importance of using multi-species models for EBFM (see review in Link 2010). Multi-species production models produced different estimates of abundances and harvest rates than single species models for Northeast US marine ecosystems (Gamble and Link, 2009; Tyrrell et al., 2011), and MSY of commercial groundfish stocks estimated from aggregated production models are different than the sum of MSY estimates from single-species assessments (Mueter and Megrey, 2006; Gaichas et al., 2012; Smith et al., 2015). Multi-species models have been used to demonstrate long-term increases in yield of Icelandic stocks of Atlantic cod (Gadus morhua) and reductions in capelin (Mallotus villosus) and Northern shrimp (Pandalus borealis) catch associated with short-term decreases in cod harvest (Danielsson et al., 1997). Kaplan et al. (2013) demonstrated the disproportionately large ecosystem impacts of applying the same Fx% (e.g., Fx%, or the harvest rate that reduces spawning stock biomass to x% of unfished spawning stock biomass, SSB0; Caddy and Mahon, 1995; Collie and Gislason, 2001) harvest control rule approach to forage fish as is used for groundfish in the northeast Pacific, and trophodynamics in a southern Benguela ecosystem resulted in higher carrying capacity for small pelagic species under fishing (versus no-fishing) scenarios (Smith et al., 2015).
+
+Since natural mortality and recruitment rates in a MSCAA model are conditioned on harvest rates of predators in the model, an ongoing area of research is evaluating MSCAA model analogs to single-species biological reference points (see Moffitt et al., 2016), such as harvest rates that correspond to maximum yield (FMSY) or proxies thereof (e.g., Fx%). Other multi-species models have been used to derive and evaluate MBRPs, although these have largely focused on MSY (e.g., Kaplan et al., 2013; Smith et al., 2015). A notable exception is Collie and Gislason (2001), who evaluated a variety of MBRPs using a multi-species, virtual population analysis and found MBRPs to be sensitive to variation in natural mortality (much less so to variability in growth), and as such proposed that fishing mortality reference levels for prey species with high mortality be conditioned on the level of predation mortality. Building on this approach, Moffitt et al. (2016) recently demonstrated a projection approach for using multi-species models to derive a variety of MBRPs for EBFM. This provides a basis for the application of MSCAA models for increased use in tactical and strategic EBFM decision-making across a diversity of management frameworks worldwide. 
+
+### MSCAA for EBM in Alaska
+
+The eastern Bering Sea (Alaska), is defined by large, climate-driven changes to trophodynamics and species productivity that can vary on annual and multi-annual timescales (see reviews in Aydin and Mueter 2007; Hunt et al., 2011; Stabeno et al., 2012; Baker et al., 2014). Accordingly, fisheries management in Alaska has a long history of using ecosystem information and multi-species models for strategic management advice (e.g., multi-species model-based indices, such as mean trophic level, are regularly reported in the annual Ecosystem Considerations chapter of Alaska Stock Assessment and Fishery Evaluation (SAFE) reports; see review in Livingston et al., 2011). Development of multiple MSCAA models in the region (Jurado-Molina et al., 2005; Kinzey and Punt , 2009; Van Kirk, 2010) has advanced regional EBFM, facilitating use of estimates from MSCAA models in single-species models used for tactical decisions in the region. For instance, Dorn et al. (2014) recently evaluated predation mortality estimates from a regional MSCAA model developed by Van Kirk (2010) to inform natural mortality for the Gulf of Alaska walleye pollock (_Gadus chalcogrammus_, hereafter “pollock”) stock assessment.
+
+MSCAA models may be most useful for species that exhibit strong trophic interactions (predator and prey species) or contrasting management or biological constraints that require simultaneous evaluation (Link 2010). In the eastern Bering Sea, pollock support one of the largest fisheries worldwide, with over 1.2 million metric tons (t) harvested per year (representing ~99% of the annual quota; Ianelli et al., 2014). Pollock are both predators (adults) and prey (i.e., ages <2; Dunn and Matarese, 1987; Nishiyama et al., 1986) for a variety of species including cannibalistic conspecifics (e.g., Boldt et al., 2012). Variable climate conditions, particularly the spatial extent of winter sea ice, the timing of sea ice spring melt, and subsequent summer bottom temperatures, can differentially promote survival of pollock and their predators and/or modulate predator and prey overlap in the region (e.g., Baily 1989; Zador et al., 2011; Boldt et. al 2012; Hunsicker et al. 2013; Baker and Hollowed 2014). Diet analyses suggest Pacific cod (_Gadus macrocephalus_), cannibalistic conspecifics, and arrowtooth flounder (_Atheresthes stomias_), amongst others, are important predators of pollock populations in the eastern Bering Sea (Livingston 1993; Aydin and Mueter 2007; Mueter et al., 2007). 
+
+### Multispecies model
+
+Here we present a three species MSCAA model for the Bering Sea (hereafter CEATTLE, for Climate-Enhanced, Age-based model with Temperature-specific Trophic Linkages and Energetics) that includes temperature-dependent von Bertalanffy weight-at-age functions (VBGF; von Bertalanffy, 1938) and temperature-specific, bioenergetics-based predation interactions. CEATTLE, is an example of an “environmentally-enhanced” stock assessment model (sensu Link 2010), where temperature-specific algorithms predict size-at-age and predation mortality. CEATTLE is programmed in AD model builder (Fournier et al., 2012), and builds on earlier models that combine catch-at-age assessment models with multi-species virtual population analysis (MSVPA) in a statistical framework (i.e., Jurado-Molina et al., 2005). Abundance and biomass of each cohort is modeled using standard population dynamics equations, accounting for a plus age group (Table 1, Eqs. 1, 2). The initial age-structure is assumed to correspond to unfished equilibrium, and the numbers of each species $i$ at age $j$ in year 1 ($N_{0,ij}$) are treated as estimable parameters (Eq.1 ), such that:
+
+Eq. 1 $$N_{ij,1} = \begin{array}{lrl}
+R_{0,i}e^{\left(-j~\mathrm{M1}_{ij}\right)}N_{0,ij} & y=1 &~~~~~~~~ 1< j<A_i \\ 
+R_{0,i}e^{\left(-j~\mathrm{M1}_{i,A_i}\right)}N_{0,i,A_i}/ \left(1-e^{\left(-\mathrm{M1}_{i,A_i}\right)}\right) & y=1 &~~~~~~~~ j\geq A_i 
+\end{array}$$
+
+The number of each species $i$, age $a$ each year $y$ is then:
+
+Eq. 2 $$\begin{array}{lrl}
+N_{i,j+1,y+1}=N_{i,j,y}e^{-Z_{ij,y}}  &~~~~~~~~  1\leq y \leq n_y &~~~~~~~~ 1\leq j< A_i-1 \\  
+N_{i,A_i,y+1}=N_{i,A_i-1,y}e^{-Z_{i,A_i-1,y}}+N_{i,A_i,y}e^{-Z_{i,A_i,y}}  &~~~~~~~~ 1\leq y \leq n_y &~~~~~~~~ j\geq A_i 
+\end{array}$$ 
+
+Total mortality of each prey species $i$, age $j$ (or predator species $p$ age $a$) in each year $y$ is the sum of mortality due to predators in the model ($\mathrm{M2}_{ij,y}$), fishing mortality ($\mathrm{F}_{ij,y}$), and residual mortality ($\mathrm{M1}_{ij}$), Eq. T1.6). Predation mortality (Eq. T2.1) is based on the assumption that the annual age-specific ration of a predator is allocated to prey species of a given age according to predator selectivity (Table 2, Eq. T.2.2). Predator selectivity is based on the suitability function derived by Jurado-Molina et al. (2005) and fit to available data from 1981-2015, while annual ration is a function of temperature-specific allometric relationships between ration and fish weight based on bioenergetics models for each species (Eqs. T2.4 and T2.5; see Holsman et al. 2016, and Holsman and Aydin, 2015 for more detail).
+
+The length-to-weight relationships, predator size and species diet preference, bioenergetics-based, temperature-specific predator rations, and maturity are based on previous studies (Tables 1 and 2; Table 5; Holsman et al. Holsman and Aydin, 2015, Holsman et al. 2016). Size-specific diet compositions for each species were assumed known based on diet data collected during the AFSC bottom trawl survey (i.e., diet data are not included in the objective function) and trophic patterns in survey and fishery-based diet data were used to calculate mean (across years and stations) predator-prey suitability (Eq. T2.2). 
+
+```{r fig1,fig.width=5,fig.height=4,echo=FALSE,message=FALSE,include=TRUE,fig.cap="Mean summer bottom temperature for the Eastern Bering Sea ($^o$C); blue and red represent temperatures below or above (respectively) 1 standard deviation of the 1979-2015 mean; dashed lines represent 95% confidence intervals; $*$ represent survey replicated temperature estimates from the Bering 10K regional ocean model."}
+    plotTemp(w=6,h=4)
+```
+
+### Temperature specific weight at age
+Water temperature is known to directly impact growth through influencing metabolic and digestion rates, which often scale exponentially with body weight and temperature (see Hanson et al., 1997 for an overview). Thus we modified the generalized formulation of the von Bertalanffy growth function (VBGF; von Bertalanffy 1938; Pauly 1981; Temming 1994) to predict temperature-dependent growth by allowing the allometric scaling parameter d to increase with temperature. Essington et al. (2010) and Holsman and Aydin (2015), and Holsman et al. (2016) describe the derivation and application of the VBGF towards bioenergetics modeling in great detail, so we do not repeat it here. Essentially, in this formulation $d$ represents the realized allometric slope of consumption, which integrates both the direct effect of temperature on consumption and indirect ecological interactions that scale with temperature and influence relative foraging rates (see Essington et al., 2010; Holsman and Aydin, 2015). We fit the VBGF to otolith-based length- and weight-at-age data ($n$ = 21388, 14362, and 772, for pollock, Pacific cod, and arrowtooth flounder, respectively) collected during AFSC Bering Sea surveys and analyzed at the AFSC such that:
+
+Eq. 2           $~~~~~~W_{ij,y}=W_{\infty,iy} (1-e^{(-K_i (1-d_{i,y} )(j-t_{0,i} )) } )^{1/(1-d_{i,y} )} e^\varepsilon$, where $\varepsilon~N(0,σ_{d, i}^2 )$
+
+
+where $t_{0,i}$ is the age at which $W_{ij,y} = 0$, $W_{\infty,iy}$ is the asymptotic mass which can vary by species $i$ and year $y$ (i.e., $W_{\infty,iy}=(H_i/K_i)^{1⁄(1-d_{i,y}) }$), $H_i$ is the assimilation constant $K_i$ is the energy loss constant (Essington et al., 2010), and $\varepsilon$ is a normally and independently distributed random variable with mean 0 and variance $\sigma_{d, i}^2$. Essington et al. (2010) and Holsman and Aydin, (2015) statistically estimated the $d$, $K$ and $H$ parameters for various species to estimate consumption rates. In particular, Holsman and Aydin (2015) found that the $d$ parameter varied between species and regions in Alaska (USA). We further modified this approach to estimate $d$ annually for each year $y$ in the dataset, as a linear function of temperature $T_y$ such that: 
+
+Eq. 3             $~~~~~~d_{i,y}=e^{(\alpha_{d,i,y}+\alpha0_{d,i}+\beta_{d,i}T_y) }$
+
+where $\alpha0_{d,i}$ and $\alpha_{d,i,y}$ represent the mean $d$ intercept and $\beta_{d,i}$ is the coefficient for the residual effect of temperature on the $d$ consumption parameter.  We chose this formulation based on the empirical relationship between temperature and consumption, assuming that $d$ would capture the differential effects of temperature on growth, and that waste rates scale proportionally with weight but do not vary over time with diet or temperature (i.e. $K$ is constant but $d$ can vary with temperature). This formulation allows both the slope and asymptotic limit of growth to vary with temperature. Similar approaches, with slightly different modifications to the VBGF, including temperature and prey specific terms for $d$ and $K$, respectively, have been used elsewhere to evaluate climate impacts on fish growth (e.g., Cheung et al., 2015; Hamre, 2003).  
+
+\pagebreak
+
+**Table 1. 	Population dynamics equations for species $i$ and age $j$ in each simulation year $y$. BT indicates the AFSC bottom trawl survey and EIT represents the echo-integrated acoustic-trawl survey. For all other parameter definitions see Table 3.**
+
+| Definition                       |        Equation|||
+|:------------------|:--------------------------------------------|---------------:|-----:|
+|Recruitment| $N_{i,1,y}=R_{i,y}=R_{0,i}e^{\tau_{i,y}}$|      $\tau_{i,y}$ ~ $N(0,\sigma^2)$|T1.1|
+|Catch (numbers)|$C_{ij,y}=\frac{F_{ij,y}}{Z_{ij,y}}\left(1-e^{-Z_{ij,y}}\right)N_{ij,y}$||T1.2|
+|Total yield (kg)|$Y_{i,y}=\sum_j^{A_i}\left(\frac{F_{ij,y}}{Z_{ij,y}}\left(1-e^{-Z_{ij,y}}\right)N_{ij,y}W_{ij,y}\right)$||T1.3|
+|Biomass at age (kg)|$B_{ij,y}=N_{ij,y}W_{ij,y}$||T1.4|
+|Spawning biomass at age (kg)|$SSB_{ij,y}=B_{ij,y}\rho_{ij}$||T1.5|
+|Total mortality at age|$Z_{ij,y}=\mathrm{M1}_{ij}+\mathrm{M2}_{ij}+F_{ij}$||T1.6|
+|Total mortality at age|$F_{ij,y}=F_{0,i}e^{\epsilon_{i,y}S^f_{ij} }$|$\epsilon_{i,y}\sim N\left(0,\sigma^2_{\mathrm{F},i}\right)$|T1.7|
+|Weight at age (kg)|$W_{ij,y}=W_{\infty,iy}\left( 1-e^{\left(-K_i\left(1-d_{i,y}\right)\left(j-t_{0,i} \right)\right)}\right)^{\frac{1}{1-d_i,y}}$||T1.8a|
+| |$d_{i,y}=e^{\left(\alpha_{d,i,y}+\alpha_{0,d,i}+\beta_{d,i}T_y\right)}$||T1.8b|
+| |$W_{\infty,iy}=\left(\frac{H_i}{K_i}\right)^{{1}/\left(1-d_{i,y}\right)}$||T1.8c|
+|Bottom trawl survey biomass (kg) |$\hat{\beta}^s_{i,y}=\sum_j^{A_i}\left(N_{ij,y}e^{-0.5Z_{ij,y}}W_{ij,y}S_{ij}^\mathrm{S}\right)$||T1.9|
+|Acoustic survey biomass (kg) |$\hat{\beta}^{eit}_{y}=\sum_j^{A_i}\left(N_{1j,y}e^{-0.5Z_{1j,y}}W_{1j,y}S_{1j}^{eit}q^{eit}_{1,j}\right)$|(pollock only)|T1.10|
+|Fishery age composition |$\hat{O}^f_{ij,y}=\frac{C_{ij,y}}{\sum_jC_{ij,y}}$||T1.11|
+|Bottom trawl age composition |$\hat{O}^s_{ij,y}=\frac{N_{ij,y}e^{0.5\left(-Z_{ij,y}\right)S_{ij}^\mathrm{S}}}{\sum_j{\left(N_{ij,y}e^{0.5\left(-Z_{ij,y}\right)S_{ij}^\mathrm{S}}\right)}}$||T1.12|
+|Acoustic trawl age composition |$\hat{O}^{eit}_{1j,y}=\frac{N_{1j,y}e^{-0.5Z_{1j,y}}S_{1j}^{eit}q^{eit}_{1,j}}{\sum_j{\left(N_{1j,y}e^{-0.5Z_{1j,y}}S_{1j}^{eit}q^{eit}_{1,j}\right)}}$|(pollock only)|T1.13|
+|Bottom trawl selectivity |$S_{ij}^\mathrm{s}=\frac{1}{1+e^{\left(-b_i^\mathrm{S} \cdotp j-a_i^\mathrm{S}\right)}}$||T1.14|
+|Fishery selectivity |$S_{ij}^f=e^{\eta_{ij}}~~~~~~~ j\leq A_{\eta,i}$|$\eta_{ij}\sim N\left(0,\sigma^2_{f,i}\right)$|T1.15|
+| |$S_{ij}^f=e^{\eta_{ij}A_{\eta,i}}~~~~~~~ j> A_{\eta,i}$|||
+|Proportion female |$\omega_{ij}=\frac{e^{-jM_{\mathrm{fem}}}}{e^{-jM_{\mathrm{fem}}}+e^{-jM_{\mathrm{male}}}}$||T1.16|
+|Proportion of mature females |$\rho_{ij}=\omega_{ij}\phi_{ij}$||T1.17|
+|Adjusted weight at age (kg) |$W_{ij,y}=W_{ij,y}^{\mathrm{fem}}\omega_{ij}+(1-\omega_{ij})W_{ij,y}^{\mathrm{male}}$||T1.18|
+|Adjusted residual natural mortality (kg) |$\mathrm{M1}_{ij}=\mathrm{M1}_{ij}^{\mathrm{fem}}\omega_{ij}+(1-\omega_{ij})\mathrm{M1}_{ij,y}^{\mathrm{male}}$||T1.19|
+
+We used this approach to derive annual temperature-specific coefficients of $d$ for pollock and Pacific cod (combined sexes) and separately for male and female arrowtooth flounder (Table 3; Table 5). For arrowtooth flounder, we then used the age-specific proportions of mature females ($\rho_{ij}$) and males ($1-\rho_{ij}$) to derive the mean weight-at-age for both sexes combined (Eq. T1.18 and Table 5). Lastly, male and female natural mortality rates ($M_\mathrm{male}$ and $M_\mathrm{fem}$ , respectively) and age-specific maturity proportions ($\phi_{ij}$) from the 2012 stock assessments for eastern Bering Sea pollock (Ianelli et al., 2012), and Bering Sea and Aleutian Islands Pacific cod (Thompson and Lauth, 2012) and arrowtooth flounder (Spies et al., 2012), were used to derive estimates of the proportion of mature females at age ($\rho_{ij}$; Eq. T1.17).  
+
+**Table 2. Predation mortality ($M2$) equations for predators $p$ of age $a$, and prey $i$ of age $j$.**  
+
+| Definition                       |        Equation||
+|:-----------------------|:-----------------------------------------------------|:---------|
+|Predation mortality| $\mathrm{M2}_{ij,y}=\sum_{pa}\left( \frac{N_{pa,y}\delta_{pa,y}\bar{S}_{paij}}{\left( \sum_{ij}{\bar{S}_{paij}B_{ij,y}} \right)+B_p^{other}\left(1-\sum_{ij}{\left( \bar{S}_{paij}\right)} \right)} \right)$|T2.1|
+|Predator-pery suitability| $\bar{S}_{paij}=\frac{1}{n_y}\sum_{y}\left(\frac{\frac{\bar{U}_{paij}}{B_{ij,y}}}{\sum_{ij}{\left(\frac{\bar{U}_{paij}}{B_{ij,y}}\right)+\frac{1+\sum_{ij}{\bar{U}_{paij}}}{B_p^{other}}}}\right)$|T2.2|
+|Mean gravimetric diet proportion|$\bar{U}_{paij}=\frac{U_{paij}}{n_y}$|T2.3|
+|Individual specific ration (kg kg$^{-1}$yr$^{-1}$)|$\delta_{pa,y}=\hat{\varphi}_p\alpha_{\delta}W_{pa,y}^{\left(1+\beta_{\delta}\right)}f\left(T_y\right)_p$|T2.3|
+|Temperature scaling consumption algorithm|$f\left( T_y \right)_p=V^Xe^{\left( X \left( 1-V \right)\right)}$|T2.5|
+| |$V=\left(T_p^{cm}-T_y\right)/\left(T_p^{cm}-T_p^{co}\right)$|T2.5a|
+||$X=\left(Z^2\left(1+\left(1+40/Y\right)^{0.5}\right)^2\right)/400$|T2.5b|
+||$Z=ln\left(Q_p^c\right)\left(T_p^{cm}-T_p^{co}\right)$|T2.5c|
+||$Y=ln\left(Q_p^c\right)\left(T_p^{cm}-T_p^{co}+2\right)$|T2.5d|
+
+<!-- $\left( \sum_{i=1}^{n}{i} \right)$ -->
+<!-- ![](Figs/Table2.png){ width=100% } -->
+### Parameter estimation & data
+
+The parameters of the model are either pre-specified or estimated by selecting parameters that minimize the log-likelihood function (Table 3) and include fishing mortality rates ($F_{ij,y}$), fishery and survey selectivity ($s_{ij}^\mathrm{f}$  and $s_{ij}^\mathrm{s}$ , respectively), initial (pre-harvest) abundance in year 1979 ($N_{0,ij}$), and annual recruitment ($R_{i,y}$), while the estimable parameter of the likelihood function is the catchability coefficient for the acoustic survey ($q_1^\mathrm{eit}$; Table 3; Table 4). We fit the model to available survey and fishery data for the eastern Bering Sea including biomass estimates and age-composition data from the annual AFSC summer bottom trawl survey (Eqs. T4.1 and T4.2), biomass and age-composition data from the AFSC Acoustic-trawl (AT) survey (pollock only) (Eqs. T4.3 and T4.4), and the total fishery catch and fishery age-composition data collected by AFSC observers and analyzed at AFSC (Eqs. T4.5 and T4.6; Hilborn and Walters, 1992; Quinn and Deriso, 1999). Penalties were imposed on the changes over age in fishery selectivity (Eq. T4.7). Likelihood priors were applied to normalize the log of annual recruitment and the fisheries mortality deviations, as well as initial abundances (Eqs. T4.8-T4.10). Selectivity for the AT survey was set to previously reported values (Table 3; Honkalehto et al., 2011; Ianelli et al., 2012).
+
+
+**Table 3. Parameter definition ($n$ is the number of parameters for estimated parameters only, value (Plk: Pollock; Cod: Pacific cod; Atf: Arrowtooth flounder both sexes; AtfM: Arrowtooth flounder males; AtfF: Arrowtooth flounder females), and source. I: Input parameter (assigned); M: model index; E: Estimated parameter; F: fixed parameter P: Derived quantity; D: Data. **  
+
+
+
+|Parameter |Definition |Type |Value |Source|
+|:--------------|:-----------------------------|----:|-----------:|:------:|
+|$y$ |Year |M |$[1,2,3\ldots n_y]$ |e|
+|$p$ |Predator |M |$[1,2,3\ldots n_p]$ |e|
+|$a$ |Predator age (years) |M |$[1,2,3…A_p]$ |e|
+|$i$ |Prey |M |$[1,2,3…n_i ]$ |e|
+|$j$ |Prey age (years) |M |$[1,2,3…A_i]$ |e|
+|$n_i$ |Number of prey species |I |3 |e|
+|$n_p$ |Number of predator species |I |3 |e|
+|$R_{0,i}$ |Mean Recruitment; $n=[1,1,1]$ |E |≥0 |e|
+|$τ_{i,y}$ |Annual recruitment deviation; $n=[34,34,34]$ |E |number |e|
+|$N_{0,ij}$ |Initial abundance; $n=[11,11,20]$ |E |$\geq0$ |e|
+|$F_{0,i}$ |Mean fishing mortality; $n=[1,1,1]$ |E |$\geq0$ |e|
+|$\epsilon_{i,y}$ |Annual fishing mort. deviation; $n=[34,11,20]$ |E |number |e|
+|$η_{ij}$ |Fishery age selectivity coef. ; $n=[8,8,8]$ |E |number |e|
+|$b_i^\mathrm{s}$ |Survey age selectivity slope; $n=[1,1,1]$ |E |number |e|
+|$a_i^\mathrm{s}$ |Survey age selectivity limit ; $n=[1,1,1]$ |E |number |e|
+|$d_{i,y}$ |VBGF allometric slope of consumption |P |$\geq0$ |e|
+|$W_{∞,iy}$ |VBGF max asymptotic weight (kg) |P |$>0$ |e|
+|$\rho_{ij}$ |Proportion of mature females at age |P |$\in[0,1]$ |e|
+|$\mathrm{M1}_{ij}$ |Residual natural mortality |F |$\geq0$ |e, h|
+|$n_y$ |Number of estimation years |I | `r nyrs`|e|
+|$y_{0}$ |Start year |I |1979 |e|
+|$\omega_{ij}$ |Female proportion of population |F |$\in[0,1]$ |c|
+|$\phi_{ij}$ |Age-specific maturity proportions |F |$\in[0,1]$ |c|
+|$C_{i,y}^*$ |Observed total yield (kg) |D |$\geq0$ |f|
+|$O_{ij,y}^\mathrm{f}$ |Observed fishery age comp. |D |$\in[0,1]$ |f|
+|$O_{ij,y}^\mathrm{s}$ |Observed BT age comp. |D |$\in[0,1]$ |b|
+|$O_{1j,y}^\mathrm{eit}$ |Observed AT age comp. |D |$\in[0,1]$ |g|
+|$\beta_{i,y}^\mathrm{s}$ |Observed BT survey biomass (kg) |D |number |b|
+|$\beta_y^\mathrm{eit}$ |Observed AT survey biomass (kg) |D |number |g|
+|$T_y$ |Bottom temperature ( ^oC) |D |number |b|
+|$U_{paij,y}$ |Gravimetric proportion of prey in predator stomach |D |$\in[0,1]$ |b|
+|$B_p^\mathrm{other}$ |Biomass of other prey (kg) |D |$0\geq$ |h|
+|$S_{1j}^\mathrm{eit}$ |AT survey selectivity |F |$\in[0,1]$ |c| 
+
+
+**Table 3 (continued). Parameter definition (n is the number of parameters for estimated parameters only, value (Plk: Pollock; Cod: Pacific cod; Atf: Arrowtooth flounder both sexes; AtfM: Arrowtooth flounder males; AtfF: Arrowtooth flounder females), and source. I: Input parameter (assigned); M: model index; E: Estimated parameter; F: fixed parameter P: Derived quantity; D: Data.**  
+
+|Parameter |Definition |Type | Pollock|	Cod|	ATF|Source|
+|:---------|:---------------------------------------------|---------:|------:|------:|-----------:|:----:|
+|$A_i$|	Number of prey ages|	I	|`r paste0(nages,collapse=" |")`|	e|
+|$A_p$|	Number of predator ages|	I|`r paste0(nages,collapse=" |")` |e|
+|$\hat\varphi_p$ |Annual relative foraging rate (d yr$^{-1}$)|	I|	|	|	|	d|
+|$\alpha_{\delta}$|	Intercept of the allometric maximum consumption function (g g$^{-1}$ yr$^{-1}$)	|I|	0.119| 0.041|	0.125|	a|
+|$\beta_{\delta}$|	Allometric slope of maximum consumption|	I|	-0.460|	-0.122|	-0.245|	a|
+|$T_p^{cm}$|	Consumption maximum physiological temperature ($^o$C)|	I|	15.00|	21.00|	34.13|	a|
+|$T_p^{co}$|	Consumption optimum physiological temperature ($^o$C)|	I|	10.00|	13.70|	19.60|	a|
+|$Q_p^c$|	Max consumption parameter|	I|	2.60|	2.41|	2.18|	a|
+|$\alpha0_{d,i}$|	Intercept for VBGF $d$ parameter	|F	|-0.817 |-0.375|	M:  -0.213|d|
+|||||| F:  -0.340||	
+|$\alpha_{d,i,y}$|	Annual intercept for VBGF $d$|F|	||  |||			d|
+|$\beta_{d,i}$|Temperature covariate for VBGF $d$|F|	0.009	|0.004|M: -0.0057|d|
+|||||| F: -0.0115||
+|$K_i$|	VBGF energy loss (kg kg$^{-1}$ yr$^{-1}$)	|F|	0.22|	0.45|	M: 1.08|d| 
+|||||| F:  0.38 ||
+|$H_i$|	VBGF assimilation (kg kg$^{-d}$ yr$^{-1}$)	|F|	16.34|	9.30|	M: 5.19|d|
+|||||| F:  5.90||
+|$t_{0,i}$|	VBGF age when $W_{ij,y}$= 0 (years)|	F|	0.53|	-0.16	|M: -1.00|d|
+|||||| F:   -0.28	||
+|$M_i^\mathrm{fem}$|	Female natural mortality|F	|NA*|	0.37|	0.35|	c|
+|$M_i^\mathrm{male}$|	Male natural mortality 	|F|	NA*|	0.37|	0.20|	c|  
+> _* pollock age-specific M1 residual mortalities from the assessment were used (same values for male and females)._  
+> _a. Holsman and Aydin 2015_  
+> _b.	Alaska Fisheries Science Center eastern Bering Sea bottom trawl survey_  
+> _c.	Stock assessments (Ianelli et al., 2012; Thompson and Lauth, 2012; Spies et al., 2012)_  
+> _d.	Tables 5 & 6_  
+> _e.	This assessment_  
+> _f.	Fishery observer data_  
+> _g.	Alaska Fisheries Science Center echo-integrated acoustic trawl survey_  
+> _h.	Juarado Molina et al., 2005_
+
+### Harvest scenarios and reference points
+
+For all future scenarios, we set the bottom temperature in the model to the mean of the historical observed temperatures (Fig. 1). We used the approach for deriving biological reference points (BRPs) proposed by Moffitt et al. (2016) and implemented by Holsman et al. (2016). All projections use a Ricker stock recruitment curve without environmental covariates that was fit to model estimates of recruitment and spawning stock biomass. Here we adopted the current over fishing limit (OFL) for Tier 3 acceptable biological catch ABC and MSY proxies for Bering Sea groundfish stocks; 40% of unfished biomass as the proxy target biomass for the ABC, and 35% as the proxy for BMSY (female spawning biomass corresponding to maximum sustainable yield, MSY, i.e., 35% of ; Punt et al., 2014; NPMFC, 2013; Clark et al., 1991; Brooks et al., 2010).
+
+The species-specific, acceptable biological catch ($\mathrm{ABC}_{x,i,y}$) for each harvest scenario was calculated as the fishery yield for each year y of the projection period [1, $n_y^{fut}$] given a constant fishing mortality rate for the projection period that satisfies each harvest scenario objective ($F_{\mathrm{ABC},x,i}^*$), such that:
+
+Eq. 4      $~~~~\mathrm{ABC}_{x,i,y}=\sum_j^{A_i}((F_{\mathrm{ABC},x,i}^*s_{ij}^\mathrm{f}/Z_{x,ij,y})(1-e^{-Z_{x,ij,y}})N_{x,ij,y} W_{ij,y})$
+
+
+where $Z_{x,ij,y}$ is the control-rule specific total annual mortality for species $i$ age $j$ in the set $[1, 2,\ldots A_i]$,  $s_{ij}^\mathrm{f}$  is fishery age selectivity, and $N_{x,ij,y}$ and $W_{ij,y}$ are the annual species-specific abundance and weight-at-age for each projection year y. Using this approach, we found the species-specific fishing mortality rate ($F_{x,i}^*$) that results in mean female spawning biomass ($\overline{SSB}_{F,i}$) in the target projection period (i.e., last 5 years; 2046-2050) under fishing that is equal to the target proxy percentage (i.e., 40%) of mean unfished female spawning biomass ($\overline{SSB}_{0,i}$; Table 5). To find $F_{\mathrm{ABC},x,i}^*$, we iteratively project the model to find the $\overline{SSB}_{F,i}$ that corresponds to a given harvest rate $F_{x,i}^*$, adjusting $F_{x,i}^*$ downwards if $\overline{SSB}_{F,i}$ is below the target or upwards if $\overline{SSB}_{F,i}$ is above the target, until we achieve $\overline{SSB}_{F,i}$ near or at the proxy of 40% of $\overline{SSB}_{0,i}$. We ran this harvest scenario with the following variations:
+
+* Find the ABC proxy biomass of 40% of unfished spawning biomass, where unfished biomass ($\overline{SSB}_{0,i}$) is determined from projections where $F$ is set to 0 for pollock and Pacific cod simultaneously, and then arrowtooth.
+* Iterate (i.e., eight iterations of the optimization algorithm) to find the species-specific fishing mortality rates that maximize the total combined yield (i.e., sum of yield for all three species) over the last 5 years of the projection period and where female spawning biomass for each species is not permitted to drop below 35% of the corresponding unfished female spawning biomass.
+* 2016 model: Find the ABC proxy biomass of 40% of unfished spawning biomass, where unfished biomass ($\overline{SSB}_{0,i}$) is determined from projections where $F$ is set to 0 for all species simultaneously.  
+
+## Results
+
+### Model parameterization
+
+The multi-species mode of the model achieved a slightly higher over-all fit to the data (i.e., lower negative log-likelihood with the same number of estimated parameters for both models) for pollock and similar fits to the data for P. cod and arrowtooth. Both models fit annual total catch for all three species closely ( `r mean(as.numeric(cor_table_0[3,]))`; Fig. 2). We observed similar fits to survey biomass and age composition data from the single-species (i.e.,$\mathrm{M2}_{ij,y}$ set to 0, hereafter “single-species model”) and multi-species modes of CEATTLE (Figs. 3,9-14 ). Although both models predicted similar historical total and female spawning biomass, inclusion of trophic interactions in the multi-species model resulted in slightly higher estimates of total biomass for pollock (Fig. 3). 
+
+Inclusion of predation interactions in CEATTLE improved model fit to observations of survey age composition for pollock, with average annual Pearson correlation coefficient (i.e., $R^2$) values from CEATTLE model in multi-species mode of `r round(cor_table_2[2,1],2)` versus single-species version of CEATTLE model  values of `r round(cor_table_0[2,1],2)`. The single- and multi-species models performed similarly well for the annual Pacific cod and arrowtooth survey age composition data ( `r round(cor_table_0[2,2],2)` for P. cod and `r round(cor_table_0[2,3],2)` for arrowtooth, respectively), and fishery age composition data for all three species ( 0.81, 0.96, and 0.89 for pollock, Pacific cod, and arrowtooth flounder, respectively). The single- and multi-species models fit the survey estimates of biomass with similar accuracy (single- and multi-species , $R^2$ respectively, of `r round(cor_table_0[1,1],2)` and `r round(cor_table_2[1,1],2)` for pollock, `r round(cor_table_0[1,2],2)` for both models for Pacific cod, and `r round(cor_table_0[1,3],2)` and `r round(cor_table_2[1,3],2)` for arrowtooth), although the multi-species model fit the survey age data slightly better for pollock and slightly less for P. cod and arrowtooth (negative log-likelihood = `r round(loglike0$srv_age_like,2)` and `r round(loglike2$srv_age_like,2)` for the single- and multi-species models, respectively). Survey and fishery age selectivity curves were similar for single- and multi-species models for each species (Fig. 4).  
+
+**Table 4. Correlation coefficients for survey biomass and age composition data from the model run in single-species mode (SSM) and multi-species mode (MSM).**
+
+| Table 4.                               |       *SSM*|       *MSM*|
+|:-------------------------------|-----------:|------------:|
+|*Total survey biomass*            |            |             |
+|Pollock                  |`r round(cor(ceattle_0$srv_bio_1[1,],ceattle_0$srv_bio_hat_1[1,]),2)`  |`r round(cor(ceattle_2$srv_bio_1[1,],ceattle_2$srv_bio_hat_1[1,]),2)`|
+|P. cod                   |`r round(cor(ceattle_0$srv_bio_2[1,],ceattle_0$srv_bio_hat_2[1,]),2)`  |`r round(cor(ceattle_2$srv_bio_2[1,],ceattle_2$srv_bio_hat_2[1,]),2)`|
+|Arrowtooth               |`r round(cor(ceattle_0$srv_bio_3[1,],ceattle_0$srv_bio_hat_3[1,]),2)`  |`r round(cor(ceattle_2$srv_bio_3[1,],ceattle_2$srv_bio_hat_3[1,]),2)`|
+|*Survey age composition*   |            |             |
+|Pollock                  |`r round(cor(ceattle_0$srv_age_obs_1[1,],ceattle_0$srv_age_hat_1[1,]),2)`  |`r round(cor(ceattle_2$srv_age_obs_1[1,],ceattle_2$srv_age_hat_1[1,]),2)`|
+|P. cod                   |`r round(cor(ceattle_0$srv_age_obs_2[1,],ceattle_0$srv_age_hat_2[1,]),2)`  |`r   round(cor(ceattle_2$srv_age_obs_2[1,],ceattle_2$srv_age_hat_2[1,]),2)`|
+|Arrowtooth               |`r round(cor(ceattle_0$srv_age_obs_3[1,],ceattle_0$srv_age_hat_3[1,]),2)`  |`r round(cor(ceattle_2$srv_age_obs_3[1,],ceattle_2$srv_age_hat_3[1,]),2)`|
+
+Predation mortality varied considerably with changes in predator abundance over time (Fig. 5). Cannibalism was the largest source of predation mortality for pollock (Figs. 6, 7) with older conspecifics exhibiting a high preference (i.e., total pollock suitability >0.75; Fig. 4) for juvenile pollock (ages 1-3; Fig. 4.g). Larger pollock also appear to target small arrowtooth flounder, as evidenced by a slight increase in total suitability of arrowtooth for pollock ages 6-10 (Fig. 4.g). Similarly, younger Pacific cod (ages 2-6) also target arrowtooth flounder (Fig. 4.h). Pacific cod increasingly target pollock prey as they age, and larger, older Pacific cod diets are dominated by age 1 pollock prey. Pacific cod also appear to be cannibalistic from ages 4 through 9. In contrast arrowtooth flounder prefer pollock throughout their lives, with total suitability coefficients (for all pollock ages) between 0.5 and 1.0 for arrowtooth flounder ages 1 through 18 (Fig. 13.i). 
+
+Natural mortality ($\mathrm{M1}_{ij}$+$\mathrm{M2}_{ij,y}$) was highest for age 1 fish of all three species (Fig. 5), and greatest for pollock (relative to Pacific cod or arrowtooth flounder). Combined annual predation demand (annual ration) of pollock, Pacific cod, and arrowtooth flounder in 2017 was `r round(rev(Pred_demand_yr_MSM_1/1e9)[1],2)` million t, down slightly from the `r round(mean(rev(Pred_demand_yr_MSM_1/1e9)[2:4]),2)` million t annual average during the warm years of 2014-2016. Walleye pollock represent approximately `r round(mean(rowSums(E_est_all_1)/Pred_demand_yr_MSM_1)*100)` % of the model estimates of combined prey consumed with `r round(mean(rowSums(E_est_all_1)/1e9),2)` consumed annually by all three predators in the model (Fig. 6). At `r round(rev(ceattle_2$M2_1[,1]+ceattle_2$M1_1[1,1])[1],2)` yr$^{-1}$ age 1 mortality estimated by the model was greatest for pollock relative to Pacific cod or arrowtooth flounder. Age 1 mortality was lower for Pacific cod and arrowtooth flounder, with total age 1 natural mortality stable at around `r round((table1[2,]+ceattle_2$M1_2[1,1])[1],2)` and `r round((table1[3,]+ceattle_2$M1_3[1,1])[1],2)` yr$^{-1}$, respectively, although both were above long--term means in 2015-2017.
+
+Temporal patterns in natural mortality reflect annually varying changes in predation mortality that primarily impact age 1 fish (but also impact ages 2 and 3 fish in the model). Pollock are primarily consumed by older conspecifics, and pollock cannibalism accounted for `r round(tmpp[1,1]*100)`% (on average) of total predation mortality for age 1 pollock except for 2006-2008 when predation by arrowtooth flounder exceeded cannibalism as the largest source of predation mortality of age 1 pollock; Fig. 7).
+
+We find evidence for recent elevated rates of predation mortality on age 1 pollock, pacific cod, and arrowtooth flounder. This pattern may reflect higher metabolic (and energetic) demand of predators under warm conditions combined with maturing large 2010-2012 age classes of pollock and pacific cod that have increased predator demand in the EBS (Holsman et al. 2015, Spencer et al. 2016, Hunsicker et al., 2013, Zador et al. 2011). This pattern may also explain low model estimates of recruitment of EBS pollock and Pacfic cod in recent years.
+
+Between 1980 and 1993, the relatively high natural mortality rates reflect patterns in combined annual demand for prey by all three predators that was highest in the mid 1980’s (collectively `r round(mean((Pred_demand_yr_MSM_1/1e9)[3:9]),2)` million t per year), and in recent years (collectively `r round(mean(rev(Pred_demand_yr_MSM_1/1e9)[1:4]),2)` million t per year; Fig. 6a). The peak in predation mortality of age 1 pollock in 2006 corresponds to the maturation of a large age class of 5-7 year old pollock and 2 year old Pacific cod that dominated the age composition of the two species in 2006 (Fig. 10). Similarly, the recent peaks in mortality in 2016 reflect maturation of the large 2012 year class of pollock. 
+
+Pollock are both the dominant predator and a primary prey species in the multi-species model, second only to the ‘other prey’ category (Fig. 5a,b). After ‘other prey’ and pollock, the next most dominant prey category consumed is Pacific cod, followed by arrowtooth flounder (Fig. 5b). Pollock are primarily consumed by older conspecifics, and pollock cannibalism accounted for 56% (on average) of total predation mortality for age 1 pollock except for 2006-2008 when predation by arrowtooth flounder exceeded cannibalism as the largest source of predation mortality of age 1 pollock; Fig. 7).
+
+The multi-species version of CEATTLE compensates for elevated predation mortality on younger age classes by increasing estimates of recruitment. Thus, recruitment is higher in the multi-species model than in the single-species model for all three species, especially those with high predation rates (i.e., pollock). The direction of change in annual recruitment estimates from year-to-year was generally the same for both models (i.e., both models increased or decreased recruitment in the same year; Fig. 8a). Pollock recruitment from the single-species version of CEATTLE was positively correlated with Pacific cod recruitment (R^2^ = `r round( cor(ceattle_0$logR_obs[1,] ,ceattle_0$logR_obs[2,] ),2)` ) and slightly inversely correlated with arrowtooth recruitment (  R^2^ = `r round( cor(ceattle_0$logR_obs[1,] ,ceattle_0$logR_obs[3,] ),2)` ). Correlations between pollock recruitment and Pacific cod or arrowtooth recruitment were similar between the single- and multispecies versions, although correlations were weaker in the multi-species model for Pacific cod (R^2^ = `r round(cor(ceattle_2$logR_obs[1,] ,ceattle_2$logR_obs[2,] ),2)`).
+
+The single- and multi-species models estimate similar fishing mortality rates for pollock that have remained relatively stable at around `r round(apply(mnF1,2,mean)[2],2)` since the early 1980’s (Fig. 9). Both models also estimate low and relatively steady fishing mortality rates for arrowtooth flounder (i.e., ~ `r round(apply(mnF3,2,mean)[2],2)`). The adjustment of residual mortality for Pacific cod from 0.37 to 0.38, to match the recent stock assessment (Thompson et al. 2017), results in slightly higher estimates of fishing mortality over time (0.4-0.6) as compared to the 2016 assessment (0.24-0.45), with indications of declines in fishing mortality in recent years (Fig.9).
+
+## Harvest scenarios and reference points 
+
+Projecting CEATTLE forward under mean recruitment produces trajectories of female spawning stock biomass that can be used to derive multi-species biological reference points and attendant fishing mortality rates (Holsman et al. 2016). Projections under the Ricker spawner-recruitment model lead to some over-compensation recruitment dynamics in the first years of the projection (especially for single-species models; Fig. 14; sensu Botsford, 1986). However, a >70 year projection period was sufficient to allow such dynamics to reach a relative equilibrium (Figs. 14,15). 
+
+In general, unfished and harvested female spawning stock biomass ($SSB_{0,iy}$ and $SSB_{target,iy}$ , respectively) were lower for projections of the multi- than the single-species model (Fig. 14). Unfished female spawning biomass from the multi-species version of CEATTLE was higher than historical female spawning biomass for pollock and Pacific cod, and approximately equal to recent female spawning biomass for arrowtooth flounder (Fig. 15). 
+
+## Application of MBRPs toward EBFM
+
+Development of diverse multi-species biological reference points (MBRPs) from multi-species models is a necessary step in moving forward with EBFM (Link, 2010; Link and Browman, 2014). Projecting CEATTLE provides proxies for MBRPs that can readily be implemented in current OFL control rules for Alaska fisheries management and demonstrates the range of possible considerations as well as individual strengths and weaknesses of each control rule approach. Like previous authors, we found that ABC proxies were lower than the single-species CEATTLE model estimates (e.g., Gaichas et al., 2012). That said, Holsman et al. (2016) found that MBRPs do not inherently result in lower harvest recommendations than single-species corollaries (i.e., BRPs); comparative risk of over- or under-harvest depends on the degree of inter-specific predation and cannibalism. They also found that recommended harvest rates were relatively consistent between harvest scenarios, especially if target minimum biomasses are included for individual species. They also found that climate and trophic drivers can interact to affect MBRPs, but for prey species with high predation rates, trophic and management-driven changes may exceed direct effects of temperature on growth and predation. Given this, MSCAA models can readily be used for tactical EBFM decisions under changing climate conditions, if, as suggested by Holsman et al. (2016) and by various authors previously, harvest scenarios used for deriving MBRPs combined a minimum biomass threshold with yield targets to meet biodiversity and yield objectives (Worm et al., 2009; Gaichas et al., 2012). Biomass thresholds will require development of criteria for minimum limits in order represents a necessary advancement of the current approach.
+
+## Short-term utility: potential application within current single species assessments
+
+This work demonstrates some alternative applications of multispecies trophic models within a management setting and there may be immediate relevance for current stock assessment models. For example, the estimated historical time series of natural mortality at age over time (M1 + M2) could be used directly within the assessment or used as priors in alternative assessment models with estimated annually varying natural mortality. Similarly, for the case of EBS pollock, the stock recruitment relationship may provide a basis for better estimates or prior distribution specification. It may be that by adding the time series of estimated total natural mortality at age that the estimated stock recruitment relationship may differ substantially given the relative differences in age 1 abundances. Further research on applying alternative stock recruitment relationships is needed as well, especially since the application of the Ricker curve has traditionally been justified due to cannibalistic nature of pollock—a situation that is partially accounted for in this application. 
+
+## Long-term utility: climate- and trophic-specific biological reference points
+
+Because the natural mortality and growth functions are temperature dependent, long-term applications of the CEATTLE model could also include recruitment functions with climate-covariates. In this, the model could be combined with short-term forecasts of physical and lower trophic conditions in the Bering Sea, and used to refine estimates of recruitment and spawning stock biomass under changing conditions (note that extensive model validation would be needed to evaluate predictive performance and potential utility). Incorporating additional species into the model, such as northern fur seals and Pacific halibut could help provide quantitative estimates of changes in juvenile pollock forage resources associated with different harvest rates of groundfish species in the EBS, as well as refined estimates of predation mortality for prey species in the model under changing conditions. Finally, ongoing incorporation of harvest scenarios into the model will add realism to projections both for assessment purposes and for research applications.
+
+##Acknowledgements
+
+Our work is the result of numerous collaborations with researchers at the University of Washington (UW), University of Alaska Fairbanks (UAF), and the NOAA Alaska Fisheries Science Center (AFSC) and Northwest Fisheries Science Center (NWFSC). In particular, Ron Heintz (AFSC), Franz Mueter (UAF), and Elizabeth Siddon (UAF) supported an excellent discussion of the bioenergetics model sub-component of CEATTLE. We thank I. Spies (AFSC), I. Kaplan (NWFSC), and P. Sean McDonald (UW) for providing feedback on previous drafts. Drs. Elizabeth Moffitt and Andre Punt contributed significantly to the development of multispecies harvest control rules used in this assessment. Support for the CEATTLE model came from the Alaska Integrated Ecosystem Assessment program (noaa.gov/iea), the NMFS Fisheries And The Environment (FATE) program, the Stock Assessment Analytical Methods program under award number 0002, and the North Pacific Research Board (publication number 547). The model was also part of the BEST-BSIERP Bering Sea Project, publication number 165. This effort would not be possible without the help of numerous researchers and volunteers who contribute annually to the collection of biomass, demography, and diet information through Alaska Fishery Science Center surveys and the NOAA observer program, and the help of those who provide access to fishery-dependent and independent data through the Alaska Fisheries Science Center.
+
+##References
+
+
+Botsford, L. W., 1986. Effects of environmental forcing on age-structured populations: Northern California Dungeness crab (Cancer magister) as an example. Can. J. Fish. Aquat. Sci. 43, 2345-2352.
+
+Brooks, E. N., Powers, J. E., and Cortés, E., 2010. Analytical reference points for age-structured models: application to data-poor fisheries. – ICES J. Mar. Sci., 67, 165–175.
+
+Caddy, J. F., Mahon, R., 1995. Reference points for fishery management. FAO Fisheries Technical Paper 347.
+
+Cheung, W.W.L., Brodeur, R. D., Okey, T. A., Pauly, D., 2015. Projecting future changes in distributions of pelagic fish species of Northeast Pacific shelf seas. Prog. Oceanogr. 130, 19–31.
+
+Clark, W. G., 1991. Groundfish exploitation rates based on life history parameters. Can. J. Fish. Aquat. Sci. 48, 734–750.
+
+Collie, J. S., Gislason, H., 2001. Biological reference points for fish stocks in a multispecies context. Can. J. Fish. Aquat. Sci. 58, 2167-2176.
+
+Coyle, K. O., Eisner L. B., Mueter F. J., Pinchuk A. I., Janout M. A.,Cieciel, K. D., Farley, E.V., Andrew, A. G., 2011. Climate change in the southeastern Bering Sea: impacts on pollock stocks and implications for the Oscillating Control Hypothesis. Fish. Ocean. 20(2), 139–156.
+
+Curti, K. I., Collie, J. S., Legault, C. M., and Link, J. S., 2013. Evaluating the performance of a multispecies statistical catch-at-age model. . Can. J. Fish. Aquat. Sci. 70, 470-484.
+
+Danielsson, A., Stefansson, G., Baldursson, F. M., Thorarinsson K., 1997. Utilization of the Icelandic cod stock in a multispecies context. Mar. Res. Econ. 12(4), 329-344.
+
+Dorn, M., Aydin, K., Jones, D., Palsson, W., Spalinger, K., 2014. Chapter 1: Assessment of the Walleye Pollock Stock in the Gulf of Alaska. In Stock Assessment and Fishery Evaluation Report for the Groundfish Resources of the Gulf of Alaska Region, Alaska Fisheries Science Center, National Marine Fisheries Service, Anchorage, AK, p 53−170.
+
+Dunn, J. R. Matarese, A. C., 1987. A review of the early life history of Northeast Pacific gadoid fishes. Fish. Res. 5, 165-184.
+
+Gaichas, S., Gamble, R., Fogarty, M., Benoît, H., Essington, T., Fu, C., Koen-Alonso, M., Link, J., 2012. Assembly rules for aggregate-species production models: simulations in support of management strategy evaluation. Mar. Eco. Prog. Ser. 459, 275–292.
+
+Gamble R. J. and Link, J. S., 2009. Analyzing the tradeoffs among ecological and fishing effects on an example fish community: a multispecies (fisheries) production model. Ecol. Model. 220, 2570-2582. 
+
+Gamble, R. J. and Link, J., 2012. Using an aggregate production simulation model with ecological interactions to explore effects of fishing and climate on a fish community. Mar. Eco. Prog. Ser. 459, 259–274, 2012 doi: 10.3354/meps09745
+
+Gislason, H. 1999. Single and multispecies reference points for Baltic fish stocks. ICES J. Mar. Sci. 56, 571-583.
+
+Essington, T., Kitchell J., Walters, C., 2001. The von Bertalanffy growth function, bioenergetics, and the consumption rates of fish. Can. J. Fish. Aquat. Sci. 58, 2129–2138.
+
+Fogarty, M. J. 2014. The art of ecosystem-based fishery management. Can. J. Fish. Aquat. Sci. 71, 479-490.
+
+Fogarty, M.J., Overholtz, W. J., Link, J. S., 2012. Aggregate surplus production models for demersal fishery resources of the Gulf of Main. Mar. Ecol. Prog. Ser. 459, 247-258.
+
+Fournier, D. A., Skaug, H. J., Ancheta, J., Ianelli, J., Magnusson, A., Maunder, M. N., Nielsen, A., Sibert, J., 2012. AD Model Builder: using automatic differentiation for statistical inference of highly parameterized complex nonlinear models. Optimization Methods and Software, 27, 233-249.
+
+Fulton, E. A., Link, J. S., Kaplan, I. C., Savina-Rolland, M., Johnson, P., Ainsworth, C., Horne, P., Gorton, R., Gamble, R.J., Smith, A.D.M., Smith, D.C., 2011. Lessons in modelling and management of marine ecosystems: the Atlantis experience. Fish Fish. 12, 171–188.
+
+Hanson, P., Johnson, T. Schindler, D., Kitchell, J., 1997. Fish Bioenergetics 3.0. Madison, WI: University of Wisconsin Sea Grant Institute.
+
+Hamre, J. 2003. Capelin and herring as key species for the yield of north-east Arctic cod. Results from multispecies model runs. Sci. Mar. 67 (Suppl 1), 315-323.
+
+Hilborn, R. and Walters, C. J., 1992. Quantitative Fisheries Stock Assessment: Choice, Dynamics and Uncertainty. Chapman and Hall, New York. 570 p.
+
+Hollowed, A. B., Bax, N., Beamish, R., Collie, J., Fogarty, M., Livingston, P., Pope, J., Rice, J. C., 2000a. Are multispecies models an improvement on single-species models for measuring fishing impacts on marine ecosystems? ICES J. Mar. Sci., 57, 707–719. doi:10.1006/jmsc.2000.0734.
+
+Hollowed, A. B., Ianelli, J. N., and Livingston, P. A., 2000b. Including predation mortality in stock assessments: a case study for Gulf of Alaska walleye Pollock. ICES J. Mar. Sci., 57, 279–293. 
+
+Hollowed, A. B., Curchitser, E. N., Stock, C. A., Zhang, C. 2013. Trade-offs associated with different modeling approaches for assessment of fish and shellfish responses to climate change. Climatic Change 119, 111–129 DOI 10.1007/Table 6584-012-0641-z
+
+Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., Moffitt , E. A. (2016). Comparative biological reference points estimated from temperature-specific multispecies and single species stock assessment models. Deep Sea Res. II. doi:10.1016/j.dsr2.2015.08.001.
+
+Holsman, K. K. and Aydin, K. 2015. Comparative methods for evaluating climate change impacts on the foraging ecology of Alaskan groundfish. Mar. Ecol. Prog. Ser. DOI 10.3354/mep102
+
+Honkalehto, T., Ressler, P.H., Towler, R.H., Wilson, C.D., 2011.Using acoustic data from fishing vessels to estimate walleye pollock (Theragra chalcogramma) abundance in the eastern Bering Sea. 2011. Can. J. Fish. Aquat. Sci. 68, 1231–1242 
+
+Howell, D., Bogstad, B. 2010. A combined Gadget/FLR model for management strategy evaluations of the Barents Sea fisheries. – ICES J. Mar. Sci, 67, 000–000.
+
+Hunsicker, M. E., Ciannelli, L., Bailey, K. M., Zador, S., Stige, L. C., 2013. Climate and demography dictate the strength of predator-prey overlap in a subarctic marine ecosystem. PloS one 8(6), e66025. doi:10.1371/journal.pone.0066025.
+
+Hunt G. L. Jr, Coyle K. O., Eisner L., Farley E. V., Heintz R., Mueter, F., Napp, J. M., Overland, J. E., Ressler, P. H., Salo, S., Stabeno, P. J., 2011. Climate impacts on eastern Bering Sea foodwebs: A synthesis of new data and an assessment of the Oscillating Control Hypothesis. ICES J. Mar. Sci. 68(6), 1230–1243.
+
+Ianelli, J. N., Honkalehto T., Barbeaux S., Kotwicki S., 2014. Chapter 1: Assessment of the walleye pollock stock in the Eastern Bering Sea. In Stock Assessment and Fishery Evaluation Report for the Groundfish Resources of the Bering Sea/Aleutian Islands Regions, Alaska Fisheries Science Center, National Marine Fisheries Service, Anchorage, AK, p 55−156.
+
+Ianelli, J. N., Barbeaux, S., Honkalehto, T., Kotwicki, S., Aydin, K., and Williamson, N. 2012. Assessment of Alaska Pollock Stock in the eastern Bering Sea. In Stock Assessment and Fishery Evaluation Report for the Groundfish Resources of the Bering Sea/Aleutian Islands Regions, pp. 31–124. 
+
+Ianelli, J. N., Holsman, K. K. Punt, A. E., Aydin, K. 2016. Multi-model inference for incorporating trophic and climate uncertainty into stock assessments. Deep Sea Res. II
+
+Jurado-Molina, J., Livingston, P. A., Ianelli, J. N., 2005. Incorporating predation interactions in a statistical catch-at-age model for a predator-prey system in the eastern Bering Sea. Can. J. Fish. Aquat. Sci. 62, 1865-1873.
+
+Kaplan, I. C. , P. J. Horne, P. S. Levin., 2012. Screening California Current fishery manamgent scenarios using the Atlantis end-to-end ecosystem model. Prog. Oceanogr. 102, 5-18.
+
+Kaplan, I.C., Brown, C.J., Fulton, E.A., Gray, I.A., Field, J.C., Smith, A.D.M., 2013. Impacts of depleting forage species in the California Current. Environ. Cons. 40, 380–393. 
+
+Kinzey, D. Punt, A. E., 2009. Multispecies and single-species age-structured models of fish population dynamics: Comparing parameter estimates. Nat. Res. Mod. 22, 67-104.
+
+Kitchell, J. F., Stewart, D. J. and Weininger, D., 1977. Applications of a bioenergetics model to yellow perch (Perca flavenscens) and walleye (Stizostedion vitreum vitreum). J. Fish. Res. Board Can. 34, 1922-1935.
+
+Levin, P. S., Kelble, C. R., Shuford, R., Ainsworth, C., deReynier, Y., Dunsmore, R., Fogarty, M. J., Holsman, K., Howell, E., Monaco, M., Oakes, S., Werner, F., 2013. Guidance for implementation of integrated ecosystem assessments: a US perspective. ICES J. Mar. Sci, doi:10.1093/icesjms/fst112.
+
+Link J. S., 2010. Ecosystem-based fisheries management: confronting tradeoffs, Cambridge University Press, Cambridge.
+
+Link, J. S., Browman, H. I., 2014. Integrating what? Levels of marine ecosystem-based assessment and management. ICES J. Mar. Sci, 71, 1170–1173
+
+Livingston, P. A., Aydin, K., Bolt, J. L., Hollowed , A. B., Napp, J. M., 2011. Alaskan marine fisheries management: advances and linkages to ecosystem research. In A Belgrano and W Fowler (eds.), Ecosystem-Based Management for Marine Fisheries: An Evolving Perspective.  Cambridge University Press, pp 113-152.
+
+Livingston, P., 1993. Importance of predation by groundfish, marine mammals and birds on walleye pollock Theragra chalcogramma and Pacific herring Clupea pallasi in the eastern Bering Sea. Mar. Ecol. Prog. Ser. 102(3), 205–215.
+
+Moffitt, E., Punt, A. E., Holsman, K. K., Aydin, K. Y., Ianelli, J. N., Ortiz, I., 2016. Moving towards Ecosystem Based Fisheries Management: options for parameterizing multi-species harvest control rules. Deep Sea Res. II.
+
+Morita, K., Fukuwaka, M. A., Tanimata, N. and Yamamura, O., 2010. Size-dependent thermal preferences in a pelagic fish. Oikos 119, 1265-1272.
+
+Murawski, S., Matlock G., 2006. Ecosystem science capabilities required to support NOAA’s mission in the year 2020. NOAA Technical Memorandum, NMFS-F/SPO-74, Silver Spring, MD.
+
+Mueter, F. J. Megrey, B. A., 2006. Using multi‐species surplus production models to estimate ecosystem‐level maximum sustainable yields. Fish. Res. 81, 189‐201. 
+
+Mueter, F. J., Boldt, J. L., Megrey, B. A., Peterman, R. M., 2007. Recruitment and survival of Northeast Pacific Ocean fish stocks: temporal trends, covariation, and regime shifts. Can. J. Fish. Aquat. Sci. 64(6), 911-927.
+
+Nishiyama, T., Hirano, K., and Haryu, T., 1986. The early life history and feeding habits of larval walleye pollock Theragra chalcogramma (Pallas) in the southeast Bering Sea. Int. North Pac. Fish. Comm. Bull. 45, 177–227. 
+
+North Pacific Fishery Management Council (NPFMC). 2013. Fishery Management plan for groundfish of the Bering Sea and Aleutian Islands management area. North Pacific Fishery Management Council, Anchorage, AK.
+
+Ortiz, I, K. Aydin, A. J. Hermann, G. Gibson. 2016. Climate to fisheries: Exploring processes in the eastern Bering Sea based on a 40 year hindcast. Deep Sea Res. II.
+
+Pauly, D., 1981. The relationship between gill surface area and growth performance in fish: a generalization of von Bertalanffy’s theory of growth. Meeresforschung 28, 251-282.
+
+Plagányi, É. E., Punt, A.E., Hillary, R., Morello, E.B., Thébaud, O., Hutton, T., Pillans, R.D., Thorson, J.T., Fulton, E. A., Smith, A. D. M., Smith, F., Bayliss, P., Haywood, M., Lyne, V., Rothlisberg, P.C., 2014. Multispecies fisheries management and conservation: tactical applications using models of intermediate complexity. Fish Fish. 15, 1-22.
+
+Pikitch E. K., Santora C., Babcock E. A., Bakun A., Bonfi, R., Conover, D. O., Dayton, P., Doukakis, P., Fluharty, D., Heneman, B., Houde, E. D., Link, J., Livingston, P. A., Mangel, M., McAllister, M. K., Pope, J., Sainsbury, K. J., 2004. Ecosystem-based fishery management. Science 305, 346−347
+
+Punt, A.E., Smith, A.D.M., Smith, D.C., Tuck, G., Klaer, N., 2014. Selecting relative abundance proxies for BMSY and BMEY. ICES J. Mar. Sci. 71, 469-483.
+
+Quinn, T. J., II, Deriso, R. B., 1999. Quantitative Fish Dynamics. Oxford University Press, New York.
+
+Ricker, W. E. (1954) Stock and Recruitment Journal of the Fisheries Research Board of Canada, 11(5): 559–623. doi:10.1139/f54-039 
+
+Siddon E. C., Kristiansen T., Mueter F. J., Holsman K. K., Heintz R. A., Farley, E. V., 2013. Spatial Match-Mismatch between Juvenile Fish and Prey Provides a Mechanism for Recruitment Variability across Contrasting Climate Conditions in the Eastern Bering Sea. PLoS ONE 8(12), e84526. doi:10.1371/journal.pone.0084526 
+
+Smith, M. D., Fulton, E. A., and Day, R.W. 2015. An investigation into fisheries interaction effects using Atlantis. ICES J. Mar. Sci, 72(1), 275–283. doi:10.1093/icesjms/fsu114
+
+Spencer, PD, KK Holsman, S Zador, NA Bond, FJ Mueter, AB Hollowed1, and JN Ianelli. (2016). Modelling spatially dependent predation mortality of eastern Bering Sea walleye pollock, and its implications for stock dynamics under future climate scenarios. ICES Journal of Marine Science; doi:10.1093/icesjms/fsw040
+
+Spies, I. Wilderbuer, T. K., Nichol, D. G. and Aydin, K., 2012. Chapter 6. Arrowtooth Flounder. In Stock Assessment and Fishery Evaluation Report for the Groundfish Resources of the Bering Sea/Aleutian Islands Regions, pp. 31–124. 
+
+Stabeno, P.J., Farley, E.V., Jr., Kachel, N.B., Moor, S., Mordy, C.W., Napp, J.M., Overland, J.E., Pinchuk, A.I., Sigler, M.F., 2012. A comparison of the physics of the northern and southern shelves of the eastern Bering Sea and some implications for the ecosystem. Deep Sea Res. II 65-70, 14-30.
+
+Gouhier, T. C., Guichard, F., Gonzalez, A., 2010. Synchrony and Stability of Food Webs in Metacommunities. Am. Nat., 175 (2), E16-E34
+
+Taylor, L. , Begley, J., Kupca1, V. Stefansson, G., 2007. A simple implementation of the statistical modelling framework Gadget for cod in Icelandic waters. Afr. J. Mar. Sci., 29(2), 223–245
+
+Temming, A., 1994. Food conversion efficiency and the von Bertalanffy growth function. Part II and conclusion: extension of the new model to the generalized von Bertalanffy growth function. NAGA The ICLARM Quarterly, 17(4), 41-45.
+
+Tsehaye, I., Jones, M. I., Bence, J. R., Brenden, T. O., Madenjian, C. P., Warner, D. M., 2014. A multispecies statistical age-structured model to assess predator-prey balance: application to an intensively managed Lake Michigan pelagic fish community. Can. J. Fish. Aquat. Sci. 71, 627-644.
+
+Thompson, G. G., Lauth, R. R., 2012. Chapter 2: Assessment of the Pacific Cod Stock in the Eastern Bering Sea and Aleutian Islands Area. In Stock Assessment and Fishery Evaluation Report for the Groundfish Resources of the Bering Sea/Aleutian Islands Regions, pp. 31–124. 
+
+Tyrrell M. C., Link J. S., Moustahfid H., 2011. The importance of including predation in some fish population models: implications for biological reference points. Fish. Res. 108, 1-8. 
+
+Van Kirk, K. F., Quinn II, T. J., Collie, J. S., 2010. A multispecies age-structured assessment model for the Gulf of Alaska. Can. J. Fish. Aquat. Sci. 67, 1135-1148.
+
+von Bertalanffy, L., 1938. A quantitative theory of organic growth. Hum. Biol. 10: 181-213.
+
+Worm B., Hilborn R., Baum J. K., Branch T. A. Collie, J. S., Costello, C., Fogarty, M. J., Fulton, E. A., Hutchings, J. A., Jennings, S., Jensen, O. P., Lotze, H. K., Mace, P. M., McClanahan, T. R., Minto, C., Palumbi, S. R., Parma, A. M., Ricard, D. , Rosenberg, A. A., Watson, R., Zeller, D., 2009. Rebuilding global fisheries. Science 325, 578−585
+
+Zador S., Aydin K., Cope J., 2011. Fine-scale analysis of arrowtooth flounder Atherestes stomias catch rates reveals spatial trends in abundance. Mar. Ecol. Prog. Ser. 438, 229-239
+
+
+\pagebreak
+
+## Figures & Tables
+
+**Table 5. Temperature-dependent Von Bertalanffy parameter (parm) estimates, standard deviation in parameter estimates (stdev), and confidence intervals (CI).** 
+
+|Age|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|
+|:---------------|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
+|$\rho_{ij}$|||||||||||||||||||||
+|plk|0.00|0.01|0.29|0.64|0.84|0.90|0.95|0.96|0.97|1.00|1.00|1.00||||||||| 
+|pcod|0.00|0.02|0.06|0.14|0.30|0.53|0.75|0.89|0.95|0.98|0.99|1.00|||||||||
+|atf|0.00|0.00|0.01|0.02|0.06|0.16|0.34|0.59|0.80|0.92|0.97|0.99|1.00|1.00|1.00|1.00|1.00|1.00|1.00|1.00|1.00|
+|SSM $\mathrm{M1}_{ij}$|||||||||||||||||||||
+|plk|0.90|0.45|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|||||||||
+|pcod|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|||||||||
+|atf|0.27|0.26|0.26|0.25|0.25|0.24|0.24|0.23|0.23|0.23|0.22|0.22|0.22|0.22|0.21|0.21|0.21|0.21|0.21|0.21|0.21|
+|MSM $\mathrm{M1}_{ij}$|
+|plk|0.01|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|0.30|||||||||
+|pcod|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|0.34|||||||||
+|atf|0.27|0.26|0.26|0.25|0.25|0.24|0.24|0.23|0.23|0.23|0.22|0.22|0.22|0.22|0.21|0.21|0.21|0.21|0.21|0.21|0.21|
+
+\pagebreak
+
+![Total observed catch (circles) and model estimates of annual catch (lines) for single- and multi-species models (note that single species lines may not be visible as they overlap with multi-species estimates).](`r paste0(path.expand(fl_2),"/R_figures/catch_biomass.pdf")`){width=100%}
+
+<!-- ![text][Fig2]
+<!-- [Fig2]: R_figures/catch_biomass.pdf "Title" -->
+
+![Single- (orange lines) and multi-species (blue lines) retrospective model estimates of total (thick solid lines), female spawning (dashed lines), and bottom-trawl survey biomass (thin solid lines). Filled circles represent mean observed groundfish survey biomass and standard errors of the mean (error bars).](`r paste0(path.expand(fl_2),"/R_figures/plot_allBiomass.pdf")`){width=75%}
+
+![Single-species and multi-species fishery (first row; a-c) or survey selectivity (second row; d-f). Total suitability (across all prey species) for each predator age (third row; g-i). ](`r paste0(path.expand(fl_2),"/R_figures/plot_suit2.pdf")`){width=75%}
+
+![Annual variation in total mortality ($\mathrm{M1}_{ij}$ +$\mathrm{M2}_{ij,y}$ for age 1 pollock (a), Pacific cod (b), and arrowtooth flounder (c) from the single-species models (dashed line),  multi-species models with temperature (black line).](`r paste0(path.expand(fl_2),"/R_figures/Mortality.pdf")`){width=75%}
+
+
+![a) Combined total predator ration (all three predators combined) over time grouped by predator. b) Total prey consumed by all three predators combined (note the log scale). c) Pollock predation mortality (M2 ; age 1 only) consumed by each predator species.](`r paste0(path.expand(fl_2),"/R_figures/Eaten2.pdf")`){width=75%}
+
+
+![Proportion of total predation mortality for age 1 pollock from pollock (solid), Pacific cod (dashed), and arrowtooth flounder (dotted) predators across years.](`r paste0(path.expand(fl_2),"/R_figures/plot_propM.pdf")`){width=75%}
+
+![Annual single- and multi-species CEATTLE model estimates of recruitment (age 1) for pollock (a), Pacific cod (b), and arrowtooth flounder (c). Lighter shading represents the 95% CI around mean estimates. Darker shading represents +/- 1 standard error of the mean estimate.](`r paste0(path.expand(fl_2),"/R_figures/Recruitment.pdf")`){width=75%}
+
+
+![Timeseries of single- and multi-species (gray and black, respectively) CEATTLE model estimates of fishing mortality rate for eastern Being Sea walleye pollock (solid lines), Pacific cod (dashed lines), and arrowtooth flounder (dotted lines). Note that the single- and multi-species lines for arrowtooth flounder overlap.](`r paste0(path.expand(fl_2),"/R_figures/plot_F.pdf")`){width=75%}
+
+![Survey age compostitions for walleye pollock. Colored bars represent observed values, black and gray points represent single- and multi-species fits to the data, respectively.](`r paste0(path.expand(fl_2),"/R_figures/surv_age_comp_by_yr_1.pdf")`){width=100%}
+
+![Fishery age compostitions for walleye pollock. Colored bars represent observed values, black and gray points represent single- and multi-species fits to the data, respectively.](`r paste0(path.expand(fl_2),"/R_figures/fsh_age_comp_by_yr_1.pdf")`){width=100%}
+
+
+![Survey length compostitions for Pacific cod Colored bars represent observed values, black and gray points represent single- and multi-species fits to the data, respectively.](`r paste0(path.expand(fl_2),"/R_figures/surv_age_comp_by_yr_2.pdf")`){width=100%}
+
+![Survey length compostitions for arrowtooth flounder Colored bars represent observed values, black and gray points represent single- and multi-species fits to the data, respectively.](`r paste0(path.expand(fl_2),"/R_figures/surv_age_comp_by_yr_3.pdf")`){width=100%}
+
+
+![Single-species CEATTLE model projections of unfished ($SSB_0$; light shading) and fished spawning stock biomass at the harvest rate corresponding with the ABC proxy ($SSB_{40\%}$; darker shading) for each species. The lines represent different climate scenarios which impact weight at age and predation in the model.Only the constant scenario was used for ABC estimates. ](`r paste0(path.expand(fl_0),"/projections/assmnt_2017_0_1_3/R_figures/Summary_proj.pdf")`){width=100%}
+
+![Multi-species CEATTLE model projections of unfished (SSB0; light shading) and fished spawning stock biomass at the harvest rate corresponding with the ABC proxy ($SSB_{40\%}$; darker shading) for each species. The lines represent different climate scenarios which impact weight at age and predation in the model. Only the constant scenario was used for ABC estimates.](`r paste0(path.expand(fl_2),"/projections/assmnt_2017_2_1_3/R_figures/Summary_proj.pdf")`){width=100%}
+
+![Stock-recruit curves for the single-species model. Red and blue text indicates years where bottom temperature was + or – 1 standard deviation from the mean (respectively).](`r paste0(path.expand(fl_0),"/projections/assmnt_2017_0_1_3/R_figures/Recruitment_SSB_all.pdf")`){width=75%}
+
+![Stock-recruit curves for the multi-species model. Red and blue text indicates years where bottom temperature was + or – 1 standard deviation from the mean (respectively).](`r paste0(path.expand(fl_2),"/projections/assmnt_2017_2_1_3/R_figures/Recruitment_SSB_all.pdf")`){width=75%}
+
+
+
+\pagebreak
+
+![Proportion mature ($\rho_{ij}$) and residual natural mortality ($\mathrm{M1}_{ij}$) for each species $i$ and age $j$ in the single-species ($ssm$) or multi-species model ($msm$) for wallleye pollock (plk), Pacific cod (pcod), and Arrowtooth flounder (atf).](`r paste0(path.expand(doc),"/Figs/vonBtable.jpg")`){width=75%}
+
+
+\pagebreak
+
+<!-- \listoftables -->
+<!-- \listoffigures -->
+<!-- \tableofcontents -->
+
+
