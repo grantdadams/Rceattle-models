@@ -28,11 +28,11 @@ library(Rceattle)
 # To run the 2017 single species assessment for the Bering Sea, a data file must first be loaded:
 # data(BS2017SS) # ?BS2017SS for more information on the data
 # Write data to excel
-# Rceattle::write_excel(data_list = BS2017SS, file = "BS2017SS.xlsx")
+# Rceattle::write_data(data_list = BS2017SS, file = "BS2017SS.xlsx")
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v9.xlsx")
+adriatic_data <- Rceattle::read_data(file = "Adriatic_v9.xlsx")
 
 
 ################################################
@@ -48,8 +48,9 @@ ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
                             silent = TRUE,
-                            recompile = TRUE)
+                            recompile = FALSE)
 # Type ?fit_mod for more details
+
 
 # The you can plot the model results using using  
 species_names <- c("Hake", "Sardine", "Anchovy")
@@ -61,20 +62,18 @@ plot_catch(Rceattle =  ss_run)
 plot_index(Rceattle =  ss_run)
 plot_srv_comp(Rceattle =  ss_run)
 plot_fsh_comp(Rceattle =  ss_run)
+plot_selectivity(ss_run)
 
 
-# For the a multispecies model starting from the single species parameters, the following can be specified to load the data:
-data("BS2017MS") # Note: the only difference is the residual mortality is lower
-# Or we can use the previous data set
-
+# For the a multispecies model starting from the single species parameters, the following can be specified:
 ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
                             inits = ss_run$estimated_params, # Initial parameters from single species ests
                             file = NULL, # Don't save
-                            debug = 0, # Do not estimate. Set to zero to estimate.
-                            niter = 5, # 10 iterations around population and predation dynamics
+                            debug = 0, # Estimate. Set to 1 to debug.
+                            niter = 3, # 3 iterations around population and predation dynamics
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # MSVPA based
-                            suitMode = 0, # empirical suitability
+                            suitMode = 0, # Empirical suitability
                             silent = TRUE)
 
 # We can plot both runs as well:

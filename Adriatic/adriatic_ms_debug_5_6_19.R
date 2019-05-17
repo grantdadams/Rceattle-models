@@ -12,7 +12,7 @@ library(Rceattle)
 
 
 # Read the data in
-adriatic_data <- Rceattle::read_excel(file = "Adriatic_v10.xlsx")
+adriatic_data <- Rceattle::read_data(file = "Adriatic_v9.xlsx")
 
 
 ################################################
@@ -23,7 +23,7 @@ inits$ln_mn_rec <- c(9,9,9)
 
 # Then the model can be fit by setting `msmMode = 0` using the `Rceattle` function:
 ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
-                            inits = inits, # Initial parameters = 0
+                            inits = NULL, # Initial parameters = 0
                             file = NULL, # Don't save
                             debug = 0, # Estimate. Set to 1 to not estimate.
                             random_rec = FALSE, # No random recruitment
@@ -43,21 +43,71 @@ ms_run <- Rceattle::fit_mod(data_list = adriatic_data,
 # Type ?fit_mod for more details
 
 
+
+
+# Update stomach content data
+N0 <- matrix(1, nrow = 3, ncol = max(adriatic_data$nages))
+for(sp in 1:3){
+  for(age in 2:adriatic_data$nages[[sp]]){
+    if(age < adriatic_data$nages[[sp]]){
+      N0[sp, age] <- N0[sp, age - 1] * exp(-adriatic_data$M1_base[sp,age - 1])
+    }
+    if(age == adriatic_data$nages[[sp]]){
+      N0[sp, age] <- N0[sp, age - 1] * exp(-adriatic_data$M1_base[sp,age - 1]) / (1 - exp(-adriatic_data$M1_base[sp,age]))
+    }
+  }
+}
+W0 <- N0 * t(adriatic_data$wt[1,,])
+
+uobswt <- adriatic_data$UobsWtAge
+
+# Scale new wt at age
+for(rsp in 1:3){
+  
+
+  
+  for(r_age in 1:adriatic_data$nages[[rsp]]){
+    
+
+
+    for(ksp in 1:3){
+      stom_sum <- sum(uobswt[rsp,ksp,r_age,], na.rm = TRUE)
+      for(k_age in 1:adriatic_data$nages[[ksp]]){
+      uobswt[rsp,ksp,r_age,k_age] <- uobswt[rsp,ksp,r_age,k_age] * W0[ksp, k_age]
+      }
+    }
+
+    
+    if(sum(uobswt[rsp,,r_age,], na.rm = TRUE) > 0){
+      uobswt[rsp,,r_age,] <- uobswt[rsp,,r_age,] / sum(uobswt[rsp,,r_age,], na.rm = TRUE)
+    }
+  }
+}
+
+adriatic_data_update <- adriatic_data
+adriatic_data_update$UobsWtAge <- uobswt
+
 mod_list <- list()
 
 
-iters <- c(5:20)
+iters <- c(3:20)
 
 for( i in 1:length(iters)){
-  mod_list[[i]] <- Rceattle::fit_mod(data_list = adriatic_data,
-                                     inits = ss_run$estimated_params, # Initial parameters from single species ests
+  iif(i == 1){
+    inits <- ss_run$estimated_params
+  }
+  if(i > 1){
+    inits = mod_list[[i-1]]$estimated_params
+  }
+  mod_list[[i]] <- Rceattle::fit_mod(data_list = adriatic_data_update,
+                                     inits = inits, # Initial parameters from single species ests
                                      file = NULL, # Don't save
                                      debug = 0, # Do not estimate. Set to zero to estimate.
                                      niter = iters[i], # 10 iterations around population and predation dynamics
                                      random_rec = FALSE, # No random recruitment
                                      msmMode = 1, # MSVPA based
                                      suitMode = 0, # empirical suitability
-                                     silent = TRUE,
+                                     silent = FALSE,
                                      minNByage = 0)
 }
 
