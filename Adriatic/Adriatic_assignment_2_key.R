@@ -5,15 +5,14 @@ library(Rceattle)
 # Bullet 3 - Estimation
 ################################################
 # Read the data in
-adriatic_data <- Rceattle::read_data(file = "Adriatic_v9.xlsx")
+data <- Rceattle::read_data(file = "Data/Adriatic_base.xlsx")
 
 
 # Run the model in single species mode
-ss_run <- Rceattle::fit_mod(data_list = adriatic_data,
+ss_run <- Rceattle::fit_mod(data_list = data,
                             inits = NULL, # Initial parameters = 0
                             file = NULL, # Don't save
                             debug = 0, # Estimate. Set to 1 to not estimate.
-                            random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
                             silent = TRUE,
                             recompile = FALSE)
@@ -26,10 +25,10 @@ recruitment <- ss_run$quantities$R
 
 
 # Store the results in a spreadsheet
-write_results(ss_run, file = "Adriatic_results.xlsx") # Look at sheeps "SSB" and "Recruitment"
+write_results(ss_run, file = "Base_single_species_results.xlsx") # Look at sheeps "SSB" and "Recruitment"
 # you can also do
-write.csv(ssb, file = "Adriatic_ssb.csv")
-write.csv(recruitment, file = "Adriatic_recruitment.csv")
+write.csv(ssb, file = "Base_single_species_ssb.csv")
+write.csv(recruitment, file = "Base_single_species_recruitment.csv")
 
 
 # View the diagnostic plots
@@ -57,16 +56,15 @@ plot_recruitment(Rceattle =  ss_run, species = species_names)
 # 1. Halve natural mortality
 
 # Create a new data set and adjust mortality
-adriatic_data_half_mort <- adriatic_data
-adriatic_data_half_mort$M1_base <- adriatic_data_half_mort$M1_base * 0.5
+data_half_mort <- data
+data_half_mort$M1_base <- data_half_mort$M1_base * 0.5
 
 
 # Run the model in single species mode
-ss_run_half_mort <- Rceattle::fit_mod(data_list = adriatic_data_half_mort,
+ss_run_half_mort <- Rceattle::fit_mod(data_list = data_half_mort,
                             inits = NULL, # Initial parameters = 0
                             file = NULL, # Don't save
                             debug = 0, # Estimate. Set to 1 to not estimate.
-                            random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
                             silent = TRUE,
                             recompile = FALSE)
@@ -84,16 +82,15 @@ plot_recruitment(Rceattle =  mod_list, species = species_names, model_names = mo
 # 2. Double natural mortality
 
 # Create a new data set and adjust mortality
-adriatic_data_double_mort <- adriatic_data
-adriatic_data_double_mort$M1_base <- adriatic_data_double_mort$M1_base * 2
+data_double_mort <- data
+data_double_mort$M1_base <- data_double_mort$M1_base * 2
 
 
 # Run the model in single species mode
-ss_run_double_mort <- Rceattle::fit_mod(data_list = adriatic_data_double_mort,
+ss_run_double_mort <- Rceattle::fit_mod(data_list = data_double_mort,
                                       inits = NULL, # Initial parameters = 0
                                       file = NULL, # Don't save
                                       debug = 0, # Estimate. Set to 1 to not estimate.
-                                      random_rec = FALSE, # No random recruitment
                                       msmMode = 0, # Single species mode
                                       silent = TRUE,
                                       recompile = FALSE)
@@ -124,16 +121,15 @@ plot_recruitment(Rceattle =  mod_list, species = species_names, model_names = mo
 # 1. Halve survey and fishery composition data weights
 
 # Create a new data set and adjust composition data weights
-adriatic_data_half_weight <- adriatic_data
-adriatic_data_half_weight$srv_comp$Sample_size <- adriatic_data_half_weight$srv_comp$Sample_size * 0.5
-adriatic_data_half_weight$fsh_comp$Sample_size <- adriatic_data_half_weight$fsh_comp$Sample_size * 0.5
+data_half_weight <- data
+data_half_weight$srv_comp$Sample_size <- data_half_weight$srv_comp$Sample_size * 0.5
+data_half_weight$fsh_comp$Sample_size <- data_half_weight$fsh_comp$Sample_size * 0.5
 
 # Run the model in single species mode
-ss_run_half_weight <- Rceattle::fit_mod(data_list = adriatic_data_half_weight,
+ss_run_half_weight <- Rceattle::fit_mod(data_list = data_half_weight,
                                       inits = NULL, # Initial parameters = 0
                                       file = NULL, # Don't save
                                       debug = 0, # Estimate. Set to 1 to not estimate.
-                                      random_rec = FALSE, # No random recruitment
                                       msmMode = 0, # Single species mode
                                       silent = TRUE,
                                       recompile = FALSE)
@@ -151,16 +147,15 @@ plot_recruitment(Rceattle =  mod_list, species = species_names, model_names = mo
 # 2. Double survey and fishery composition data weights
 
 # Create a new data set and adjust composition data weights
-adriatic_data_double_weight <- adriatic_data
-adriatic_data_double_weight$srv_comp$Sample_size <- adriatic_data_double_weight$srv_comp$Sample_size * 2
-adriatic_data_double_weight$fsh_comp$Sample_size <- adriatic_data_double_weight$fsh_comp$Sample_size * 2
+data_double_weight <- data
+data_double_weight$srv_comp$Sample_size <- data_double_weight$srv_comp$Sample_size * 2
+data_double_weight$fsh_comp$Sample_size <- data_double_weight$fsh_comp$Sample_size * 2
 
 # Run the model in single species mode
-ss_run_double_weight <- Rceattle::fit_mod(data_list = adriatic_data_double_weight,
+ss_run_double_weight <- Rceattle::fit_mod(data_list = data_double_weight,
                                         inits = NULL, # Initial parameters = 0
                                         file = NULL, # Don't save
                                         debug = 0, # Estimate. Set to 1 to not estimate.
-                                        random_rec = FALSE, # No random recruitment
                                         msmMode = 0, # Single species mode
                                         silent = TRUE,
                                         recompile = FALSE)
