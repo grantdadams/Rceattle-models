@@ -4,7 +4,7 @@ library(Rceattle)
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.1.2/GOA2017SS_v3_from_1977_v2_fit_switch.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.1.2 - CONVERGES/GOA2017SS_v3_from_1977_v2_fit_switch.xlsx")
 mydata$fsh_control$Nselages[15]
 
 ################################################
@@ -15,12 +15,12 @@ inits$ln_mn_rec <- c(4,4,4)
 
 
 ss_run <- Rceattle::fit_mod(data_list = mydata,
-                            inits = inits, # Initial parameters = 0
+                            inits = NULL, # Initial parameters = 0
                             file = NULL, # Don't save
                             debug = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
-                            silent = TRUE)
+                            silent = FALSE)
 
 ss_run$estimated_params$ln_mean_F
  ss_run$quantities$jnll_comp
@@ -83,7 +83,7 @@ mydata$Pyrs[,,2]
 
 
 library(TMBhelper)
-identified <- suppressMessages(TMBhelper::Check_Identifiable(ms_run$obj))
+identified <- suppressMessages(TMBhelper::Check_Identifiable(ss_run$obj))
 
 # Make into list
 identified_param_list <- ss_run$obj$env$parList(as.numeric(identified$BadParams$Param_check))
