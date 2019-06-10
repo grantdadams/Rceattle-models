@@ -22,6 +22,13 @@ ss_run <- Rceattle::fit_mod(data_list = mydata,
                             msmMode = 0, # Single species mode
                             silent = FALSE)
 
+ss_run$estimated_params$srv_sel_inf
+ss_run$estimated_params$srv_sel_slp
+
+
+
+plot_ssb(ss_run, file = NULL, add_ci = TRUE)
+
 ss_run$estimated_params$ln_mean_F
  ss_run$quantities$jnll_comp
 file_name <- "GOA_18.1.2 - CONVERGES/Figures/GOA_18.1.2"
@@ -30,7 +37,7 @@ plot_catch(ss_run, file = file_name)
 Rceattle::plot_srv_comp(ss_run, file = file_name)
 Rceattle::plot_fsh_comp(ss_run, file = file_name)
 plot_biomass(ss_run, file = file_name)
-plot_ssb(ss_run, file = file_name, add_ci = TRUE)
+
 plot_recruitment(ss_run, file = file_name, add_ci = TRUE)
 plot_selectivity(ss_run, file = file_name)
 write_results(ss_run, file = paste0(file_name, ".xlsx"))
