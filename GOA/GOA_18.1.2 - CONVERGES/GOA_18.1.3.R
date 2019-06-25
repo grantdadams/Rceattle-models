@@ -4,7 +4,7 @@ library(Rceattle)
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.1.2 - CONVERGES/GOA2017SS_v3_from_1977_v2_fit_switch.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.1.2 - Time Varying/GOA2017SS_v4.xlsx")
 mydata$fsh_control$Nselages[15]
 
 ################################################
