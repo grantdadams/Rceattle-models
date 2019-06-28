@@ -1,11 +1,13 @@
 library(Rceattle)
-setwd("C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA/GOA_18.1.3 - Time Varying")
+setwd("C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA/GOA_18.1.4 - Time Varying")
+
+# Updated the ALK
 
 ################################################
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.1.3.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.1.4.xlsx")
 mydata$fsh_control$Nselages[15]
 
 ################################################
@@ -17,8 +19,7 @@ ss_run_base <- Rceattle::fit_mod(data_list = mydata,
                             debug = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
-                            silent = FALSE,
-                            recompile = TRUE)
+                            silent = FALSE)
 
 file_name <- "Figures/Base/Base"
 plot_index(ss_run_base, file = file_name)
@@ -32,7 +33,7 @@ plot_selectivity(ss_run_base, file = file_name)
 write_results(ss_run_base, file = paste0(file_name, ".xlsx"))
 
 
- 
+
 ################################################
 # Model 1 - Add Pollock Random Walk to Selectivity
 ################################################
@@ -171,3 +172,5 @@ plot_ssb(ss_run_mod4, file = file_name, add_ci = TRUE)
 plot_recruitment(ss_run_mod4, file = file_name, add_ci = TRUE)
 plot_selectivity(ss_run_mod4, file = file_name)
 write_results(ss_run_mod4, file = paste0(file_name, ".xlsx"))
+
+retrospective(Rceattle = ss_run_mod4, peels = 10)
