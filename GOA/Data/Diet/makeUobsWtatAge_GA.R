@@ -48,7 +48,7 @@ if(update_data){
   # Strata is the AFSC strata
   # FIXME: biomass weight this by strata
   load(file.path(mainG,"lkup.Rdata"))
-
+  
 }
 
 # Step 1: Find Pred, pred age, prey, prey age preference using GOAPredPreyL
@@ -62,15 +62,32 @@ if(update_data){
 # create matrix of prey pref based on size bins for each spp:
 # _____________________________________
 nspp<-4
+nages <- c(10,	12,	16, 21)
 ageLenbins<-list(
-  "W. Pollock"=c(14,24 ,32 ,39 ,43 ,48, 51, 54 ,57 ,59 ,60 ,61) ,
-  "P. Cod"=c(9,12,15,18,21,24,27,30,33,36,39,42,45,50,55,60,65,70,75,80,85,90,95,100,105),
-  "Arrowtooth"=c(10,16,18,20,22,24,26,28,30,32,34,36,38,40,43,46,49,52,55,58,61,64,67,70,75),
-  "P. Halibut"=c(10,16,18,20,22,24,26,28,30,32,34,36,38,40,43,46,49,52,55,58,61,64,67,70,75,100,105))
+  "W. Pollock"= 1:10 ,
+  "P. Cod"= 1:12,
+  "Arrowtooth"= 1:16,
+  "P. Halibut"= 1:21)
+
+# Get length bins based on vonB
+vonB_params <- matrix(NA, 3, nspp)
+rownames(vonB_params) <- c("Linf", "k", "t0")
+colnames(vonB_params) <- c("W. Pollock",
+                           "P. Cod",
+                           "Arrowtooth",
+                           "P. Halibut")
+vonB_params[,1] <- c(65.2, 0.3, 0) # Pollock
+vonB_params[,2] <- c(99.46, 0.1966, -0.11) # Pcod
+vonB_params[,3] <- c(66.44564, 0.1535, -0.6253) # Female ATF
+vonB_params[,4] <- c(66.44564, 0.1535, -0.6253) # Female ATF FIXME
+
 bins<-list()
 
 for(sp in 1:nspp){
-  bins[[sp]]<-c(0,( (c(ageLenbins[[sp]],1000)-c(0,ageLenbins[[sp]]))/2)+c(0,ageLenbins[[sp]]) )
+  for(age in 1:nages[sp]){
+    # Length bins are 0 to length-at-age 1.5, length-at-age 1.5 to 2.5, ..., length-at-age (max age - 0.5) to 1000
+    bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * ((1:(nages[sp] - 1) + 0.5) - vonB_params[3,sp]))), 1000)
+  }
 }
 names(bins)<-names(ageLenbins)
 
@@ -92,7 +109,7 @@ for(sp in 1:nspp){
   nbins<-length(bins[[sp]])
   #sub$Lbin<-bins[[sp]][nbins]
   for(b in 1:(nbins-1)){
-    sub$ageLenbin[sub$PredL>=bins[[sp]][b]&sub$PredL<bins[[sp]][b+1]]<-ageLenbins[[sp]][b-1]
+    sub$ageLenbin[sub$PredL>=bins[[sp]][b]&sub$PredL<bins[[sp]][b+1]]<-ageLenbins[[sp]][b]
     sub$Lbin[sub$PredL>=bins[[sp]][b]&sub$PredL<bins[[sp]][b+1]]<-bins[[sp]][b]
   }
   
@@ -236,12 +253,12 @@ for(sp in 1:nspp){
   sub<-as_tibble(GOAPredPreyL[GOAPredPreyL$CEATTLE_PRED==names(bins)[sp],])
   nbins<-length(bins[[sp]])
   #sub$Lbin<-bins[[sp]][nbins]
-  for(b in 2:(nbins)){
-    sub$ageLenbin_pred[sub$PRED_LEN>=bins[[sp]][b]&sub$PRED_LEN<bins[[sp]][b+1]]<-ageLenbins[[sp]][b-1]
+  for(b in 1:(nbins-1)){
+    sub$ageLenbin_pred[sub$PRED_LEN>=bins[[sp]][b]&sub$PRED_LEN<bins[[sp]][b+1]]<-ageLenbins[[sp]][b]
     sub$Lbin_pred[sub$PRED_LEN>=bins[[sp]][b]&sub$PRED_LEN<bins[[sp]][b+1]]<-bins[[sp]][b]
   }
-  for(b in 2:(nbins)){
-    sub$ageLenbin_prey[sub$PREY_SZ1_CM>=bins[[sp]][b]&sub$PREY_SZ1_CM<bins[[sp]][b+1]]<-ageLenbins[[sp]][b-1]
+  for(b in 1:(nbins-1)){
+    sub$ageLenbin_prey[sub$PREY_SZ1_CM>=bins[[sp]][b]&sub$PREY_SZ1_CM<bins[[sp]][b+1]]<-ageLenbins[[sp]][b]
     sub$Lbin_prey[sub$PREY_SZ1_CM>=bins[[sp]][b]&sub$PREY_SZ1_CM<bins[[sp]][b+1]]<-bins[[sp]][b]
   }
   
@@ -273,15 +290,84 @@ save(mnPPL_Diet,file=file.path(mainG,"mnPPL_Diet.Rdata"))
 
 # convert long to wide now - Grant to pick up here 
 # todo: fill in key with 0 values 
-sp<-1
-tmp<-data.frame(mnPPL_Diet[mnPPL_Diet$CEATTLE_PRED==names(bins)[sp],])
-tmp$key<-paste(tmp$preyNum,tmp$CEATTLE_PREY,tmp$ageLenbin_prey)
-df.w <-  spread( tmp,   key = key  ,   value = TotpreyWt_kg_sum, fill=0   )
+mnPPL_Diet_ga <- mnPPL_Diet
+mnPPL_Diet_ga$TotpreyWt_kg_prop <- NA
 
+for(pred in 1:3){
+  for(pred_age in 1:nages[pred]){
+    for(prey in 1:3){
+      for(prey_age in 1:nages[prey]){
+        # See if data exits
+        sub <- mnPPL_Diet[which(mnPPL_Diet$CEATTLE_PRED == names(bins)[pred] &
+                                  mnPPL_Diet$CEATTLE_PREY == names(bins)[prey] &
+                                  mnPPL_Diet$ageLenbin_pred == pred_age &
+                                  mnPPL_Diet$ageLenbin_prey == prey_age),]
+        
+        # Add rows if it does not
+        if(nrow(sub) == 0){
+          # Colnames =  REGION, CEATTLE_PRED, CEATTLE_PREY ,preyNum, ageLenbin_pred, Lbin_pred, ageLenbin_prey, Lbin_prey, mnMONTH, PredL_mn, PreyL_mn, sumCNT, TotpreyWt_kg_sum
+          added_vals <- c("GOA", names(bins)[pred], names(bins)[prey], prey, pred_age, bins[[pred]][pred_age], prey_age, bins[[prey]][prey_age], -999, -999, -999, 0, 0, 0)
+          mnPPL_Diet_ga <- rbind(mnPPL_Diet_ga, added_vals)
+        }
+      }
+      # Turn weight of prey-at-age in pred-at-age to % composition by weight
+      pred_at_age_wt <- (as.numeric(mnPPL_Diet_ga$TotpreyWt_kg_sum[which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
+                                                                           mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
+                                                                           mnPPL_Diet_ga$ageLenbin_pred == pred_age)]))
+      pred_at_age_wt_sum <- sum(pred_at_age_wt)
+      if(pred_at_age_wt_sum > 0){
+        pred_at_age_wt_prop <- pred_at_age_wt / pred_at_age_wt_sum
+      }
+      mnPPL_Diet_ga$TotpreyWt_kg_prop[which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
+                                              mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
+                                              mnPPL_Diet_ga$ageLenbin_pred == pred_age)] = pred_at_age_wt_prop
+    }
+  }
+}
 
+# Make UObs
+mnPPL_Diet_ga$Est_Prey_wt_by_length <- NA
+mnPPL_Diet_ga$Est_prop_by_wt_prey <- NA
+mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "halibut_mn")
+Uobs <- array(NA, dim = c(3, 3, 21, 21))
+for(pred in 1:3){
+  for(pred_age in 1:nages[pred]){
+    for(prey in 1:3){
+      
+      # Subset proportion of prey length in pred-at-length
+      mnPPL_Diet_rows <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
+                                 mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
+                                 mnPPL_Diet_ga$ageLenbin_pred == pred_age)
+      
+      # Find weight of prey in pred-at-length
+      mnDiet_sub_row <- which(mnDiet$predNum == pred &
+                                mnDiet$ageLenbin == pred_age)
+      
+      # Get weight of prey-at-length in pred-at-length
+      mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows] <- as.numeric(mnPPL_Diet_ga$TotpreyWt_kg_prop[mnPPL_Diet_rows]) * mnDiet[mnDiet_sub_row, mn_diet_names[prey]] * mnDiet$Obs_TWT_mn[mnDiet_sub_row]
+    }
+    # Normalize for all prey/pre-at-length
+    # Subset proportion of prey length in pred-at-length
+    mnPPL_Diet_rows <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
+                               mnPPL_Diet_ga$ageLenbin_pred == pred_age)
+    
+    # Normalize across all prey/prey-at-length
+    mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_rows] <- mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows] / sum(mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows])
+    
+    # Assign to Uobs
+    for(prey in 1:3){
+      for(prey_age in 1:nages[prey]){
+        mnPPL_Diet_row <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
+                                  mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
+                                  mnPPL_Diet_ga$ageLenbin_pred == pred_age &
+                                  mnPPL_Diet_ga$ageLenbin_prey == prey_age)
+        Uobs[pred, prey, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+      }
+    }
+  }
+}
 
-# now take prop df.w and multiply by mnDiet to get Uobs
-
+save(Uobs, file = "1981_2015_GOA_UobsWtAge_16agesATF.Rdata")
 
 
 
