@@ -86,7 +86,7 @@ bins<-list()
 for(sp in 1:nspp){
   for(age in 1:nages[sp]){
     # Length bins are 0 to length-at-age 1.5, length-at-age 1.5 to 2.5, ..., length-at-age (max age - 0.5) to 1000
-    bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * ((1:(nages[sp] - 1) + 0.5) - vonB_params[3,sp]))), 1000)
+    bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * ((1:(nages[sp] - 1)) - vonB_params[3,sp]))), 1000)
   }
 }
 names(bins)<-names(ageLenbins)

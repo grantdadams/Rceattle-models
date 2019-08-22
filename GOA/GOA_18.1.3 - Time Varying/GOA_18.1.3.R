@@ -6,7 +6,6 @@ setwd("C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA/GOA_18.1.3 - Time 
 ################################################
 # Read the data in
 mydata <- Rceattle::read_data( file = "GOA_18.1.3.xlsx")
-mydata$fsh_control$Nselages[15]
 
 ################################################
 # Estimation
