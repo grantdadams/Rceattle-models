@@ -329,7 +329,7 @@ for(pred in 1:3){
 mnPPL_Diet_ga$Est_Prey_wt_by_length <- NA
 mnPPL_Diet_ga$Est_prop_by_wt_prey <- NA
 mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "halibut_mn")
-Uobs <- array(NA, dim = c(3, 3, 21, 21))
+Uobs <- array(0, dim = c(3, 3, 21, 21))
 for(pred in 1:3){
   for(pred_age in 1:nages[pred]){
     for(prey in 1:3){
@@ -352,7 +352,9 @@ for(pred in 1:3){
                                mnPPL_Diet_ga$ageLenbin_pred == pred_age)
     
     # Normalize across all prey/prey-at-length
-    mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_rows] <- mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows] / sum(mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows])
+    if(mnDiet$Obs_TWT_mn[mnDiet_sub_row] > 0){
+      mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_rows] <- mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows] / mnDiet$Obs_TWT_mn[mnDiet_sub_row]
+    }
     
     # Assign to Uobs
     for(prey in 1:3){
@@ -362,12 +364,25 @@ for(pred in 1:3){
                                   mnPPL_Diet_ga$ageLenbin_pred == pred_age &
                                   mnPPL_Diet_ga$ageLenbin_prey == prey_age)
         Uobs[pred, prey, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        
+        # Prey ATF plust group
+        # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
+        if(prey_age == 16 & prey == 3){
+          Uobs[pred, 3, pred_age, 17:21] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        }
+        
+        # Predator ATF plust group
+        # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
+        if(pred_age == 16 & pred == 3){
+          Uobs[3, prey, 17:21, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        }
       }
     }
   }
 }
 
-save(Uobs, file = "1981_2015_GOA_UobsWtAge_16agesATF.Rdata")
+
+save(Uobs, file = "1981_2015_GOA_UobsWtAge.Rdata")
 
 
 
