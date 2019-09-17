@@ -7,10 +7,10 @@ setwd("Model runs/GOA_18.2.1 - Time Varying - 2sex")
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.2.1.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.2.1_small_pcod_removed.xlsx")
 
 ################################################
-# Model 1 - Single-species
+# Estimation
 ################################################
 ss_run_base <- Rceattle::fit_mod(data_list = mydata,
                             inits = NULL, # Initial parameters = 0
@@ -35,18 +35,143 @@ plot_selectivity(ss_run_base, file = file_name)
 write_results(ss_run_base, file = paste0(file_name, ".xlsx"))
 
 
+################################################
+# Model 1 - Add Pollock Random Walk to Selectivity
+################################################
+mydata$fleet_control$Time_varying_sel[8] = 1
+mydata$fleet_control$Sel_sd_prior[8] = 0.05
+inits <- ss_run_base$estimated_params
+inits$ln_sigma_sel[8] <- log(0.05)
 
-################################################
-# Model 2 - Add multi-species
-################################################
-ms_run_mod1 <- Rceattle::fit_mod(data_list = mydata,
-                                 inits = ss_run_mod4$estimated_params, # Initial parameters = 0
-                                 file = "FModels/ms_mod1", # Don't save
+ss_run_mod1 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = "Models/ss_mod1", # Don't save
                                  debug = 0, # Estimate
                                  random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE,
+                                 phase = "default")
+
+
+################################################
+# Model 2 - Add Pollock Random Walk to Acoustic Catchability
+################################################
+mydata$fleet_control$Estimate_q[2] = 1
+mydata$fleet_control$Log_q_prior[2] = -13
+inits <- ss_run_mod1$estimated_params
+inits$log_srv_q[2] <- log(ss_run_mod1$quantities$srv_q_analytical[2])
+
+ss_run_mod2 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+mydata$fleet_control$Time_varying_q[2] = 1
+mydata$fleet_control$Q_sd_prior[2] = 0.05
+inits <- ss_run_mod2$estimated_params
+inits$ln_sigma_srv_q[2] <- log(0.05)
+
+ss_run_mod2 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = "Models/ss_mod2", # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+################################################
+# Model 3 - Add Pollock Random Walk to BT Catchability
+################################################
+mydata$fleet_control$Estimate_q[3] = 1
+mydata$fleet_control$Log_q_prior[3] = -13
+inits <- ss_run_mod2$estimated_params
+inits$log_srv_q[3] <- log(ss_run_mod1$quantities$srv_q_analytical[3])
+
+ss_run_mod3 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+mydata$fleet_control$Time_varying_q[3] = 1
+mydata$fleet_control$Q_sd_prior[3] = 0.01
+inits <- ss_run_mod3$estimated_params
+inits$ln_sigma_srv_q[3] <- log(0.01)
+
+ss_run_mod3 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = "Models/ss_mod3", # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+
+################################################
+# Model 4 - Add Pollock Random Walk to ADFG Catchability
+################################################
+mydata$fleet_control$Estimate_q[4] = 1
+mydata$fleet_control$Log_q_prior[4] = -13
+inits <- ss_run_mod3$estimated_params
+inits$log_srv_q[4] <- log(ss_run_mod1$quantities$srv_q_analytical[4])
+
+ss_run_mod4 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+mydata$fleet_control$Time_varying_q[4] = 1
+mydata$fleet_control$Q_sd_prior[4] = 0.05
+inits <- ss_run_mod4$estimated_params
+inits$ln_sigma_srv_q[4] <- log(0.05)
+
+ss_run_mod4 <- Rceattle::fit_mod(data_list = mydata,
+                                 inits = inits, # Initial parameters = 0
+                                 file = "Models/ss_mod4", # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE, phase = "default")
+
+file_name <- "Figures/RW4/RW4"
+plot_index(ss_run_mod4, file = file_name)
+# plot_catch(ss_run_mod4, file = file_name)
+Rceattle::plot_srv_comp(ss_run_mod4, file = file_name)
+Rceattle::plot_fsh_comp(ss_run_mod4, file = file_name)
+plot_biomass(ss_run_mod4, file = file_name)
+plot_ssb(ss_run_mod4, file = file_name, add_ci = TRUE)
+plot_recruitment(ss_run_mod4, file = file_name, add_ci = TRUE)
+plot_selectivity(ss_run_mod4, file = file_name)
+write_results(ss_run_mod4, file = paste0(file_name, ".xlsx"))
+
+
+################################################
+# Model 5 - Add multi-species
+################################################
+mydata_ms <- mydata
+mydata_ms$M1_base[1,1] <- 1.14
+mydata_ms$M1_base[1,2:4] <- c(0.5, 0.4, 0.34)
+mydata_ms$M1_base[2,1] <- 0.36
+mydata_ms$BTempC <- mydata_ms$BTempC * 0 + 5.55042
+
+ms_run_mod1 <- Rceattle::fit_mod(data_list = mydata_ms,
+                                 inits = ss_run_mod4$estimated_params, # Initial parameters = 0
+                                 file = "Models/ms_mod1", # Don't save
+                                 debug = 1, # Estimate
+                                 random_rec = FALSE, # No random recruitment
                                  msmMode = 1, # Single species mode
-                                 silent = FALSE,
-                                 niter = 10)
+                                 silent = TRUE, phase = NULL,
+                                 niter = 2)
+ms_run_mod1$quantities$suit_main[1,1,1,1,1,,]
+
 
 file_name <- "Figures/MS1/MS1"
 plot_index(ms_run_mod1, file = file_name)
