@@ -389,24 +389,37 @@ for(pred in 1:4){
     }
     
     # Assign to Uobs
-    for(prey in 1:3){
+    for(prey in 1:4){
       for(prey_age in 1:nages[prey]){
         mnPPL_Diet_row <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
                                   mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
                                   mnPPL_Diet_ga$ageLenbin_pred == pred_age &
                                   mnPPL_Diet_ga$ageLenbin_prey == prey_age)
-        Uobs[pred, prey, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        
+        prey_sex = 1
+        if(prey == 4){
+          prey = 3
+          prey_sex = 2
+        }
+        
+        pred_sex = 1
+        if(pred == 4){
+          pred = 3
+          pred_sex = 2
+        }
+        
+        Uobs[pred, prey, pred_sex, prey_sex, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         
         # Prey ATF plust group
         # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
         if(prey_age == 16 & prey == 3){
-          Uobs[pred, 3, pred_age, 17:21] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+          Uobs[pred, 3, pred_sex, prey_sex, pred_age, 17:21] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         }
         
         # Predator ATF plust group
         # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
         if(pred_age == 16 & pred == 3){
-          Uobs[3, prey, 17:21, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+          Uobs[3, prey, pred_sex, prey_sex, 17:21, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         }
       }
     }
@@ -416,7 +429,40 @@ for(pred in 1:4){
 
 save(Uobs, file = "1981_2015_GOA_UobsWtAge_twoSex.Rdata")
 
+# Convert to different format
+nsex <- c(1,1,2)
+nages <- c(10,12,21,21)
+uobsdf <- data.frame(matrix(NA, nrow = 5000, ncol = 9))
+ind = 1
 
+for(pred in 1:3){
+  for(prey in 1:3){
+    for(pred_sex in 1:nsex[pred]){
+      for(prey_sex in 1:nsex[prey]){ 
+        for(pred_age in 1:nages[pred]){
+          for(prey_age in 1:nages[prey]){
+            
+            uobsdf[ind, 1] <- pred
+            uobsdf[ind, 2] <- prey
+            uobsdf[ind, 3] <- pred_sex
+            uobsdf[ind, 4] <- prey_sex
+            uobsdf[ind, 5] <- pred_age
+            uobsdf[ind, 6] <- prey_age
+            uobsdf[ind, 7] <- 0
+            uobsdf[ind, 8] <- 20
+            uobsdf[ind, 9] <- Uobs[pred, prey, pred_sex, prey_sex, pred_age, prey_age]
+            ind <- ind + 1
+          }
+        }
+      }
+    }
+  }
+}
+
+uobsdf <- uobsdf[complete.cases(uobsdf),]
+colnames(uobsdf) <- c("Pred", "Prey", "Pred_sex", "Prey_sex", "Pred_age", "Prey_age", "Year", 
+                      "Sample_size", "Stomach_proportion_by_weight")
+write.csv(uobsdf, file = "1981_2015_GOA_uobsdf_2sex.csv")
 
 
 
