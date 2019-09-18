@@ -183,7 +183,7 @@ plot_index(ss_run_mod4, file = file_name)
 # plot_catch(ss_run_mod4, file = file_name)
 Rceattle::plot_srv_comp(ss_run_mod4, file = file_name)
 Rceattle::plot_fsh_comp(ss_run_mod4, file = file_name)
-plot_biomass(ss_run_mod4, file = file_name)
+plot_biomass(ss_run_mod4)
 plot_ssb(ss_run_mod4, file = file_name, add_ci = TRUE)
 plot_recruitment(ss_run_mod4, file = file_name, add_ci = TRUE)
 plot_selectivity(ss_run_mod4, file = file_name)
@@ -194,10 +194,10 @@ write_results(ss_run_mod4, file = paste0(file_name, ".xlsx"))
 # Model 5 - Add multi-species
 ################################################
 mydata_ms <- ss_run_mod4$data_list
-mydata_ms$M1_base[1,3] <- 1.14 + 0.06169283
+mydata_ms$M1_base[1,3] <- 1.14 + 0.06169283 - 0.09233365
 mydata_ms$M1_base[1,4:6] <- c(0.5, 0.4, 0.34)
 mydata_ms$M1_base[2,3] <- 0.36
-mydata_ms$M1_base[3,3] <- 0.01
+mydata_ms$M1_base[3,3] <- 0.01 + 04458429
 mydata_ms$M1_base[4,3] <- 0.01
 mydata_ms$BTempC <- mydata_ms$BTempC * 0 + 5.55042
 
@@ -208,7 +208,7 @@ ms_run_mod1 <- Rceattle::fit_mod(data_list = mydata_ms,
                                  debug = 0, # Estimate
                                  random_rec = FALSE, # No random recruitment
                                  msmMode = 1, # Single species mode
-                                 silent = TRUE, phase = NULL,
+                                 silent = TRUE, phase = "default",
                                  niter = 10)
 
 
@@ -224,39 +224,3 @@ plot_recruitment(ms_run_mod1, file = file_name, add_ci = TRUE)
 plot_selectivity(ms_run_mod1, file = file_name)
 write_results(ms_run_mod1, file = paste0(file_name, ".xlsx"))
 
-
-
-################################################
-# Model 5 - Add multi-species phased
-################################################
-
-mydata_ms <- ss_run_mod4$data_list
-mydata_ms$M1_base[1,3] <- 1.14 + 0.06169283 - 0.09233365
-mydata_ms$M1_base[1,4:6] <- c(0.5, 0.4, 0.34)
-mydata_ms$M1_base[2,3] <- 0.36
-mydata_ms$M1_base[3,3] <- 0.01 + 04458429
-mydata_ms$M1_base[4,3] <- 0.01
-mydata_ms$BTempC <- mydata_ms$BTempC * 0 + 5.55042
-
-
-ms_run_mod1 <- Rceattle::fit_mod(data_list = mydata_ms,
-                                 inits = ss_run_mod4$estimated_params, # Initial parameters = 0
-                                 file = "Models/ms1phased", # Don't save
-                                 debug = 0, # Estimate
-                                 random_rec = FALSE, # No random recruitment
-                                 msmMode = 1, # Single species mode
-                                 silent = TRUE, phase = "default",
-                                 niter = 10)
-
-
-
-file_name <- "Figures/MS1/MS1phase"
-plot_index(ms_run_mod1, file = file_name)
-# plot_catch(ms_run_mod1, file = file_name)
-Rceattle::plot_srv_comp(ms_run_mod1, file = file_name)
-Rceattle::plot_fsh_comp(ms_run_mod1, file = file_name)
-plot_biomass(ms_run_mod1, file = file_name)
-plot_ssb(ms_run_mod1, file = file_name, add_ci = TRUE)
-plot_recruitment(ms_run_mod1, file = file_name, add_ci = TRUE)
-plot_selectivity(ms_run_mod1, file = file_name)
-write_results(ms_run_mod1, file = paste0(file_name, ".xlsx"))
