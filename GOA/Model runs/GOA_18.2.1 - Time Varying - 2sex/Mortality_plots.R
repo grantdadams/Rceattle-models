@@ -1,18 +1,20 @@
+yrs <- ms_run_mod1$data_list$styr:ms_run_mod1$data_list$endyr
+nyrs <- length(yrs)
 
 par(mfrow = c(3,1), mar = c(2.2,4.5,0.2,0.5))
 
 # Pollock
-ms_zed <- ms_run_mod1$quantities$Zed[1,1,1:nyrs]
-ss_zed <- ss_run_mod4$quantities$Zed[1,1,1:nyrs]
-plot(y = ms_zed, x =  yrs, type = "l", lwd = 2, xlab = NA, ylab = NA, ylim = c(1.3, 1.45), xaxt = "n")
+ms_zed <- ms_run_mod1$quantities$Zed[1,1,1,1:nyrs]
+ss_zed <- ss_run_mod4$quantities$Zed[1,1,1,1:nyrs]
+plot(y = ms_zed, x =  yrs, type = "l", lwd = 2, xlab = NA, ylab = NA, ylim = c(1.2, 1.45), xaxt = "n")
 abline(h = mean(ms_zed), lty = 2, lwd = 2)
 lines(y = ss_zed, x =  yrs, lty = 3, lwd = 2)
 legend("topleft", "a) Walleye pollock", bty = "n", cex = 1.5)
 
 # Cod
-ms_zed <- ms_run_mod1$quantities$Zed[2,1,1:nyrs]
-ss_zed <- ss_run_mod4$quantities$Zed[2,1,1:nyrs]
-plot(y = ms_zed, x =  yrs, type = "l", lwd = 2, xlab = NA, ylab = NA, ylim = c(0.35, 0.5), xaxt = "n")
+ms_zed <- ms_run_mod1$quantities$Zed[2,1,1,1:nyrs]
+ss_zed <- ss_run_mod4$quantities$Zed[2,1,1,1:nyrs]
+plot(y = ms_zed, x =  yrs, type = "l", lwd = 2, xlab = NA, ylab = NA, ylim = c(0.35, 0.7), xaxt = "n")
 abline(h = mean(ms_zed), lty = 2, lwd = 2)
 lines(y = ss_zed, x =  yrs, lty = 3, lwd = 2)
 legend("topleft", "b) Pacific cod", bty = "n", cex = 1.5)
@@ -20,14 +22,21 @@ legend("topleft", "b) Pacific cod", bty = "n", cex = 1.5)
 # Xlab
 mtext(side = 2, "Age 1 mortality (M1 + M2 + F)", line = 2.5)
 
-# ATF
-ms_zed <- ms_run_mod1$quantities$Zed[3,1,1:nyrs]
-ss_zed <- ss_run_mod4$quantities$Zed[3,1,1:nyrs]
+# Female ATF
+ms_zed <- ms_run_mod1$quantities$Zed[3,1,1,1:nyrs]
+ss_zed <- ss_run_mod4$quantities$Zed[3,1,1,1:nyrs]
 plot(y = ms_zed, x =  yrs, type = "l", lwd = 2,ylab = NA, ylim = c(0.1, 0.5), xlab = "Year")
 abline(h = mean(ms_zed), lty = 2, lwd = 2)
 lines(y = ss_zed, x =  yrs, lty = 3, lwd = 2)
 legend("topleft", "c) Arrowtooth flounder", bty = "n", cex = 1.5)
 
+# Male ATF
+ms_zed <- ms_run_mod1$quantities$Zed[3,2,1,1:nyrs]
+ss_zed <- ss_run_mod4$quantities$Zed[3,2,1,1:nyrs]
+plot(y = ms_zed, x =  yrs, type = "l", lwd = 2,ylab = NA, ylim = c(0.1, 0.5), xlab = "Year")
+abline(h = mean(ms_zed), lty = 2, lwd = 2)
+lines(y = ss_zed, x =  yrs, lty = 3, lwd = 2)
+legend("topleft", "c) Arrowtooth flounder", bty = "n", cex = 1.5)
 
 
 # Proportion of pollock M2

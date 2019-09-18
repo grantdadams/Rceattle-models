@@ -1,9 +1,11 @@
+yrs <- ms_run_mod1$data_list$styr:ms_run_mod1$data_list$endyr
+nyrs <- length(yrs)
 
 par(mfrow = c(3,1), mar = c(2.2,4.5,0.2,0.5))
 
 # Pollock
-ms_zed <- ms_run_mod1$quantities$Zed[1,1,1:nyrs]
-ss_zed <- ss_run_mod4$quantities$Zed[1,1,1:nyrs]
+ms_zed <- ms_run_mod1$quantities$Zed[1,1,1,1:nyrs]
+ss_zed <- ss_run_mod4$quantities$Zed[1,1,1,1:nyrs]
 plot(y = ms_zed, x =  yrs, type = "l", lwd = 2, xlab = NA, ylab = NA, ylim = c(1.3, 1.45), xaxt = "n")
 abline(h = mean(ms_zed), lty = 2, lwd = 2)
 lines(y = ss_zed, x =  yrs, lty = 3, lwd = 2)
