@@ -26,8 +26,7 @@ ss_run_base <- Rceattle::fit_mod(data_list = mydata,
 file_name <- "Figures/Base/Base"
 plot_index(ss_run_base, file = file_name)
 # plot_catch(ss_run_base, file = file_name)
-Rceattle::plot_srv_comp(ss_run_base, file = file_name)
-Rceattle::plot_fsh_comp(ss_run_base, file = file_name)
+Rceattle::plot_comp(ss_run_base, file = file_name)
 plot_biomass(ss_run_base, file = file_name)
 plot_ssb(ss_run_base, file = file_name, add_ci = TRUE)
 plot_recruitment(ss_run_base, file = file_name, add_ci = TRUE)
