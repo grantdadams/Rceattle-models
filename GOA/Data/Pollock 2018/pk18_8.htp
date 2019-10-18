@@ -1,5 +1,5 @@
-#if !defined(_pk18_8_)
-#  define _pk18_8_
+#if !defined(_PK18_8_)
+#  define _PK18_8_
 
 class model_data : public ad_comm{
   ofstream *   pad_report1;
