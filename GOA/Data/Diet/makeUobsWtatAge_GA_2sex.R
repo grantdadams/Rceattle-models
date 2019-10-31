@@ -54,31 +54,67 @@ if(update_data){
 GOAPredPreyL$CEATTLE_PREY <- as.character(GOAPredPreyL$CEATTLE_PREY)
 GOAPredPreyL$CEATTLE_PRED <- as.character(GOAPredPreyL$CEATTLE_PRED)
 
+#############################################
+# ATF
+#############################################
 # Adjust GOAPredPreyL for males
-arrowtooth_prey <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PREY == "Arrowtooth"),]
-arrowtooth_prey$CEATTLE_PREY <- "ArrowtoothM"
-GOAPredPreyL$preyNum[which(GOAPredPreyL$preyNum == 4)] <- 5
-arrowtooth_prey$preyNum <- 4
+arrowtooth_prey_males <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PREY == "Arrowtooth"),]
+arrowtooth_prey_males$CEATTLE_PREY <- "ArrowtoothM"
+
+GOAPredPreyL$preyNum[which(GOAPredPreyL$preyNum == 4)] <- 5 # Halibut # to 5 and ATF M to 4
+arrowtooth_prey_males$preyNum <- 4
 
 
-arrowtooth_pred <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PRED == "Arrowtooth"),]
-arrowtooth_pred$CEATTLE_PRED <- "ArrowtoothM"
+arrowtooth_pred_males <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PRED == "Arrowtooth"),]
+arrowtooth_pred_males$CEATTLE_PRED <- "ArrowtoothM"
 
 
 # Adjust females
 GOAPredPreyL$CEATTLE_PREY[which(GOAPredPreyL$CEATTLE_PREY == "Arrowtooth")] <- "ArrowtoothF"
 GOAPredPreyL$CEATTLE_PRED[which(GOAPredPreyL$CEATTLE_PRED == "Arrowtooth")] <- "ArrowtoothF"
 
-GOAPredPreyL <- rbind(GOAPredPreyL, arrowtooth_prey)
-GOAPredPreyL <- rbind(GOAPredPreyL, arrowtooth_pred)
+GOAPredPreyL <- rbind(GOAPredPreyL, arrowtooth_prey_males)
+GOAPredPreyL <- rbind(GOAPredPreyL, arrowtooth_pred_males)
 
 
 # Adjust GOA_preyWt for male and female ATF
-GOA_preyWt_prey <- GOA_preyWt[which(GOA_preyWt$Species_name2 == "Arrowtooth"),]
-GOA_preyWt_prey$Species_name2 <- "ArrowtoothM"
+GOA_preyWt_prey_males <- GOA_preyWt[which(GOA_preyWt$Species_name2 == "Arrowtooth"),]
+GOA_preyWt_prey_males$Species_name2 <- "ArrowtoothM"
 
 GOA_preyWt$Species_name2[which(GOA_preyWt$Species_name2 == "Arrowtooth")] <- "ArrowtoothF"
-GOA_preyWt <- rbind(GOA_preyWt, GOA_preyWt_prey)
+
+GOA_preyWt <- rbind(GOA_preyWt, GOA_preyWt_prey_males)
+
+######################################
+# HALIBUT
+######################################
+# Adjust GOAPredPreyL for males
+halibut_prey_males <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PREY == "P. Halibut"),]
+halibut_prey_males$CEATTLE_PREY <- "P. HalibutM"
+halibut_prey_males$preyNum <- 6
+
+
+halibut_pred_males <- GOAPredPreyL[which(GOAPredPreyL$CEATTLE_PRED == "P. Halibut"),]
+halibut_pred_males$CEATTLE_PRED <- "P. HalibutM"
+
+
+# Adjust females
+GOAPredPreyL$CEATTLE_PREY[which(GOAPredPreyL$CEATTLE_PREY == "P. Halibut")] <- "P. HalibutF"
+GOAPredPreyL$CEATTLE_PRED[which(GOAPredPreyL$CEATTLE_PRED == "P. Halibut")] <- "P. HalibutF"
+
+GOAPredPreyL <- rbind(GOAPredPreyL, halibut_prey_males)
+GOAPredPreyL <- rbind(GOAPredPreyL, halibut_pred_males)
+
+
+# Adjust GOA_preyWt for male and female ATF
+GOA_preyWt_prey_males <- GOA_preyWt[which(GOA_preyWt$Species_name2 == "P. Halibut"),]
+GOA_preyWt_prey_males$Species_name2 <- "P. HalibutM"
+
+GOA_preyWt$Species_name2[which(GOA_preyWt$Species_name2 == "P. Halibut")] <- "P. HalibutF"
+
+GOA_preyWt <- rbind(GOA_preyWt, GOA_preyWt_prey_males)
+
+
 
 # Step 1: Find Pred, pred age, prey, prey age preference using GOAPredPreyL
 # -- FIXME: Do 1st and 2nd stage expansion
@@ -90,14 +126,15 @@ GOA_preyWt <- rbind(GOA_preyWt, GOA_preyWt_prey)
 
 # create matrix of prey pref based on size bins for each spp:
 # _____________________________________
-nspp<-5
-nages <- c(10,	12,	16, 16, 21)
+nspp<-6
+nages <- c(10,	12,	16, 16, 30, 30)
 ageLenbins<-list(
   "W. Pollock"= 1:10 ,
   "P. Cod"= 1:12,
   "ArrowtoothF"= 1:16,
   "ArrowtoothM"= 1:16,
-  "P. Halibut"= 1:21)
+  "P. HalibutF"= 1:30,
+  "P. HalibutM"= 1:30)
 
 # Get length bins based on vonB
 vonB_params <- matrix(NA, 3, nspp)
@@ -106,21 +143,29 @@ colnames(vonB_params) <- c("W. Pollock",
                            "P. Cod",
                            "ArrowtoothF",
                            "ArrowtoothM",
-                           "P. Halibut")
+                           "P. HalibutF",
+                           "P. HalibutM")
 vonB_params[,1] <- c(65.2, 0.3, 0) # Pollock
 vonB_params[,2] <- c(99.46, 0.1966, -0.11) # Pcod
 vonB_params[,3] <- c(66.44564, 0.1535, -0.6253) # Female ATF
 vonB_params[,4] <- c(49.48802, 0.2161, -0.7776) # Male ATF
-vonB_params[,5] <- c(66.44564, 0.1535, -0.6253) # Female ATF FIXME
 
 bins<-list()
 
-for(sp in 1:nspp){
+for(sp in 1:4){
   for(age in 1:nages[sp]){
     # Length bins are 0 to length-at-age 1.5, length-at-age 1.5 to 2.5, ..., length-at-age (max age - 0.5) to 1000
     bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * ((1:(nages[sp] - 1)) - vonB_params[3,sp]))), 1000)
   }
 }
+
+# Female Halibut - from average weight-at-age converted to length-at-age (1977-2018)
+bins[[5]] <- c(0, 20.98414476, 26.05467079, 38.95059085, 48.59624731, 65.45655466, 81.01367555, 84.96023659, 91.1632273, 96.18399758, 101.9296683, 109.759309, 115.4166574, 120.9402115, 124.4322066, 131.5274968, 137.2351486, 140.6212772, 144.592606, 150.7565766, 158.1289786, 145.0375124, 154.7621974, 168.5098466, 160.16937, 166.5282808, 172.1523869, 177.2017792, 181.7709937, 185.9147644, 189.6434369, 1000)
+
+# Male halibut - from average weight-at-age converted to length-at-age (1977-2018)
+bins[[6]] <- c(0, 22.46023889, 27.70955325, 38.07012417, 47.2093022, 59.74949349, 71.18448793, 74.64537761, 79.12410539, 83.35769724, 86.21980379, 90.12457879, 91.19153085, 94.27554381, 96.26814735, 98.24412573, 102.0207376, 103.6909081, 104.9241492, 110.9688789, 111.4698576, 115.7636147, 119.924815, 122.7530789, 110.626339, 116.5099047, 121.5751708, 126.0433758, 130.0621139, 133.7289825, 137.0956009, 1000)
+
+
 names(bins)<-names(ageLenbins)
 
 # _____________________________________
@@ -325,9 +370,9 @@ save(mnPPL_Diet,file=file.path(mainG,"mnPPL_Diet.Rdata"))
 mnPPL_Diet_ga <- mnPPL_Diet
 mnPPL_Diet_ga$TotpreyWt_kg_prop <- NA
 
-for(pred in 1:4){
+for(pred in 1:nspp){
   for(pred_age in 1:nages[pred]){
-    for(prey in 1:4){
+    for(prey in 1:nspp){
       for(prey_age in 1:nages[prey]){
         # See if data exits
         sub <- mnPPL_Diet[which(mnPPL_Diet$CEATTLE_PRED == names(bins)[pred] &
@@ -361,10 +406,10 @@ for(pred in 1:4){
 mnPPL_Diet_ga$Est_Prey_wt_by_length <- NA
 mnPPL_Diet_ga$Est_prop_by_wt_prey <- NA
 mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "atf_mn")
-Uobs <- array(0, dim = c(3, 3, 2, 2, 21, 21))
-for(pred in 1:4){
+Uobs <- array(0, dim = c(4, 4, 2, 2, 30, 30))
+for(pred in 1:nspp){
   for(pred_age in 1:nages[pred]){
-    for(prey in 1:4){
+    for(prey in 1:nspp){
       
       # Subset proportion of prey length in pred-at-length
       mnPPL_Diet_rows <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
@@ -389,22 +434,33 @@ for(pred in 1:4){
     }
     
     # Assign to Uobs
-    for(prey in 1:4){
+    for(prey in 1:nspp){
       for(prey_age in 1:nages[prey]){
         mnPPL_Diet_row <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
                                   mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
                                   mnPPL_Diet_ga$ageLenbin_pred == pred_age &
                                   mnPPL_Diet_ga$ageLenbin_prey == prey_age)
         
+        # Adjust for ATF males
         prey_sex = 1
+        pred_sex = 1
+        
         if(prey == 4){
           prey = 3
           prey_sex = 2
         }
-        
-        pred_sex = 1
         if(pred == 4){
           pred = 3
+          pred_sex = 2
+        }
+        
+        # Adjust for halibut
+        if(prey == 6){
+          prey = 4
+          prey_sex = 2
+        }
+        if(pred == 6){
+          pred = 4
           pred_sex = 2
         }
         
@@ -431,8 +487,8 @@ save(Uobs, file = "1981_2015_GOA_UobsWtAge_twoSex.Rdata")
 
 # Convert to different format
 nsex <- c(1,1,2)
-nages <- c(10,12,21,21)
-uobsdf <- data.frame(matrix(NA, nrow = 5000, ncol = 9))
+nages <- c(10,12,21,21,30,30)
+uobsdf <- data.frame(matrix(NA, nrow = 10000, ncol = 9))
 ind = 1
 
 for(pred in 1:3){
@@ -462,7 +518,7 @@ for(pred in 1:3){
 uobsdf <- uobsdf[complete.cases(uobsdf),]
 colnames(uobsdf) <- c("Pred", "Prey", "Pred_sex", "Prey_sex", "Pred_age", "Prey_age", "Year", 
                       "Sample_size", "Stomach_proportion_by_weight")
-write.csv(uobsdf, file = "1981_2015_GOA_uobsdf_2sex.csv")
+write.csv(uobsdf, file = "1981_2015_GOA_w_halibut_uobsdf_2sex.csv")
 
 
 

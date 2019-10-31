@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.2.2 - Time Varying - 2sex - ATFq")
+setwd("Model runs/GOA_18.3.1 - with halibut")
 
 # Updated the ALK
 
@@ -7,7 +7,7 @@ setwd("Model runs/GOA_18.2.2 - Time Varying - 2sex - ATFq")
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.2.2_small_pcod_removed.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.3.1_small_pcod_removed.xlsx")
 
 ################################################
 # Estimation
