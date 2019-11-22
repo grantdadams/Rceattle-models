@@ -7,7 +7,7 @@ setwd("Model runs/GOA_18.3.1 - with halibut")
 # Data
 ################################################
 # Read the data in
-mydata <- Rceattle::read_data( file = "GOA_18.3.1_small_pcod_removed.xlsx")
+mydata <- Rceattle::read_data( file = "GOA_18.3.1_small_pcod_removed_coastwide_halibut.xlsx")
 
 ################################################
 # Estimation
@@ -21,6 +21,8 @@ ss_run_base <- Rceattle::fit_mod(data_list = mydata,
                                  silent = TRUE,
                                  recompile = FALSE,
                                  phase = "default")
+
+# Moved the GOA pollock fishery from double logistic to logisitc
 
 
 file_name <- "Figures/Base/Base"
@@ -54,12 +56,12 @@ ms_run_mod1 <- Rceattle::fit_mod(data_list = mydata_ms,
                                  debug = 0, # Estimate
                                  random_rec = FALSE, # No random recruitment
                                  msmMode = 1, # Single species mode
-                                 silent = TRUE, phase = NULL,
+                                 silent = TRUE, phase = "default",
                                  niter = 10)
 
 
 
-file_name <- "Figures/MS1/MS0"
+  file_name <- "Figures/MS1/MS0"
 plot_index(ms_run_mod1, file = file_name)
 # plot_catch(ms_run_mod1, file = file_name)
 Rceattle::plot_srv_comp(ms_run_mod1, file = file_name)
@@ -69,6 +71,11 @@ plot_ssb(ms_run_mod1, file = file_name, add_ci = TRUE)
 plot_recruitment(ms_run_mod1, file = file_name, add_ci = TRUE)
 plot_selectivity(ms_run_mod1, file = file_name)
 write_results(ms_run_mod1, file = paste0(file_name, ".xlsx"))
+
+mod_list <- list(ss_run_base, ms_run_mod1)
+mod_names <- c("SS", "MS")
+plot_biomass(mod_list, model_names = mod_names)
+plot_ssb(mod_list, model_names  = mod_names, add_ci = TRUE)
 
 
 ################################################

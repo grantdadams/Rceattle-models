@@ -127,14 +127,14 @@ GOA_preyWt <- rbind(GOA_preyWt, GOA_preyWt_prey_males)
 # create matrix of prey pref based on size bins for each spp:
 # _____________________________________
 nspp<-6
-nages <- c(10,	12,	16, 16, 30, 30)
+nages <- c(10,	12,	16, 12, 16, 20)
 ageLenbins<-list(
-  "W. Pollock"= 1:10 ,
-  "P. Cod"= 1:12,
-  "ArrowtoothF"= 1:16,
-  "ArrowtoothM"= 1:16,
-  "P. HalibutF"= 1:30,
-  "P. HalibutM"= 1:30)
+  "W. Pollock"= 1:nages[1] ,
+  "P. Cod"= 1:nages[2],
+  "ArrowtoothF"= 1:nages[3],
+  "ArrowtoothM"= 1:nages[4],
+  "P. HalibutF"= 1:nages[5],
+  "P. HalibutM"= 1:nages[6])
 
 # Get length bins based on vonB
 vonB_params <- matrix(NA, 3, nspp)
@@ -153,17 +153,18 @@ vonB_params[,4] <- c(49.48802, 0.2161, -0.7776) # Male ATF
 bins<-list()
 
 for(sp in 1:4){
-  for(age in 1:nages[sp]){
     # Length bins are 0 to length-at-age 1.5, length-at-age 1.5 to 2.5, ..., length-at-age (max age - 0.5) to 1000
-    bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * ((1:(nages[sp] - 1)) - vonB_params[3,sp]))), 1000)
-  }
+    bins[[sp]]<- c(0, vonB_params[1,sp] * (1 -  exp(-vonB_params[2,sp] * (((2:(nages[sp]))) - vonB_params[3,sp]))), ifelse(sp == 4,  49.35173, 1000 ))
 }
 
 # Female Halibut - from average weight-at-age converted to length-at-age (1977-2018)
-bins[[5]] <- c(0, 20.98414476, 26.05467079, 38.95059085, 48.59624731, 65.45655466, 81.01367555, 84.96023659, 91.1632273, 96.18399758, 101.9296683, 109.759309, 115.4166574, 120.9402115, 124.4322066, 131.5274968, 137.2351486, 140.6212772, 144.592606, 150.7565766, 158.1289786, 145.0375124, 154.7621974, 168.5098466, 160.16937, 166.5282808, 172.1523869, 177.2017792, 181.7709937, 185.9147644, 189.6434369, 1000)
+bins[[5]] <- c(0, 20.98414476, 26.05467079, 38.95059085, 48.59624731, 65.45655466, 81.01367555, 84.96023659, 91.1632273, 96.18399758, 101.9296683, 109.759309, 115.4166574, 120.9402115, 124.4322066, 131.5274968, 1000)
+
+# 137.2351486, 140.6212772, 144.592606, 150.7565766, 158.1289786, 145.0375124, 154.7621974, 168.5098466, 160.16937, 166.5282808, 172.1523869, 177.2017792, 181.7709937, 185.9147644
 
 # Male halibut - from average weight-at-age converted to length-at-age (1977-2018)
-bins[[6]] <- c(0, 22.46023889, 27.70955325, 38.07012417, 47.2093022, 59.74949349, 71.18448793, 74.64537761, 79.12410539, 83.35769724, 86.21980379, 90.12457879, 91.19153085, 94.27554381, 96.26814735, 98.24412573, 102.0207376, 103.6909081, 104.9241492, 110.9688789, 111.4698576, 115.7636147, 119.924815, 122.7530789, 110.626339, 116.5099047, 121.5751708, 126.0433758, 130.0621139, 133.7289825, 137.0956009, 1000)
+bins[[6]] <- c(0, 22.46023889, 27.70955325, 38.07012417, 47.2093022, 59.74949349, 71.18448793, 74.64537761, 79.12410539, 83.35769724, 86.21980379, 90.12457879, 91.19153085, 94.27554381, 96.26814735, 98.24412573, 102.0207376, 103.6909081, 104.9241492, 110.9688789, 133.7289825)
+ # 111.4698576, 115.7636147, 119.924815, 122.7530789, 110.626339, 116.5099047, 121.5751708, 126.0433758, 130.0621139, 133.7289825, 1000
 
 
 names(bins)<-names(ageLenbins)
@@ -176,7 +177,7 @@ sptable<-tapply(as.character(GOAPredPreyL$CEATTLE_PREY),GOAPredPreyL$preyNum,uni
 spnames<-as.character(lkup[match(sptable,lkup$name1),]$name2)
 
 GOA_preyWt$predNum<-as.numeric(
-  factor(GOA_preyWt$Species_name2,levels=c("W. Pollock","P. Cod","ArrowtoothF", "P. Halibut", "ArrowtoothM")))
+  factor(GOA_preyWt$Species_name2,levels=c("W. Pollock","P. Cod","ArrowtoothF", "ArrowtoothM", "P. HalibutF", "P. HalibutM")))
 
 sptable2<-tapply(as.character(GOA_preyWt$Species_name2),GOA_preyWt$predNum,unique)
 spnames2<-as.character(lkup[match(sptable2,lkup$name1),]$name2)
@@ -316,8 +317,8 @@ plot(subp$pollock_mn~subp$PredL_mn,type="b")
 
 #mnDiet is the mean (across stations, strata, and years) proportion of each prey species in the age bin of each predator
 #mnDietbyYR is annual mean (across stations, strata) proportion of each prey species in the age bin of each predator
-save(mnDiet,file=file.path(mainG,"mnDiet.Rdata"))
-save(mnDietbyYR,file=file.path(mainG,"mnDietbyYR.Rdata"))
+save(mnDiet,file=file.path(mainG,"mnDiet_halibut.Rdata"))
+save(mnDietbyYR,file=file.path(mainG,"mnDietbyYR_halibut.Rdata"))
 
 
 # _____________________________________
@@ -348,6 +349,7 @@ for(sp in 1:nspp){
       PredL_mn= mean(PRED_LEN,na.rm=T),
       PreyL_mn= mean(PREY_SZ1_CM,na.rm=T),
       sumCNT  = sum(count,na.rm=T),
+      sumPred = length(unique(PREDJOIN)),
       TotpreyWt_kg_sum= sum(TotpreyWt_kg,na.rm=T))
   
   
@@ -362,7 +364,7 @@ for(sp in 1:nspp){
 
 
 mnPPL_Diet<-data.frame(mnPPL_Diet)
-save(mnPPL_Diet,file=file.path(mainG,"mnPPL_Diet.Rdata"))
+save(mnPPL_Diet,file=file.path(mainG,"mnPPL_Diet_halibut.Rdata"))
 
 
 # convert long to wide now - Grant to pick up here 
@@ -402,10 +404,17 @@ for(pred in 1:nspp){
   }
 }
 
+mnPPL_Diet_ga$TotpreyWt_kg_prop <- as.numeric(mnPPL_Diet_ga$TotpreyWt_kg_prop)
+mnPPL_Diet_ga$TotpreyWt_kg_prop[which(is.na(mnPPL_Diet_ga$TotpreyWt_kg_prop))] <- 0
+
+
+
+
 # Make UObs
 mnPPL_Diet_ga$Est_Prey_wt_by_length <- NA
 mnPPL_Diet_ga$Est_prop_by_wt_prey <- NA
-mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "atf_mn")
+mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "atf_mn", "halibut_mn", "halibut_mn")
+
 Uobs <- array(0, dim = c(4, 4, 2, 2, 30, 30))
 for(pred in 1:nspp){
   for(pred_age in 1:nages[pred]){
@@ -432,10 +441,18 @@ for(pred in 1:nspp){
     if(mnDiet$Obs_TWT_mn[mnDiet_sub_row] > 0){
       mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_rows] <- mnPPL_Diet_ga$Est_Prey_wt_by_length[mnPPL_Diet_rows] / mnDiet$Obs_TWT_mn[mnDiet_sub_row]
     }
-    
-    # Assign to Uobs
+  }
+}
+
+write.csv(mnPPL_Diet_ga, file = "mnPPL_Diet_ga_with_halibut.csv")
+
+# Assign to Uobs
+for(pred in 1:nspp){
+  for(pred_age in 1:nages[pred]){
     for(prey in 1:nspp){
       for(prey_age in 1:nages[prey]){
+        
+        
         mnPPL_Diet_row <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(bins)[pred] &
                                   mnPPL_Diet_ga$CEATTLE_PREY == names(bins)[prey] &
                                   mnPPL_Diet_ga$ageLenbin_pred == pred_age &
@@ -445,37 +462,50 @@ for(pred in 1:nspp){
         prey_sex = 1
         pred_sex = 1
         
+        prey_use <- prey
+        pred_use <- pred
+        
         if(prey == 4){
-          prey = 3
+          prey_use = 3
           prey_sex = 2
         }
         if(pred == 4){
-          pred = 3
+          pred_use = 3
           pred_sex = 2
         }
         
-        # Adjust for halibut
+        # Adjust for halibut females
+        if(prey == 5){
+          prey_use = 4
+          prey_sex = 1
+        }
+        if(pred == 5){
+          pred_use = 4
+          pred_sex = 1
+        }
+        
+        # Adjust for halibut males
         if(prey == 6){
-          prey = 4
+          prey_use = 4
           prey_sex = 2
         }
         if(pred == 6){
-          pred = 4
+          pred_use = 4
           pred_sex = 2
         }
         
-        Uobs[pred, prey, pred_sex, prey_sex, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        Uobs[pred_use, prey_use, pred_sex, prey_sex, pred_age, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         
-        # Prey ATF plust group
+        # Prey ATF and Halibut plust group
         # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
-        if(prey_age == 16 & prey == 3){
-          Uobs[pred, 3, pred_sex, prey_sex, pred_age, 17:21] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        if(prey_age == nages[prey] & prey_use %in% c(3,4)){
+          Uobs[pred_use, prey_use, pred_sex, prey_sex, pred_age, (nages[prey]+1):30] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         }
         
-        # Predator ATF plust group
+        # Predator ATF and Halibut plust group
         # Make all ages > 16 have the same diet because missing length bins (similar size so OK)
-        if(pred_age == 16 & pred == 3){
-          Uobs[3, prey, pred_sex, prey_sex, 17:21, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
+        if(pred_age == nages[pred] & pred_use %in% c(3,4)){
+          Uobs[pred_use, prey_use, pred_sex, prey_sex, (nages[pred]+1):30, prey_age] <- mnPPL_Diet_ga$Est_prop_by_wt_prey[mnPPL_Diet_row]
         }
       }
     }
@@ -486,13 +516,13 @@ for(pred in 1:nspp){
 save(Uobs, file = "1981_2015_GOA_UobsWtAge_twoSex.Rdata")
 
 # Convert to different format
-nsex <- c(1,1,2)
-nages <- c(10,12,21,21,30,30)
+nsex <- c(1,1,2,2)
+nages <- c(10,12,21,30)
 uobsdf <- data.frame(matrix(NA, nrow = 10000, ncol = 9))
 ind = 1
 
-for(pred in 1:3){
-  for(prey in 1:3){
+for(pred in 1:4){
+  for(prey in 1:4){
     for(pred_sex in 1:nsex[pred]){
       for(prey_sex in 1:nsex[prey]){ 
         for(pred_age in 1:nages[pred]){
