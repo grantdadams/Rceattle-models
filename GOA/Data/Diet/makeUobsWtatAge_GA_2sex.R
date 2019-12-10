@@ -19,7 +19,7 @@
 
 
 rm(list=ls())
-mainG  <- "Data/Diet"
+qamainG  <- "Data/Diet"
 main  <-  "Data/Diet"
 library(dplyr)
 library(ggplot2)

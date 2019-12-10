@@ -64,35 +64,25 @@ mydata_list <- list(mydata_coastwide_avg, mydata_coastwide_low, mydata_coastwide
 
 # Set atf q to 1
 for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$flt
+  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
 }
 
 ################################################
 # Single species
 ################################################
-# NOTE: Moved the GOA pollock fishery from double logistic to logisitc
-ss_run_base <- Rceattle::fit_mod(data_list = mydata_list[[1]],
-                                 inits = NULL, # Initial parameters = 0
-                                 file = "Models/ss_mod0", # Don't save
-                                 debug = 0, # Estimate
-                                 random_rec = FALSE, # No random recruitment
-                                 msmMode = 0, # Single species mode
-                                 silent = TRUE,
-                                 recompile = FALSE,
-                                 phase = "default")
-
-
-
-
-file_name <- "Figures/Base/Base"
-plot_index(ss_run_base, file = file_name)
-# plot_catch(ss_run_base, file = file_name)
-Rceattle::plot_comp(ss_run_base, file = file_name)
-plot_biomass(ss_run_base, file = file_name)
-plot_ssb(ss_run_base, file = file_name, add_ci = TRUE)
-plot_recruitment(ss_run_base, file = file_name, add_ci = TRUE)
-plot_selectivity(ss_run_base, file = file_name)
-write_results(ss_run_base, file = paste0(file_name, ".xlsx"))
+# NOTE: Moved the GOA pollock fishery from double logistic to logisitic
+ss_run_list <- list()
+for(i in 1:2){
+  ss_run_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[c(1,8)[i]]],
+                                        inits = NULL, # Initial parameters = 0
+                                        file = "Models/ss_mod0", # Don't save
+                                        debug = 0, # Estimate
+                                        random_rec = FALSE, # No random recruitment
+                                        msmMode = 0, # Single species mode
+                                        silent = TRUE,
+                                        recompile = TRUE,
+                                        phase = "default")
+}
 
 
 
@@ -122,8 +112,14 @@ for(i in 1:length(mydata_list)){
 ms_mod_list <- list()
 
 for(i in 1:length(mydata_list)){
+  
+  inits <- ss_run_list[[1]]$estimated_params
+  if(i == 8){
+    inits <- ss_run_list[[2]]$estimated_params
+  }
+  
   ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
-                                        inits = ss_run_base$estimated_params, # Initial parameters = 0
+                                        inits = inits, # Initial parameters = 0
                                         file = NULL, # Don't save
                                         debug = 0, # Estimate
                                         random_rec = FALSE, # No random recruitment
@@ -132,7 +128,7 @@ for(i in 1:length(mydata_list)){
                                         niter = 3)
 }
 
-plot_ssb(list(ss_run_base, ms_mod_list[[1]]), model_names = c("ss", "ms"))
+plot_ssb(list(ss_run_base, ms_mod_list[[2]]), model_names = c("ss", "ms"))
 plot_biomass(list(ss_run_base, ms_mod_list[[1]]), model_names = c("ss", "ms"))
 
 mod_names <- c("SS", "MS-C avg", "MS-C low", "MS-C high", "MS-AAF avg", "MS-AAF low", "MS-AAF high")
@@ -170,14 +166,45 @@ ms_iter <- list()
 
 for(i in 3:20){
   ms_iter[[i-2]] <- Rceattle::fit_mod(data_list = mydata_list[[1]],
-                                        inits = ms_mod_list[[1]]$estimated_params, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 1, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 1, # Single species mode
-                                        silent = TRUE, phase = NULL,
-                                        niter = i)
+                                      inits = ms_mod_list[[1]]$estimated_params, # Initial parameters = 0
+                                      file = NULL, # Don't save
+                                      debug = 1, # Estimate
+                                      random_rec = FALSE, # No random recruitment
+                                      msmMode = 1, # Single species mode
+                                      silent = TRUE, phase = NULL,
+                                      niter = i)
 }
 
 plot_biomass(ms_iter)
- 
+
+
+
+ration <- ss_run_list[[i]]$quantities$ration2Age
+
+ration_df <- as.data.frame(ration[1,1,,])
+ration_df$Species <- 1
+ration_df$Sex <- 0
+
+ration_df2 <- as.data.frame(ration[2,1,,])
+ration_df2$Species <- 1
+ration_df2$Sex <- 0
+
+ration_df3 <- as.data.frame(ration[3,1,,])
+ration_df3$Species <- 3
+ration_df3$Sex <- 1
+
+ration_df4 <- as.data.frame(ration[3,2,,])
+ration_df4$Species <- 3
+ration_df4$Sex <- 2
+
+ration_df5 <- as.data.frame(ration[4,1,,])
+ration_df5$Species <- 4
+ration_df5$Sex <- 1
+
+ration_df6 <- as.data.frame(ration[4,2,,])
+ration_df6$Species <- 4
+ration_df6$Sex <- 2
+
+
+ration_df <- rbind(ration_df, ration_df2, ration_df3, ration_df4, ration_df5, ration_df6)
+ration_df$Species_name <- ifelse(ration_df$Species == 1, "Pollock", ifelse(ration_df$Species == 2, "Cod", ifelse(ration_df$Species == 3, "ATF", ifelse(ration_df$Species == 4, "Halibut", NA))))
