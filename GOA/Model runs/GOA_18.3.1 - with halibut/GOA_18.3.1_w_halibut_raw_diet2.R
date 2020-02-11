@@ -80,7 +80,7 @@ for(i in 1:2){
                                         random_rec = FALSE, # No random recruitment
                                         msmMode = 0, # Single species mode
                                         silent = TRUE,
-                                        recompile = TRUE,
+                                        recompile = FALSE,
                                         phase = "default")
 }
 
@@ -90,42 +90,42 @@ for(i in 1:2){
 ################################################
 # Model 2 - Add multi-species
 ################################################
-
+mydata_list_ms <- mydata_list
 # Update M1 so it is smaller
-for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$M1_base[1,3] <- .1 + 0.06169283
-  mydata_list[[i]]$M1_base[1,4:6] <- c(0.1, 0.1, 0.1)
-  mydata_list[[i]]$M1_base[2,3] <- 0.1
-  mydata_list[[i]]$M1_base[3,3] <- 0.01
-  mydata_list[[i]]$M1_base[4,3] <- 0.01
-  mydata_list[[i]]$BTempC <- mydata_list[[i]]$BTempC * 0 + 5.55042
+for(i in 1:length(mydata_list_ms)){
+  mydata_list_ms[[i]]$M1_base[1,3] <- .1 + 0.06169283
+  mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
+  mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
+  mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
+  mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
+  mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
   # 
-  # mydata_list[[i]]$M1_base[1,3:32] <- 0.1
-  # mydata_list[[i]]$M1_base[2,3:32] <- 0.1
-  # mydata_list[[i]]$M1_base[3,3:32] <- 0.1
-  # mydata_list[[i]]$M1_base[4,3:32] <- 0.1
-  # mydata_list[[i]]$BTempC <- mydata_list[[i]]$BTempC * 0 + 5.55042
+  # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
+  # mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
 }
 
 
 
 ms_mod_list <- list()
 
-for(i in 1:length(mydata_list)){
+for(i in 1:1){
   
   inits <- ss_run_list[[1]]$estimated_params
   if(i == 8){
     inits <- ss_run_list[[2]]$estimated_params
   }
   
-  ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
+  ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
                                         inits = inits, # Initial parameters = 0
                                         file = NULL, # Don't save
                                         debug = 0, # Estimate
                                         random_rec = FALSE, # No random recruitment
                                         msmMode = 1, # Single species mode
                                         silent = TRUE, phase = NULL,
-                                        niter = 3)
+                                        niter = 5)
 }
 
 plot_ssb(list(ss_run_base, ms_mod_list[[2]]), model_names = c("ss", "ms"))

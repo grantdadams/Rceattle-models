@@ -101,8 +101,13 @@ ms_GOA <- Rceattle::fit_mod(data_list = mydata_GOA_ms,
                             recompile = FALSE,
                             niter = 3)
 
-
+# Profile across rec_devs/init_devs
+# Look at recruitment 
 # Check diet for ATF
+# Check M2 - does it get bigger at 1, 2, 3 iterations
+# Check suitability for iterations
+# Does rec go up for pollock
+
 # Lower foraging days to check to 0.7, or pvalue
 mydata_GOA_ms2 <- mydata_GOA_ms
 mydata_GOA_ms2$Pvalue[4] <- .5
@@ -115,18 +120,16 @@ ms_GOA2 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
                              silent = FALSE, 
                              phase = NULL, 
                              recompile = FALSE,
-                             niter = 5, sdreport = FALSE)
+                             niter = 5, getsd = FALSE)
 
 
-# Profile across rec_devs/init_devs
-# Check M2 - does it get bigger at 1, 2, 3 iterations
-# Look at recruitment 
+
+
 # Set ATF adult mortality lower
-
 mydata_GOA_ms2 <- mydata_GOA_ms
 mydata_GOA_ms2$M1_base[3,4:24] <- 0.1
 mydata_GOA_ms2$M1_base[4,4:24] <- 0.1
-ms_GOA2 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
+ms_GOA3 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
                              inits = inits, # Initial parameters = 0
                              file = NULL, # Don't save
                              debug = FALSE, # Estimate
@@ -135,10 +138,21 @@ ms_GOA2 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
                              silent = FALSE, 
                              phase = NULL, 
                              recompile = FALSE,
-                             niter = 5, sdreport = FALSE)
-# Check suitability for iterations
-# Does rec go up for pollock
+                             niter = 5, getsd = FALSE)
+
 # Start mn_rec higher - double
+inits2 <- inits
+inits2$ln_mn_rec <- inits2$ln_mn_rec *2
+ms_GOA4 <- Rceattle::fit_mod(data_list = mydata_GOA_ms,
+                             inits = inits2, # Initial parameters = 0
+                             file = NULL, # Don't save
+                             debug = FALSE, # Estimate
+                             random_rec = FALSE, # No random recruitment
+                             msmMode = 1, # Multi-species mode
+                             silent = FALSE, 
+                             phase = NULL, 
+                             recompile = FALSE,
+                             niter = 5, getsd = FALSE)
 
 
 plot_biomass(list(ss_GOA, ms_GOA))
