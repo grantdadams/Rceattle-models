@@ -65,6 +65,7 @@ mydata_list <- list(mydata_coastwide_avg, mydata_coastwide_low, mydata_coastwide
 # Set atf q to 1
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
+  mydata_list[[i]]$fday <- 0.5 # Set foraging days to half
 }
 
 ################################################
