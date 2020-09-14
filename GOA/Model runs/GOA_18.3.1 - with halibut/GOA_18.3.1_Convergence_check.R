@@ -62,7 +62,10 @@ mydata_GOA_ss$fleet_control$proj_F_prop[10:14] <- c(1,f_prop_cod,1)
 # Single species
 ################################################
 # NOTE: Moved the GOA pollock fishery from double logistic to logisitic
-ss_GOA <- Rceattle::fit_mod(data_list = mydata_GOA_ss,
+ss_GOA <- Rceattle::fit_mod(
+  cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
+  TMBfilename = "ceattle_v01_06",
+  data_list = mydata_GOA_ss,
                             inits = NULL, # Initial parameters = 0
                             file = "Models/ss_mod0", # Don't save
                             debug = 0, # Estimate
@@ -82,7 +85,7 @@ plot_catch(ss_run_list[[2]], incl_proj = TRUE)
 
 # Update M1 so it is smaller
 mydata_GOA_ms <- mydata_GOA_ss
-mydata_GOA_ms$M1_base[1,3] <- .1 + 0.06169283
+marketsmydata_GOA_ms$M1_base[1,3] <- .1 + 0.06169283
 mydata_GOA_ms$M1_base[1,4:13] <- 0.1
 mydata_GOA_ms$M1_base[2,3] <- 0.1
 mydata_GOA_ms$M1_base[3,3] <- 0.01
@@ -90,7 +93,9 @@ mydata_GOA_ms$M1_base[4,3] <- 0.01
 mydata_GOA_ms$BTempC <-mydata_GOA_ms$BTempC * 0 + 5.55042
 
 inits <- ss_GOA$estimated_params
-ms_GOA <- Rceattle::fit_mod(data_list = mydata_GOA_ms,
+ms_GOA <- Rceattle::fit_mod(cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
+                            TMBfilename = "ceattle_v01_06",
+  data_list = mydata_GOA_ms,
                             inits = inits, # Initial parameters = 0
                             file = NULL, # Don't save
                             debug = FALSE, # Estimate
@@ -98,8 +103,10 @@ ms_GOA <- Rceattle::fit_mod(data_list = mydata_GOA_ms,
                             msmMode = 1, # Multi-species mode
                             silent = FALSE, 
                             phase = NULL, 
-                            recompile = FALSE,
-                            niter = 3)
+                            recompile = TRUE,
+                            niter = 3, getsd = FALSE)
+
+plot_biomass(list(ss_GOA, ms_GOA), model_names = c("SS", "MS"))
 
 # Profile across rec_devs/init_devs
 # Look at recruitment 
@@ -120,17 +127,17 @@ ms_GOA2 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
                              silent = FALSE, 
                              phase = NULL, 
                              recompile = FALSE,
-                             niter = 5, getsd = FALSE)
-
+                             niter = 10, getsd = FALSE)
+plot_biomass(list(ss_GOA, ms_GOA2), model_names = c("SS", "MS-2"))
 
 
 
 # Set ATF adult mortality lower
-mydata_GOA_ms2 <- mydata_GOA_ms
-mydata_GOA_ms2$M1_base[3,4:24] <- 0.1
-mydata_GOA_ms2$M1_base[4,4:24] <- 0.1
-ms_GOA3 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
-                             inits = inits, # Initial parameters = 0
+mydata_GOA_ms3 <- mydata_GOA_ms
+mydata_GOA_ms3$M1_base[3,4:24] <- 0.1
+mydata_GOA_ms3$M1_base[4,4:24] <- 0.1
+ms_GOA3 <- Rceattle::fit_mod(data_list = mydata_GOA_ms3,
+                             inits = ms_GOA3$estimated_params, # Initial parameters = 0
                              file = NULL, # Don't save
                              debug = FALSE, # Estimate
                              random_rec = FALSE, # No random recruitment
@@ -138,7 +145,8 @@ ms_GOA3 <- Rceattle::fit_mod(data_list = mydata_GOA_ms2,
                              silent = FALSE, 
                              phase = NULL, 
                              recompile = FALSE,
-                             niter = 5, getsd = FALSE)
+                             niter = 10, getsd = FALSE)
+plot_biomass(list(ss_GOA, ms_GOA3), model_names = c("SS", "MS-3"))
 
 # Start mn_rec higher - double
 inits2 <- inits
@@ -149,13 +157,15 @@ ms_GOA4 <- Rceattle::fit_mod(data_list = mydata_GOA_ms,
                              debug = FALSE, # Estimate
                              random_rec = FALSE, # No random recruitment
                              msmMode = 1, # Multi-species mode
-                             silent = FALSE, 
+                             silent = TRUE, 
                              phase = NULL, 
                              recompile = FALSE,
                              niter = 5, getsd = FALSE)
+plot_biomass(list(ss_GOA, ms_GOA4), model_names = c("SS", "MS-4"))
 
 
-plot_biomass(list(ss_GOA, ms_GOA))
+
+
 
 
 ss_mse_GOA <- mse_run(operating_model = ss_GOA, estimation_model = ss_GOA, nsim = 20, assessment_period = 2, sampling_period = 2, simulate = TRUE, cap = NULL)

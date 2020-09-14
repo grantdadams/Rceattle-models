@@ -136,9 +136,16 @@ for(i in 1:length(mydata_list_ms)){
   
   inits <- ss_run_list_weighted[[1]]$estimated_params
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  if(i > 2){
+    inits <- ms_mod_list[[2]]$estimated_params
+  }
+  
   if(i >= 8){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    if(i > 8){
+      inits <- ms_mod_list[[8]]$estimated_params
+    }
   }
   
   ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
@@ -150,9 +157,6 @@ for(i in 1:length(mydata_list_ms)){
                                         silent = TRUE, phase = NULL,
                                         niter = 5)
 }
-
-plot_ssb(list(ss_run_base, ms_mod_list[[2]]), model_names = c("ss", "ms"))
-plot_biomass(list(ss_run_base, ms_mod_list[[1]]), model_names = c("ss", "ms"))
 
 # Re-order and name models
 # The long time-series models for 1977 to 2018 were: 
@@ -170,80 +174,20 @@ plot_biomass(list(ss_run_base, ms_mod_list[[1]]), model_names = c("ss", "ms"))
 
 
 
-mod_names <- c("SS", "MS-C avg", "MS-C low", "MS-C high", "MS-AAF avg", "MS-AAF low", "MS-AAF high")
-mod_list <- c(list(ss_run_base), ms_mod_list[1:6])
+mod_names_long <- c("SS", "MS-No Halibut", "MS-Coast avg", "MS-Coast low", "MS-Coast high", "MS-AAF avg", "MS-AAF low", "MS-AAF high")
+mod_names_short <- c("SS", "MS-No Halibut", "MS-Coast", "MS-AAF", "MS-Survey")
+mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
+mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 
-file_name <- "Figures/MS_models"
-plot_biomass(mod_list, file = file_name, model_names = mod_names)
-plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 8.5)
-plot_recruitment(mod_list, file = file_name, add_ci = TRUE, model_names = mod_names)
-write_results(mod_list, file = paste0(file_name, ".xlsx"))
+save(ms_mod_list, file = "Models/18_3_2.RData")
 
-# No halibut
-mod_names <- c("SS", "MS-C avg", "MS-C low", "MS-C high", "MS-AAF avg", "MS-AAF low", "MS-AAF high", "MS-no halibut", "MS-survey avg")
-mod_list <- c(list(ss_run_base), ms_mod_list)
+file_name <- "Figures/MS_models_long"
+plot_biomass(mod_list_long, file = file_name, model_names = mod_list_long)
+plot_ssb(mod_list_long, file = file_name, model_names = mod_list_long, right_adj = 8.5)
+plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_list_long)
 
-file_name <- "Figures/MS_models_no_halibut"
-mod_list <- c(list(ss_run_base), ms_mod_list)
-plot_biomass(mod_list, file = file_name, model_names = mod_names)
-plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 8.5)
-plot_recruitment(mod_list, file = file_name, add_ci = TRUE, model_names = mod_names)
-
-
-file_name <- "Figures/MS_models_survey"
-mod_list <- c(list(ss_run_base), ms_mod_list[7:8])
-plot_biomass(mod_list, file = file_name, model_names = mod_names[c(1,8,9)], right_adj = 8.5)
-plot_ssb(mod_list, file = file_name, model_names = mod_names[c(1,8,9)], right_adj = 8.5)
-
-
-
-#################################
-# Check iterations
-#################################
-
-ms_iter <- list()
-
-for(i in 3:20){
-  ms_iter[[i-2]] <- Rceattle::fit_mod(data_list = mydata_list[[1]],
-                                      inits = ms_mod_list[[1]]$estimated_params, # Initial parameters = 0
-                                      file = NULL, # Don't save
-                                      debug = 1, # Estimate
-                                      random_rec = FALSE, # No random recruitment
-                                      msmMode = 1, # Single species mode
-                                      silent = TRUE, phase = NULL,
-                                      niter = i)
-}
-
-plot_biomass(ms_iter)
-
-
-
-ration <- ss_run_list[[i]]$quantities$ration2Age
-
-ration_df <- as.data.frame(ration[1,1,,])
-ration_df$Species <- 1
-ration_df$Sex <- 0
-
-ration_df2 <- as.data.frame(ration[2,1,,])
-ration_df2$Species <- 1
-ration_df2$Sex <- 0
-
-ration_df3 <- as.data.frame(ration[3,1,,])
-ration_df3$Species <- 3
-ration_df3$Sex <- 1
-
-ration_df4 <- as.data.frame(ration[3,2,,])
-ration_df4$Species <- 3
-ration_df4$Sex <- 2
-
-ration_df5 <- as.data.frame(ration[4,1,,])
-ration_df5$Species <- 4
-ration_df5$Sex <- 1
-
-ration_df6 <- as.data.frame(ration[4,2,,])
-ration_df6$Species <- 4
-ration_df6$Sex <- 2
-
-
-ration_df <- rbind(ration_df, ration_df2, ration_df3, ration_df4, ration_df5, ration_df6)
-ration_df$Species_name <- ifelse(ration_df$Species == 1, "Pollock", ifelse(ration_df$Species == 2, "Cod", ifelse(ration_df$Species == 3, "ATF", ifelse(ration_df$Species == 4, "Halibut", NA))))
+# Short
+file_name <- "Figures/MS_models_short"
+plot_biomass(mod_list_short, file = file_name, model_names = mod_list_short)
+plot_ssb(mod_list_short, file = file_name, model_names = mod_list_short, right_adj = 8.5)
+plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_list_short)
