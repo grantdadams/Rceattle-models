@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.3.2.")
+setwd("Model runs/GOA_18.3.1 - with halibut")
 
 # Updated the ALK
 
@@ -97,14 +97,14 @@ ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
   ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
-                                                 inits = NULL, # Initial parameters = 0
-                                                 file = NULL, # Don't save
-                                                 debug = 0, # Estimate
-                                                 random_rec = FALSE, # No random recruitment
-                                                 msmMode = 0, # Single species mode
-                                                 silent = TRUE,
-                                                 recompile = FALSE,
-                                                 phase = "default")
+                                        inits = NULL, # Initial parameters = 0
+                                        file = NULL, # Don't save
+                                        debug = 0, # Estimate
+                                        random_rec = FALSE, # No random recruitment
+                                        msmMode = 0, # Single species mode
+                                        silent = TRUE,
+                                        recompile = FALSE,
+                                        phase = "default")
 }
 
 
@@ -174,8 +174,8 @@ for(i in 1:length(mydata_list_ms)){
 
 
 
-mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
-mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
+mod_names_long <- c("SS", "MS-No Halibut", "MS-Coast avg", "MS-Coast low", "MS-Coast high", "MS-AAF avg", "MS-AAF low", "MS-AAF high")
+mod_names_short <- c("SS", "MS-No Halibut", "MS-Coast", "MS-AAF", "MS-Survey")
 mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
 mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 
@@ -184,28 +184,19 @@ mod_names_all <- c(mod_names_long, mod_names_short)
 
 save(ms_mod_list, file = "Models/18_3_2.RData")
 
-file_name <- "Figures/18.3.2_models_long"
+file_name <- "Figures/MS_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
-plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, add_ci = TRUE, right_adj = 9)
-plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 9)
-nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
-                        aic = sapply(mod_list_long, function(x) x$opt$AIC))
-nll_long$daic <- nll_long$aic - min(nll_long$aic)
-
-write.csv(nll_long, "Figures/18.3.2.long_model_nll.csv")
+plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
+plot_recruitment(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 9)
 
 # Short
-file_name <- "Figures/18.3.2_models_short"
+file_name <- "Figures/MS_models_short"
 plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
-plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, add_ci = TRUE, right_adj = 5.5)
+plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
 plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
-nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective),
-                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
-nll_short$daic <- nll_short$aic - min(nll_short$aic)
 
-write.csv(nll_short, "Figures/18.3.2.short_model_nll.csv")
 
-file_name <- "Figures/18.3.2_models_all"
+file_name <- "Figures/MS_models_all"
 plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_ssb(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 9)
