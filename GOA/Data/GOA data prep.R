@@ -10,7 +10,7 @@ GOA2018SS <- BS2017SS
 ###########################################################
 # PCOD
 pcod_dat <- r4ss::SS_readdat_3.30(file = "Data/data-raw/GOA/Pcod 2018/data2018.dat")
-
+pcod_report <- r4ss::SS_output(dir = "Data/Pcod 2018/GOApcod_Appendix2.3/2018 GOA Pacific cod figures and Files/Model18.09.35/")
 
 
 ##################################################

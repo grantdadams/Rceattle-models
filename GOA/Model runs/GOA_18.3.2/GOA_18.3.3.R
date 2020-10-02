@@ -71,7 +71,7 @@ mydata_list <- c(mydata_list_long, mydata_list_short)
 
 # Estimate atf q
 for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 1
+  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
 }
