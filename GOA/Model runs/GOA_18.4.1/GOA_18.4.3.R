@@ -71,13 +71,12 @@ for(i in 1:length(mydata_list_short)){
 
 mydata_list <- c(mydata_list_long, mydata_list_short)
 
-# Set atf q to 1 and set rfr to 0.5
+# Estimate atf q
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
 }
-
 ################################################
 # Single species
 ################################################
@@ -184,9 +183,9 @@ mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 mod_names_all <- c(mod_names_long, mod_names_short)
 
-save(mod_list_all, file = "Models/18.4.1.RData")
+save(mod_list_all, file = "Models/18.4.3.RData")
 
-file_name <- "Figures/18.4.1_models_long"
+file_name <- "Figures/18.4.3_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
 plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
 plot_recruitment(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 9)
@@ -194,10 +193,10 @@ nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
                        aic = sapply(mod_list_long, function(x) x$opt$AIC))
 nll_long$daic <- nll_long$aic - min(nll_long$aic)
 
-write.csv(nll_long, "Figures/18.4.1.long_model_nll.csv")
+write.csv(nll_long, "Figures/18.4.3.long_model_nll.csv")
 
 # Short
-file_name <- "Figures/18.4.1_models_short"
+file_name <- "Figures/18.4.3_models_short"
 plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
 plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
 plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
@@ -205,10 +204,10 @@ nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective
                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
 nll_short$daic <- nll_short$aic - min(nll_short$aic)
 
-write.csv(nll_short, "Figures/18.4.1.short_model_nll.csv")
+write.csv(nll_short, "Figures/18.4.3.short_model_nll.csv")
 
 
-file_name <- "Figures/18.4.1_models_all"
+file_name <- "Figures/18.4.3_models_all"
 plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_ssb(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 9)

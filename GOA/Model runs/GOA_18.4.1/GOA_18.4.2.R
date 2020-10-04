@@ -71,12 +71,13 @@ for(i in 1:length(mydata_list_short)){
 
 mydata_list <- c(mydata_list_long, mydata_list_short)
 
-# Estimate atf q
+# Set atf q to 1 and set rfr to 0.5
 for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
+  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
-  # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
+  mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
 }
+
 ################################################
 # Single species
 ################################################
@@ -98,14 +99,14 @@ ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
   ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
-                                        inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 0, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 0, # Single species mode
-                                        silent = TRUE,
-                                        recompile = FALSE,
-                                        phase = "default")
+                                                 inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
+                                                 file = NULL, # Don't save
+                                                 debug = 0, # Estimate
+                                                 random_rec = FALSE, # No random recruitment
+                                                 msmMode = 0, # Single species mode
+                                                 silent = TRUE,
+                                                 recompile = FALSE,
+                                                 phase = "default")
 }
 
 
@@ -121,7 +122,7 @@ for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
   mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
   mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
-  # 
+  #
   # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
@@ -134,13 +135,13 @@ for(i in 1:length(mydata_list_ms)){
 ms_mod_list <- list()
 
 for(i in 1:length(mydata_list_ms)){
-  
+
   inits <- ss_run_list_weighted[[1]]$estimated_params
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
   if(i > 2){
     inits <- ms_mod_list[[2]]$estimated_params
   }
-  
+
   if(i >= 8){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
@@ -148,7 +149,7 @@ for(i in 1:length(mydata_list_ms)){
       inits <- ms_mod_list[[8]]$estimated_params
     }
   }
-  
+
   ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
                                         inits = inits, # Initial parameters = 0
                                         file = NULL, # Don't save
@@ -160,18 +161,18 @@ for(i in 1:length(mydata_list_ms)){
 }
 
 # Re-order and name models
-# The long time-series models for 1977 to 2018 were: 
-#   •	Model 1: a model that did not include predation (single-species models) representing a base model. 
-# •	Model 2: a model that did not include halibut predation to allow comparisons in which halibut does not impact the dynamics of groundfish in the GOA. 
-# •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018. 
-# •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model. 
+# The long time-series models for 1977 to 2018 were:
+#   •	Model 1: a model that did not include predation (single-species models) representing a base model.
+# •	Model 2: a model that did not include halibut predation to allow comparisons in which halibut does not impact the dynamics of groundfish in the GOA.
+# •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018.
+# •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model.
 
-# The five short term models for 1993 to 2018 were: 
-#   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
-# •	Model 10: a model that did not include halibut predation (model 10). 
-# •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
-# •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
-# •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
+# The five short term models for 1993 to 2018 were:
+#   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model
+# •	Model 10: a model that did not include halibut predation (model 10).
+# •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model.
+# •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model
+# •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder.
 
 
 
@@ -201,7 +202,7 @@ plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, ri
 plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
 plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
 nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective),
-                       aic = sapply(mod_list_short, function(x) x$opt$AIC))
+                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
 nll_short$daic <- nll_short$aic - min(nll_short$aic)
 
 write.csv(nll_short, "Figures/18.4.2.short_model_nll.csv")
