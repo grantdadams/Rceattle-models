@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.3.1 - with halibut")
+setwd("Model runs/GOA_18.3.2")
 
 # Updated the ALK
 
@@ -119,13 +119,11 @@ for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
   mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
-  mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
   # 
   # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
-  # mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
 }
 
 
@@ -182,16 +180,19 @@ mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 mod_names_all <- c(mod_names_long, mod_names_short)
 
-save(mod_list_all, file = "Models/18_3_2.RData")
+#save(mod_list_all, file = "Models/18_3_2.RData")
+
+mod_list_long <- mod_list_all[1:8]
+mod_list_short <- mod_list_all[9:13]
+  
 
 file_name <- "Figures/18.3.2_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
 plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
-plot_recruitment(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 9)
+plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 9)
 nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
                        aic = sapply(mod_list_long, function(x) x$opt$AIC))
 nll_long$daic <- nll_long$aic - min(nll_long$aic)
-
 write.csv(nll_long, "Figures/18.3.2.long_model_nll.csv")
 
 # Short

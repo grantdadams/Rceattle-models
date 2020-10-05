@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.3.1 - with halibut")
+setwd("Model runs/GOA_18.3.2")
 
 # Updated the ALK
 
@@ -119,25 +119,22 @@ for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
   mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
-  mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
-  # 
   # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
-  # mydata_list_ms[[i]]$BTempC <- mydata_list_ms[[i]]$BTempC * 0 + 5.55042
-}
+  }
 
 
 
 ms_mod_list <- list()
-
-for(i in 1:length(mydata_list_ms)){
+# 5, 6, 7 dont converge
+for(i in 6:length(mydata_list_ms)){
   
   inits <- ss_run_list_weighted[[1]]$estimated_params
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
-  if(i > 2){
-    inits <- ms_mod_list[[2]]$estimated_params
+  if(i > 1){
+    inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
