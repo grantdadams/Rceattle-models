@@ -93,6 +93,28 @@ for(i in 1:2){
                                         phase = "default")
 }
 
+
+# Lets see what is not converging
+ss_run_list[[1]]$sdrep$sd[1] # Both on NaNs
+ss_run_list[[2]]$sdrep$sd[1]
+
+
+diag(ss_run_list[[1]]$obj$he()) #inv var ok
+diag(ss_run_list[[2]]$obj$he()) #inv var ok
+
+for(i in 1:ss_run_list[[1]]$opt$number_of_coefficients[1]){
+  solve(ss_run_list[[1]]$obj$he()[1:i,1:i])
+}
+
+
+# Step 1: Check parameter bounds
+
+# Step 2: Check if hessian has any zeros
+
+# Step 3: Fix parameters
+
+# Step 4: Change other food
+
 ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
@@ -173,18 +195,24 @@ for(i in 6:length(mydata_list_ms)){
 
 mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
 mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
-mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
-mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+#mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
+#mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+#mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+# save(mod_list_all, file = "Models/18_3_3.RData")
+
 mod_names_all <- c(mod_names_long, mod_names_short)
 
-save(mod_list_all, file = "Models/18_3_3.RData")
+mod_list_long <- mod_list_all[1:8]
+mod_list_short <- mod_list_all[9:13]
+
+
+
 
 file_name <- "Figures/18.3.3_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
 plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
-plot_recruitment(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 9)
+plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 9)
 nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
                        aic = sapply(mod_list_long, function(x) x$opt$AIC))
 nll_long$daic <- nll_long$aic - min(nll_long$aic)
