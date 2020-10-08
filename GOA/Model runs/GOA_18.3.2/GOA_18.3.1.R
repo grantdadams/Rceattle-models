@@ -73,7 +73,12 @@ mydata_list <- c(mydata_list_long, mydata_list_short)
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
-  }
+  
+  mydata_list[[i]]$fleet_control$Selectivity[8] <- 2
+  mydata_list[[i]]$fleet_control$Nselages[8] <- 9
+  mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
+  mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
+}
 
 ################################################
 # Single species
@@ -96,14 +101,14 @@ ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
   ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
-                                        inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 0, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 0, # Single species mode
-                                        silent = TRUE,
-                                        recompile = FALSE,
-                                        phase = "default")
+                                                 inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
+                                                 file = NULL, # Don't save
+                                                 debug = 0, # Estimate
+                                                 random_rec = FALSE, # No random recruitment
+                                                 msmMode = 0, # Single species mode
+                                                 silent = TRUE,
+                                                 recompile = FALSE,
+                                                 phase = "default")
 }
 
 
@@ -129,12 +134,12 @@ for(i in 1:length(mydata_list_ms)){
 
 ms_mod_list <- list()
 # 3,4 do not converge
-for(i in 4:length(mydata_list_ms)){
+for(i in 1:length(mydata_list_ms)){
   
   inits <- ss_run_list_weighted[[1]]$estimated_params
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
   if(i > 2){
-    inits <- ms_mod_list[[2]]$estimated_params
+    inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
@@ -145,14 +150,41 @@ for(i in 4:length(mydata_list_ms)){
     }
   }
   
-  ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
-                                        inits = inits, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 0, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 1, # Multi species mode
-                                        silent = TRUE, phase = "default",
-                                        niter = 5)
+  ms_mod_list[[i]] <- try( Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
+                                             inits = inits, # Initial parameters = 0
+                                             file = NULL, # Don't save
+                                             debug = 0, # Estimate
+                                             random_rec = FALSE, # No random recruitment
+                                             msmMode = 1, # Multi species mode
+                                             silent = TRUE, phase = NULL,
+                                             niter = 5),
+                           silent = TRUE)
+  
+  # Adding try catch, then will phase in predation via increasing consumption little by little
+  if( class(ms_mod_list[[i]]) == "try-error" ){
+    
+    fday_vec <- seq(0.1,1, by = 0.1)
+    
+    for(j in 1:length(fday_vec)){
+      my_data_tmp <- mydata_list_ms[[i]]
+      my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+      
+      if(j > 1){
+        inits <- ms_mod_list[[i]]$estimated_params
+      }
+      
+      # Re-estimate
+      ms_mod_list[[i]] <- Rceattle::fit_mod(
+        data_list = my_data_tmp,
+        inits = inits, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5)
+    }
+  }
 }
 
 # Re-order and name models
@@ -196,7 +228,7 @@ plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, ri
 plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
 plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
 nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective),
-                       aic = sapply(mod_list_short, function(x) x$opt$AIC))
+                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
 nll_short$daic <- nll_short$aic - min(nll_short$aic)
 
 write.csv(nll_short, "Figures/18.3.1.short_model_nll.csv")
@@ -206,3 +238,49 @@ file_name <- "Figures/18.3.1_models_all"
 plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_ssb(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
 plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 9)
+
+
+################################################
+# Model 3 - Profile M1 on multi-species
+################################################
+m1_vec <- seq(0.01, 0.31, length.out = 10)
+ms_m1_profile_list <- list() # Level 1 is species group; 2 is Model;
+
+profile_sp <- list();profile_sp[[1]] <- 1; profile_sp[[2]] <- 2; profile_sp[[3]] <- 3; profile_sp[[4]] <- c(1:3)
+
+# Loop through species profiles
+for(sp in 1:4){
+  ms_m1_profile_list[[sp]] <- list()
+  
+  # Loop through models
+  for(i in 1:length(mydata_list_ms)){
+    ms_m1_profile_list[[sp]][[i]] <- list()
+    
+    # Loop through M1
+    for(m1 in 1:length(m1_vec)){
+      
+      # Update M1 so it is smaller
+      mydata_list_m1 <- mydata_list_ms
+      mydata_list_m1[[i]]$M1_base[profile_sp[[sp]],3:ncol(mydata_list_m1[[i]]$M1_base)] <- m1_vec[m1]
+      
+      # Fit model
+      ms_m1_profile_list[[sp]][[i]][[m1]] <- try( Rceattle::fit_mod(
+        data_list = mydata_list_m1[[i]],
+        inits = ms_mod_list[[i]]$estimated_params, # Start from ms mod
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5),
+        silent = TRUE)
+    }
+  }
+}
+
+save(ms_m1_profile_list, file = "18.3.1.ms_m1_profiles.Rdata")
+
+
+
+
+

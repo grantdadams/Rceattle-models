@@ -76,6 +76,11 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
+  
+  mydata_list[[i]]$fleet_control$Selectivity[8] <- 2
+  mydata_list[[i]]$fleet_control$Nselages[8] <- 9
+  mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
+  mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
 }
 
 ################################################

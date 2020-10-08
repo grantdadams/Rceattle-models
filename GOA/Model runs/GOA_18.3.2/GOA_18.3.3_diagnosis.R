@@ -229,3 +229,160 @@ for(i in 1:2){
 }
 plot_selectivity(ss_run_list_3[[1]], file = "18.3.3.np_sel_long")
 plot_selectivity(ss_run_list_3[[2]], file = "18.3.3.np_sel_short")
+
+
+
+
+################################################
+# Model 2 - Add multi-species
+################################################
+mydata_list_ms <- mydata_list
+# Update M1 so it is smaller
+for(i in 1:length(mydata_list_ms)){
+  mydata_list_ms[[i]]$M1_base[1,3] <- .1 + 0.06169283
+  mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
+  mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
+  mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
+  mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
+  # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
+}
+
+
+
+ms_mod_list <- list()
+# 5, 6, 7 dont converge
+for(i in 1:length(mydata_list_ms)){
+  
+  inits <- ss_run_list_weighted[[1]]$estimated_params
+  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  if(i > 1){
+    inits <- ms_mod_list[[i-1]]$estimated_params
+  }
+  
+  if(i >= 8){
+    inits <- ss_run_list_weighted[[2]]$estimated_params
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    if(i > 8){
+      inits <- ms_mod_list[[8]]$estimated_params
+    }
+  }
+  
+  ms_mod_list[[i]] <- try( Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
+                                             inits = inits, # Initial parameters = 0
+                                             file = NULL, # Don't save
+                                             debug = 0, # Estimate
+                                             random_rec = FALSE, # No random recruitment
+                                             msmMode = 1, # Multi species mode
+                                             silent = TRUE, phase = NULL,
+                                             niter = 5),
+                           silent = TRUE)
+  
+  # Adding try catch, then will phase in predation via increasing consumption little by little
+  if( class(ms_mod_list[[i]]) == "try-error" ){
+    
+    fday_vec <- seq(0.1,1, by = 0.1)
+    
+    for(j in 1:length(fday_vec)){
+      my_data_tmp <- mydata_list_ms[[i]]
+      my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+      
+      if(j > 1){
+        inits <- ms_mod_list[[i]]$estimated_params
+      }
+      
+      # Re-estimate
+      ms_mod_list[[i]] <- Rceattle::fit_mod(
+        data_list = my_data_tmp,
+        inits = inits, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5)
+      
+      ms_mod_list[[i]]$identified$BadParams[which(ms_mod_list[[i]]$identified$BadParams$Param_check == "Bad"),]
+      # Model 2 wont converge with 80% rfr.
+      # Shelikov sel_inf for pollock is bad
+      
+      map_1 <- ms_mod_list[[i]]$map
+      map_1[[2]]$sel_inf[1, 1, 1] <- NA
+      map_1[[2]]$init_dev <- replace(map_1[[2]]$init_dev, values = rep(NA, length(map_1[[2]]$init_dev)))
+      map_1[[1]]$sel_inf <- as.factor(map_1[[2]]$sel_inf)
+      map_1[[1]]$init_dev <- as.factor(map_1[[2]]$init_dev)
+      
+      ms_mod_tmp <- Rceattle::fit_mod(
+        data_list = my_data_tmp,
+        inits = mod_list_all[[3]]$estimated_params, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5)
+    }
+  }
+}
+
+# Re-order and name models
+# The long time-series models for 1977 to 2018 were: 
+#   •	Model 1: a model that did not include predation (single-species models) representing a base model. 
+# •	Model 2: a model that did not include halibut predation to allow comparisons in which halibut does not impact the dynamics of groundfish in the GOA. 
+# •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018. 
+# •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model. 
+
+# The five short term models for 1993 to 2018 were: 
+#   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
+# •	Model 10: a model that did not include halibut predation (model 10). 
+# •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
+# •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
+# •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
+
+
+
+mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
+mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
+#mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
+#mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+
+#mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+# save(mod_list_all, file = "Models/18_3_3.RData")
+
+mod_names_all <- c(mod_names_long, mod_names_short)
+
+mod_list_long <- mod_list_all[1:8]
+mod_list_short <- mod_list_all[9:13]
+
+
+
+
+file_name <- "Figures/18.3.3_models_long"
+plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
+plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
+plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 9)
+nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
+                       aic = sapply(mod_list_long, function(x) x$opt$AIC))
+nll_long$daic <- nll_long$aic - min(nll_long$aic)
+
+write.csv(nll_long, "Figures/18.3.3.long_model_nll.csv")
+
+# Short
+file_name <- "Figures/18.3.3_models_short"
+plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
+plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
+plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
+nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective),
+                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
+nll_short$daic <- nll_short$aic - min(nll_short$aic)
+
+write.csv(nll_short, "Figures/18.3.3.short_model_nll.csv")
+
+
+file_name <- "Figures/18.3.3_models_all"
+plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
+plot_ssb(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
+plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 9)
+

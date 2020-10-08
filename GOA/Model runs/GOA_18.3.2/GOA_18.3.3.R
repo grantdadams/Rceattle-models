@@ -71,9 +71,14 @@ mydata_list <- c(mydata_list_long, mydata_list_short)
 
 # Estimate atf q
 for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
+  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 1
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
+  
+  mydata_list[[i]]$fleet_control$Selectivity[8] <- 2
+  mydata_list[[i]]$fleet_control$Nselages[8] <- 9
+  mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
+  mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
 }
 
 ################################################
@@ -94,26 +99,6 @@ for(i in 1:2){
 }
 
 
-# Lets see what is not converging
-ss_run_list[[1]]$sdrep$sd[1] # Both on NaNs
-ss_run_list[[2]]$sdrep$sd[1]
-
-
-diag(ss_run_list[[1]]$obj$he()) #inv var ok
-diag(ss_run_list[[2]]$obj$he()) #inv var ok
-
-for(i in 1:ss_run_list[[1]]$opt$number_of_coefficients[1]){
-  solve(ss_run_list[[1]]$obj$he()[1:i,1:i])
-}
-
-
-# Step 1: Check parameter bounds
-
-# Step 2: Check if hessian has any zeros
-
-# Step 3: Fix parameters
-
-# Step 4: Change other food
 
 ss_run_list_weighted <- list()
 # Reweight the models
@@ -151,7 +136,7 @@ for(i in 1:length(mydata_list_ms)){
 
 ms_mod_list <- list()
 # 5, 6, 7 dont converge
-for(i in 6:length(mydata_list_ms)){
+for(i in 1:length(mydata_list_ms)){
   
   inits <- ss_run_list_weighted[[1]]$estimated_params
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
@@ -167,14 +152,44 @@ for(i in 6:length(mydata_list_ms)){
     }
   }
   
-  ms_mod_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
-                                        inits = inits, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 0, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 1, # Multi species mode
-                                        silent = TRUE, phase = NULL,
-                                        niter = 5)
+  ms_mod_list[[i]] <- try( Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
+                                             inits = inits, # Initial parameters = 0
+                                             file = NULL, # Don't save
+                                             debug = 0, # Estimate
+                                             random_rec = FALSE, # No random recruitment
+                                             msmMode = 1, # Multi species mode
+                                             silent = TRUE, phase = NULL,
+                                             niter = 5),
+                           silent = TRUE)
+  
+  # Adding try catch, then will phase in predation via increasing consumption little by little
+  if( class(ms_mod_list[[i]]) == "try-error" ){
+    
+    fday_vec <- seq(0.1,1, by = 0.1)
+    
+    for(j in 1:length(fday_vec)){
+      my_data_tmp <- mydata_list_ms[[i]]
+      my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+      
+      if(j > 1){
+        inits <- ms_mod_list[[i]]$estimated_params
+      }
+      
+      # Re-estimate
+      ms_mod_list[[i]] <- Rceattle::fit_mod(
+        data_list = my_data_tmp,
+        inits = inits, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5)
+      
+      # Model 2 wont converge with 80% rfr.
+      # Shelikov sel_slp for pollock is bad
+    }
+  }
 }
 
 # Re-order and name models
