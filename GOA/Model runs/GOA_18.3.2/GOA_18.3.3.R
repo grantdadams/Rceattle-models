@@ -58,9 +58,14 @@ mydata_survey_avg <- mydata_survey
 mydata_survey_avg$NByageFixed[which(mydata_survey_avg$NByageFixed$Sex==1 & mydata_survey_avg$NByageFixed$Year < 1993),5:ncol(mydata_survey_avg$NByageFixed)] <- colMeans(mydata_survey_avg$NByageFixed[which(mydata_survey_avg$NByageFixed$Sex==1 & mydata_survey_avg$NByageFixed$Year > 1992),5:ncol(mydata_survey_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3))
 
 
+# Add model wilt age-dependent population scalar
+mydata_survey_avg_age_dep <- mydata_survey_avg
+mydata_survey_avg_age_dep$estDynamics <- 3
+
+
 # Combine in list
 mydata_list_long <- list(mydata_no_hal_avg, mydata_coastwide_avg, mydata_coastwide_low, mydata_coastwide_high, mydata_aaf_avg, mydata_aaf_low, mydata_aaf_high)
-mydata_list_short <- list( mydata_no_hal_avg, mydata_coastwide_avg, mydata_aaf_avg, mydata_survey_avg)
+mydata_list_short <- list( mydata_no_hal_avg, mydata_coastwide_avg, mydata_aaf_avg, mydata_survey_avg, mydata_survey_avg_age_dep)
 
 # Adjust start year
 for(i in 1:length(mydata_list_short)){
@@ -71,7 +76,7 @@ mydata_list <- c(mydata_list_long, mydata_list_short)
 
 # Estimate atf q
 for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 1
+  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 2
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   # mydata_list[[i]]$fday <- replace(mydata_list[[i]]$fday, values = rep(0.5, length(mydata_list[[i]]$fday))) # Set foraging days to half
   
@@ -210,11 +215,11 @@ for(i in 1:length(mydata_list_ms)){
 
 mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
 mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
-#mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
-#mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
+mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
 
-#mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
-# save(mod_list_all, file = "Models/18_3_3.RData")
+mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+save(mod_list_all, file = "Models/18_3_3.RData")
 
 mod_names_all <- c(mod_names_long, mod_names_short)
 
