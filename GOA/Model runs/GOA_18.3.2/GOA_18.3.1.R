@@ -202,42 +202,9 @@ for(i in 1:length(mydata_list_ms)){
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
 
 
-
-mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
-mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
-mod_list_long <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7])
-mod_list_short <- c(list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
-
 mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
-mod_names_all <- c(mod_names_long, mod_names_short)
 
 save(mod_list_all, file = "Models/18_3_1.RData")
-
-file_name <- "Figures/18.3.1_models_long"
-plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
-plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 9)
-plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 9)
-nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective),
-                       aic = sapply(mod_list_long, function(x) x$opt$AIC))
-nll_long$daic <- nll_long$aic - min(nll_long$aic)
-write.csv(nll_long, "Figures/18.3.1.long_model_nll.csv")
-
-# Short
-file_name <- "Figures/18.3.1_models_short"
-plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
-plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 5.5)
-plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 5.5)
-nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective),
-                        aic = sapply(mod_list_short, function(x) x$opt$AIC))
-nll_short$daic <- nll_short$aic - min(nll_short$aic)
-
-write.csv(nll_short, "Figures/18.3.1.short_model_nll.csv")
-
-
-file_name <- "Figures/18.3.1_models_all"
-plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
-plot_ssb(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 9)
-plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 9)
 
 
 ################################################
