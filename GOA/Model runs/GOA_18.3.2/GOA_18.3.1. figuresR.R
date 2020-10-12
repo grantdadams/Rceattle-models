@@ -20,6 +20,7 @@ load("Models/18_3_1.RData")
 
 mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
 mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
+ms_mod_list <- mod_list_all[c(2:8, 10:13)]
 mod_list_long <- mod_list_all[1:8]
 mod_list_short <- mod_list_all[9:13]
 mod_names_all <- c(mod_names_long, mod_names_short)

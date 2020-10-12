@@ -59,7 +59,7 @@ mydata_survey_avg$NByageFixed[which(mydata_survey_avg$NByageFixed$Sex==1 & mydat
 
 # Add model wilt age-dependent population scalar
 mydata_survey_avg_age_dep <- mydata_survey_avg
-mydata_survey_avg_age_dep$estDynamics <- 3
+mydata_survey_avg_age_dep$estDynamics[4] <- 3
 
 # Combine in list
 mydata_list_long <- list(mydata_no_hal_avg, mydata_coastwide_avg, mydata_coastwide_low, mydata_coastwide_high, mydata_aaf_avg, mydata_aaf_low, mydata_aaf_high)
@@ -111,7 +111,7 @@ for(i in 1:2){
                                                  msmMode = 0, # Single species mode
                                                  silent = TRUE,
                                                  recompile = FALSE,
-                                                 phase = "default")
+                                                 phase = NULL)
 }
 
 
@@ -121,7 +121,7 @@ for(i in 1:2){
 mydata_list_ms <- mydata_list
 # Update M1 so it is smaller
 for(i in 1:length(mydata_list_ms)){
-  mydata_list_ms[[i]]$M1_base[1,3] <- .1 + 0.06169283
+  mydata_list_ms[[i]]$M1_base[1,3] <- .143
   mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
   mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
@@ -139,20 +139,31 @@ ms_mod_list <- list()
 # 3,4 do not converge
 for(i in 1:length(mydata_list_ms)){
   
+  # Initialize from ss weighted
   inits <- ss_run_list_weighted[[1]]$estimated_params
+  
+  # Comp weights
   mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  
+  # Initialize from previous MS mod
   if(i > 2){
     inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
-    inits <- ss_run_list[[2]]$estimated_params
+    # Initialize from ss weighted
+    inits <- ss_run_list_weighted[[2]]$estimated_params
+    
+    # Comp weights
     mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    
+    # Initialize from previous MS mod
     if(i > 8){
-      inits <- ms_mod_list[[8]]$estimated_params
+      inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
+  # Fit model
   ms_mod_list[[i]] <- try( Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
                                              inits = inits, # Initial parameters = 0
                                              file = NULL, # Don't save
@@ -205,7 +216,7 @@ for(i in 1:length(mydata_list_ms)){
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
 
 
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:12])
 
 save(mod_list_all, file = "Models/18_3_1.RData")
 
