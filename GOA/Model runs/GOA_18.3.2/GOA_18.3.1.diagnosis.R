@@ -146,7 +146,26 @@ inits <- ss_run_list_weighted[[1]]$estimated_params
 mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
 
 
-# Fit model
+# Fit model 1
+ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+  data_list = mydata_list_ms[[i]],
+  inits = inits, # Initial parameters = 0
+  file = NULL, # Don't save
+  debug = 0, # Estimate
+  random_rec = FALSE, # No random recruitment
+  msmMode = 1, # Multi species mode
+  silent = TRUE, phase = NULL,
+  niter = 5),
+  silent = TRUE)
+ms_mod_list[[i]]$opt$objective
+ms_mod_list[[i]]$quantities$jnll
+ms_mod_list[[i]]$obj$fn(ms_mod_list[[i]]$obj$env$last.par.best)
+
+
+# Fit model 2
+i = 2
+inits <- ms_mod_list[[i-1]]$estimated_params
+
 ms_mod_list[[i]] <- try( Rceattle::fit_mod(
   data_list = mydata_list_ms[[i]],
   inits = inits, # Initial parameters = 0
@@ -158,10 +177,12 @@ ms_mod_list[[i]] <- try( Rceattle::fit_mod(
   niter = 5),
   silent = TRUE)
 
+i = 1
+ms_mod_list[[i]]$quantities$jnll
+ms_mod_list[[i]]$opt$objective
+ms_mod_list[[i]]$obj$fn(ms_mod_list[[i]]$obj$env$last.par.best)
 
-i = 2
-inits <- ms_mod_list[[i-1]]$estimated_params
-
+# Run fixing parameters
 ms_map_list <- list()
 for(i in 1:length(ss_run_list_weighted[[1]]$map[[1]])){
   map_tmp <- ms_mod_list[[1]]$map

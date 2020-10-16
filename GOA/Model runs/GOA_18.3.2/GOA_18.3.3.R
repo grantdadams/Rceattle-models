@@ -135,7 +135,7 @@ for(i in 1:length(mydata_list_ms)){
   # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
   # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
-  }
+}
 
 
 
@@ -157,15 +157,16 @@ for(i in 1:length(mydata_list_ms)){
     }
   }
   
-  ms_mod_list[[i]] <- try( Rceattle::fit_mod(data_list = mydata_list_ms[[i]],
-                                             inits = inits, # Initial parameters = 0
-                                             file = NULL, # Don't save
-                                             debug = 0, # Estimate
-                                             random_rec = FALSE, # No random recruitment
-                                             msmMode = 1, # Multi species mode
-                                             silent = TRUE, phase = NULL,
-                                             niter = 5),
-                           silent = TRUE)
+  ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+    data_list = mydata_list_ms[[i]],
+    inits = inits, # Initial parameters = 0
+    file = NULL, # Don't save
+    debug = 0, # Estimate
+    random_rec = FALSE, # No random recruitment
+    msmMode = 1, # Multi species mode
+    silent = TRUE, phase = NULL,
+    niter = 5),
+    silent = TRUE)
   
   # Adding try catch, then will phase in predation via increasing consumption little by little
   if( class(ms_mod_list[[i]]) == "try-error" ){
@@ -195,7 +196,22 @@ for(i in 1:length(mydata_list_ms)){
       # Shelikov sel_slp for pollock is bad
     }
   }
+  
+  # Try and phase if not estimating
+  if( ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll > 1 ){
+    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+      data_list = mydata_list_ms[[i]],
+      inits = inits, # Initial parameters = 0
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = FALSE, # No random recruitment
+      msmMode = 1, # Multi species mode
+      silent = TRUE, phase = "default",
+      niter = 5),
+      silent = TRUE)
+  }
 }
+
 
 # Re-order and name models
 # The long time-series models for 1977 to 2018 were: 
