@@ -174,6 +174,8 @@ for(i in 1:length(mydata_list_ms)){
                                              niter = 5),
                            silent = TRUE)
   
+  
+  
   # Adding try catch, then will phase in predation via increasing consumption little by little
   if( class(ms_mod_list[[i]]) == "try-error" ){
     
@@ -256,7 +258,7 @@ save(mod_list_all, file = "Models/18_3_1.RData")
 ################################################
 # Model 3 - Profile M1 on multi-species
 ################################################
-m1_vec <- seq(0.01, 0.31, length.out = 10)
+m1_vec <- seq(0.01, 0.31, length.out = 20)
 ms_m1_profile_list <- list() # Level 1 is species group; 2 is Model;
 
 profile_sp <- list();profile_sp[[1]] <- 1; profile_sp[[2]] <- 2; profile_sp[[3]] <- 3; profile_sp[[4]] <- c(1:3)
@@ -266,20 +268,29 @@ for(sp in 1:4){
   ms_m1_profile_list[[sp]] <- list()
   
   # Loop through models
-  for(i in 1:11){
+  for(i in c(2,3,10,11,13)){
     ms_m1_profile_list[[sp]][[i]] <- list()
+    
     
     # Loop through M1
     for(m1 in 1:length(m1_vec)){
       
       # Update M1 so it is smaller
-      mydata_list_m1 <- mydata_list_ms
-      mydata_list_m1[[i]]$M1_base[profile_sp[[sp]],3:ncol(mydata_list_m1[[i]]$M1_base)] <- m1_vec[m1]
+      mydata_list_m1 <- mod_list_all[[i]]$data_list
+      mydata_list_m1$M1_base[profile_sp[[sp]],3:ncol(mydata_list_m1$M1_base)] <- m1_vec[m1]
+      
+      # Update weights
+      mydata_list_m1$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+      
+      if(i >= 9){
+        # Comp weights
+        mydata_list_m1$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+      }
       
       # Fit model
       ms_m1_profile_list[[sp]][[i]][[m1]] <- try( Rceattle::fit_mod(
-        data_list = mydata_list_m1[[i]],
-        inits = ms_mod_list[[i]]$estimated_params, # Start from ms mod
+        data_list = mydata_list_m1,
+        inits = mod_list_all[[i]]$estimated_params, # Start from ms mod
         file = NULL, # Don't save
         debug = 0, # Estimate
         random_rec = FALSE, # No random recruitment
@@ -287,21 +298,21 @@ for(sp in 1:4){
         silent = TRUE, phase = NULL,
         niter = 5),
         silent = TRUE)
+      
+      # Try and phase if not estimating
+      if( class(ms_m1_profile_list[[sp]][[i]][[m1]]) == "try-error"){
+        ms_m1_profile_list[[sp]][[i]][[m1]] <- try( Rceattle::fit_mod(
+          data_list = mydata_list_m1,
+          inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = "default",
+          niter = 5),
+          silent = TRUE)
+      }
     }
-  }
-  
-  # Try and phase if not estimating
-  if( ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll > 1 ){
-    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-      data_list = mydata_list_ms[[i]],
-      inits = inits, # Initial parameters = 0
-      file = NULL, # Don't save
-      debug = 0, # Estimate
-      random_rec = FALSE, # No random recruitment
-      msmMode = 1, # Multi species mode
-      silent = TRUE, phase = "default",
-      niter = 5),
-      silent = TRUE)
   }
 }
 
