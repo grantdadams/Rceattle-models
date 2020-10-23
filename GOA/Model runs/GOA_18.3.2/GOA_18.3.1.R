@@ -81,6 +81,13 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Nselages[8] <- 9
   mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
   mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
+  
+  # Make sure species cant cannibalize older species
+  for(sp in 1:mydata_list[[i]]$nspp){
+    for(age in 1:mydata_list[[i]]$nages[sp]){
+      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age)] <- 0
+    }
+  }
 }
 
 ################################################
@@ -97,13 +104,17 @@ for(i in 1:2){
                                         msmMode = 0, # Single species mode
                                         silent = TRUE,
                                         recompile = FALSE,
-                                        phase = "default")
+                                        phase = TRUE)
 }
 
 ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
-  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
+  data <- ss_run_list[[i]]$data_list
+  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
+  
+  # Refit
+  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = data,
                                                  inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
                                                  file = NULL, # Don't save
                                                  debug = 0, # Estimate
@@ -143,7 +154,7 @@ for(i in 1:length(mydata_list_ms)){
   inits <- ss_run_list_weighted[[1]]$estimated_params
   
   # Comp weights
-  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
   
   # Initialize from previous MS mod
   if(i > 2){
@@ -155,7 +166,7 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
     
     # Initialize from previous MS mod
     if(i > 8){
@@ -174,6 +185,21 @@ for(i in 1:length(mydata_list_ms)){
                                              niter = 5),
                            silent = TRUE)
   
+  # Try and phase if not estimating
+  if( class(ms_mod_list[[i]]) != "try-error" ){
+    if( ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll > 1 ){
+      ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+        data_list = mydata_list_ms[[i]],
+        inits = inits, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = TRUE,
+        niter = 5),
+        silent = TRUE)
+    }
+  }
   
   
   # Adding try catch, then will phase in predation via increasing consumption little by little
@@ -226,7 +252,7 @@ ms_mod_list_check[[1]] <- try( Rceattle::fit_mod(
   debug = 0, # Estimate
   random_rec = FALSE, # No random recruitment
   msmMode = 1, # Multi species mode
-  silent = TRUE, phase = "default",
+  silent = TRUE, phase = TRUE,
   niter = 5),
   silent = TRUE)
 
@@ -308,7 +334,7 @@ for(sp in 1:4){
           debug = 0, # Estimate
           random_rec = FALSE, # No random recruitment
           msmMode = 1, # Multi species mode
-          silent = TRUE, phase = "default",
+          silent = TRUE, phase = TRUE,
           niter = 5),
           silent = TRUE)
       }
