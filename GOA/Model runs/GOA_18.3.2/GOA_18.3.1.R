@@ -85,7 +85,7 @@ for(i in 1:length(mydata_list)){
   # Make sure species cant cannibalize older species
   for(sp in 1:mydata_list[[i]]$nspp){
     for(age in 1:mydata_list[[i]]$nages[sp]){
-      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age)] <- 0
+      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age & mydata_list[[i]]$UobsWtAge$Prey_sex == mydata_list[[i]]$UobsWtAge$Pred_sex)] <- 0
     }
   }
 }
@@ -104,7 +104,7 @@ for(i in 1:2){
                                         msmMode = 0, # Single species mode
                                         silent = TRUE,
                                         recompile = FALSE,
-                                        phase = TRUE)
+                                        phase = "default")
 }
 
 ss_run_list_weighted <- list()
@@ -148,7 +148,7 @@ for(i in 1:length(mydata_list_ms)){
 
 ms_mod_list <- list()
 # 3,4 do not converge
-for(i in 1:length(mydata_list_ms)){
+for(i in 10:length(mydata_list_ms)){
   
   # Initialize from ss weighted
   inits <- ss_run_list_weighted[[1]]$estimated_params
@@ -158,7 +158,7 @@ for(i in 1:length(mydata_list_ms)){
   
   # Initialize from previous MS mod
   if(i > 2){
-    inits <- ms_mod_list[[i-1]]$estimated_params
+    #inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
@@ -170,7 +170,7 @@ for(i in 1:length(mydata_list_ms)){
     
     # Initialize from previous MS mod
     if(i > 8){
-      inits <- ms_mod_list[[i-1]]$estimated_params
+      #inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
@@ -184,22 +184,6 @@ for(i in 1:length(mydata_list_ms)){
                                              silent = TRUE, phase = NULL,
                                              niter = 5),
                            silent = TRUE)
-  
-  # Try and phase if not estimating
-  if( class(ms_mod_list[[i]]) != "try-error" ){
-    if( ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll > 1 ){
-      ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-        data_list = mydata_list_ms[[i]],
-        inits = inits, # Initial parameters = 0
-        file = NULL, # Don't save
-        debug = 0, # Estimate
-        random_rec = FALSE, # No random recruitment
-        msmMode = 1, # Multi species mode
-        silent = TRUE, phase = TRUE,
-        niter = 5),
-        silent = TRUE)
-    }
-  }
   
   
   # Adding try catch, then will phase in predation via increasing consumption little by little
@@ -227,7 +211,25 @@ for(i in 1:length(mydata_list_ms)){
         niter = 5)
     }
   }
+  
+  
+  # Try and phase if hitting discontinous
+  if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
+    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+      data_list = mydata_list_ms[[i]],
+      inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = FALSE, # No random recruitment
+      msmMode = 1, # Multi species mode
+      silent = TRUE, phase = "default",
+      niter = 5),
+      silent = TRUE)
+  }
 }
+
+sapply(ms_mod_list[1:11], function(x) x$opt$objective)
+sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)
 
 # Re-order and name models
 # The long time-series models for 1977 to 2018 were: 
@@ -243,26 +245,11 @@ for(i in 1:length(mydata_list_ms)){
 # •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
 
-# Seems model 2 and 3 are having a hard time converging. Perhaps starting them from initial values of 4 or 5
+# Seems model 11 (ms mod 9) is having a hard time to estimate
 ms_mod_list_check <- list()
-ms_mod_list_check[[1]] <- try( Rceattle::fit_mod(
-  data_list = mydata_list_ms[[1]],
-  inits = mod_list_all[[1]]$estimated_params, # Initial parameters = 0
-  file = NULL, # Don't save
-  debug = 0, # Estimate
-  random_rec = FALSE, # No random recruitment
-  msmMode = 1, # Multi species mode
-  silent = TRUE, phase = TRUE,
-  niter = 5),
-  silent = TRUE)
-
-sapply(ms_mod_list_check, function(x) x$opt$objective)
-sapply(ms_mod_list_check, function(x) x$quantities$jnll)
-sapply(ms_mod_list_check, function(x) x$obj$fn(x$obj$env$last.par.best))
-
-ms_mod_list_check[[2]] <- try( Rceattle::fit_mod(
-  data_list = mydata_list_ms[[2]],
-  inits = ms_mod_list[[3]]$estimated_params, # Initial parameters = 0
+ms_mod_list_check[[9]] <- try( Rceattle::fit_mod(
+  data_list = mydata_list_ms[[9]],
+  inits = ms_mod_list_check[[9]]$estimated_params, # Initial parameters = 0
   file = NULL, # Don't save
   debug = 0, # Estimate
   random_rec = FALSE, # No random recruitment
@@ -271,14 +258,93 @@ ms_mod_list_check[[2]] <- try( Rceattle::fit_mod(
   niter = 5),
   silent = TRUE)
 
-ms_mod_list[1:2] <- ms_mod_list_check[1:2]
 
-sapply(ms_mod_list[1:11], function(x) x$opt$objective)
-sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)
+# Model 8 is having a hard time, try starting at 9
+ms_mod_list_check[[8]] <- try( Rceattle::fit_mod(
+  data_list = mydata_list_ms[[8]],
+  inits = ms_mod_list[[9]]$estimated_params, # Initial parameters = 0
+  file = NULL, # Don't save
+  debug = 0, # Estimate
+  random_rec = FALSE, # No random recruitment
+  msmMode = 1, # Multi species mode
+  silent = TRUE, phase = NULL,
+  niter = 5),
+  silent = TRUE)
 
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:12])
+# Phase it back
+ms_mod_list_check[[8]] <- try( Rceattle::fit_mod(
+  data_list = mydata_list_ms[[8]],
+  inits = ms_mod_list_check[[8]]$estimated_params, # Initial parameters = 0
+  file = NULL, # Don't save
+  debug = 0, # Estimate
+  random_rec = FALSE, # No random recruitment
+  msmMode = 1, # Multi species mode
+  silent = TRUE, phase = "default",
+  niter = 5),
+  silent = TRUE)
 
-save(mod_list_all, file = "Models/18_3_1.RData")
+sapply(ms_mod_list_check, function(x) x$opt$objective)
+sapply(ms_mod_list_check, function(x) x$quantities$jnll)
+sapply(ms_mod_list_check, function(x) x$obj$fn(x$obj$env$last.par.best))
+
+
+ms_mod_list[c(8,9)] <- ms_mod_list_check[c(8,9)]
+
+# Check make sure they are goochi
+abs(sapply(ms_mod_list[1:11], function(x) x$opt$objective) - sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)) > 1
+
+# Looks like models 1,2,10,11 have discontinuous likelihoods
+# Rerun
+
+for(i in mod_re_run){
+  ms_mod_list[[i]] <- Rceattle::fit_mod(
+    data_list = mydata_list_ms[[i]],
+    inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+    file = NULL, # Don't save
+    debug = 0, # Estimate
+    random_rec = FALSE, # No random recruitment
+    msmMode = 1, # Multi species mode
+    silent = TRUE, phase = "default",
+    niter = 5)
+  
+}
+
+# 11 didnt work
+# Start from 8
+ms_mod_list[[11]] <- Rceattle::fit_mod(
+  data_list = mydata_list_ms[[11]],
+  inits = ms_mod_list[[8]]$estimated_params, # Initial parameters = 0
+  file = NULL, # Don't save
+  debug = 0, # Estimate
+  random_rec = FALSE, # No random recruitment
+  msmMode = 1, # Multi species mode
+  silent = TRUE, phase = NULL,
+  niter = 5)
+
+# 12 didnt work
+# Start from 11
+inits <- ms_mod_list[[11]]$estimated_params
+inits$ln_pop_scalar[4,] <- inits$ln_pop_scalar[4,1] # Adjust pop scalar
+ms_mod_list[[12]] <- Rceattle::fit_mod(
+  data_list = mydata_list_ms[[12]],
+  inits = inits, # Initial parameters = 0
+  file = NULL, # Don't save
+  debug = 0, # Estimate
+  random_rec = FALSE, # No random recruitment
+  msmMode = 1, # Multi species mode
+  silent = TRUE, phase = "default",
+  niter = 5)
+
+
+
+
+# Save
+mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:11])
+
+sapply(mod_list_all, class)
+round(sapply(mod_list_all, function(x) x$opt$objective)-sapply(mod_list_all, function(x) x$quantities$jnll))
+
+save(mod_list_all, file = paste0("Models/18_3_1",Sys.Date(),".RData"))
 
 
 ################################################
@@ -334,7 +400,7 @@ for(sp in 1:4){
           debug = 0, # Estimate
           random_rec = FALSE, # No random recruitment
           msmMode = 1, # Multi species mode
-          silent = TRUE, phase = TRUE,
+          silent = TRUE, phase = "default",
           niter = 5),
           silent = TRUE)
       }
@@ -342,7 +408,7 @@ for(sp in 1:4){
   }
 }
 
-save(ms_m1_profile_list, file = "18.3.1.ms_m1_profiles.Rdata")
+save(ms_m1_profile_list, file = past0("18.3.1.ms_m1_profiles_",Sys.Date(),".Rdata")
 
 
 
