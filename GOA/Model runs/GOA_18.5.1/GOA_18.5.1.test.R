@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.3.2")
+# setwd("Model runs/GOA_18.5.1/")
 
 # Updated the ALK
 
@@ -7,10 +7,11 @@ setwd("Model runs/GOA_18.3.2")
 # Data
 ################################################
 # Read the data in
-mydata_aaf <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx")
-mydata_coastwide <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
-mydata_survey <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
-mydata_no_hal <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
+mydata_aaf <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx")
+mydata_coastwide <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
+mydata_survey <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
+mydata_no_hal <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
+
 
 # Note: diet data is from age 0-2, 2-3, 3-4, 4-5,... Nages+. Plus groups for diet data for ATF is 16 for and for Halibut 16 as well.
 
@@ -22,7 +23,7 @@ mydata_no_hal <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coas
 # From Ian:
 # 2018 Stock distribution estimates for all sizes of Pacific halibut captured by the IPHC's fishery-independent setline survey
 # These are roughly applicable to ages 5+.
-halibut_dist <- read.csv("Halibut_3_dist_age5plus.csv")
+halibut_dist <- read.csv("Model runs/GOA_18.5.1/Halibut_3_dist_age5plus.csv")
 halibut_dist_avg <- rbind(data.frame(Year = 1977:1992, Region.3 = mean(halibut_dist$Region.3)), halibut_dist)
 halibut_dist_low <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.25)), halibut_dist) # Lower 25th percentile
 halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.75)), halibut_dist) # Upper 75th percentile
@@ -81,6 +82,14 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Nselages[8] <- 9
   mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
   mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
+  mydata_list[[i]]$projyr <- 2018
+  
+  # Make sure species cant cannibalize older species
+  for(sp in 1:mydata_list[[i]]$nspp){
+    for(age in 1:mydata_list[[i]]$nages[sp]){
+      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age & mydata_list[[i]]$UobsWtAge$Prey_sex == mydata_list[[i]]$UobsWtAge$Pred_sex)] <- 0
+    }
+  }
 }
 
 ################################################
@@ -103,7 +112,11 @@ for(i in 1:2){
 ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
-  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
+  data <- ss_run_list[[i]]$data_list
+  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
+  
+  # Refit
+  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = data,
                                                  inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
                                                  file = NULL, # Don't save
                                                  debug = 0, # Estimate
@@ -137,17 +150,17 @@ for(i in 1:length(mydata_list_ms)){
 
 ms_mod_list <- list()
 # 3,4 do not converge
-for(i in 1:2){
+for(i in c(1,2)){
   
   # Initialize from ss weighted
   inits <- ss_run_list_weighted[[1]]$estimated_params
   
   # Comp weights
-  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
   
   # Initialize from previous MS mod
   if(i > 2){
-    inits <- ms_mod_list[[i-1]]$estimated_params
+    #inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
@@ -155,11 +168,11 @@ for(i in 1:2){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
     
     # Initialize from previous MS mod
     if(i > 8){
-      inits <- ms_mod_list[[i-1]]$estimated_params
+      #inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
@@ -173,7 +186,6 @@ for(i in 1:2){
                                              silent = TRUE, phase = NULL,
                                              niter = 5),
                            silent = TRUE)
-  
   
   
   # Adding try catch, then will phase in predation via increasing consumption little by little
@@ -201,7 +213,25 @@ for(i in 1:2){
         niter = 5)
     }
   }
+  
+  
+  # Try and phase if hitting discontinous
+  if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
+    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+      data_list = mydata_list_ms[[i]],
+      inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = FALSE, # No random recruitment
+      msmMode = 1, # Multi species mode
+      silent = TRUE, phase = "default",
+      niter = 5),
+      silent = TRUE)
+  }
 }
+
+sapply(ms_mod_list[1:2], function(x) x$opt$objective)
+sapply(ms_mod_list[1:2], function(x) x$quantities$jnll)
 
 # Re-order and name models
 # The long time-series models for 1977 to 2018 were: 
@@ -217,12 +247,7 @@ for(i in 1:2){
 # •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
 
-for(i in 9:length(ms_mod_list)){
-  plot_mortality(Rceattle = mod_list_all[[i]],
-                 file = paste0("Figures/18.5.1/M2 Plots/18.5.1_mod_",i),
-                 incl_proj = FALSE,
-                 zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
-                 contour = FALSE, spp = 3, maxage = 30, log = FALSE,
-                 title = paste0("MS Model ",i), height = ifelse(i < 9, 4, 6))
+for(i in 1:length(ms_mod_list)){
+  plot_mortality(Rceattle = ms_mod_list[[i]], maxage = 30)
   
 }
