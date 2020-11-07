@@ -1,5 +1,5 @@
 library(Rceattle)
-# setwd("Model runs/GOA_18.5.1/")
+setwd("Model runs/GOA_18.5.1/")
 
 # Updated the ALK
 
@@ -7,10 +7,10 @@ library(Rceattle)
 # Data
 ################################################
 # Read the data in
-mydata_aaf <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx")
-mydata_coastwide <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
-mydata_survey <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
-mydata_no_hal <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
+mydata_aaf <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx")
+mydata_coastwide <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
+mydata_survey <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
+mydata_no_hal <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
 
 # What is different
 diff <- data.frame(matrix(NA, nrow = length(mydata_no_hal), ncol = 4))
@@ -33,7 +33,7 @@ for(i in 1:length(mydata_no_hal)){
 # From Ian:
 # 2018 Stock distribution estimates for all sizes of Pacific halibut captured by the IPHC's fishery-independent setline survey
 # These are roughly applicable to ages 5+.
-halibut_dist <- read.csv("Model runs/GOA_18.5.1/Halibut_3_dist_age5plus.csv")
+halibut_dist <- read.csv("Halibut_3_dist_age5plus.csv")
 halibut_dist_avg <- rbind(data.frame(Year = 1977:1992, Region.3 = mean(halibut_dist$Region.3)), halibut_dist)
 halibut_dist_low <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.25)), halibut_dist) # Lower 25th percentile
 halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.75)), halibut_dist) # Upper 75th percentile
@@ -149,18 +149,13 @@ for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
   mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
-  # 
-  # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
 }
 
 
 
 ms_mod_list <- list()
 # 3,4 do not converge
-for(i in c(1,2)){
+for(i in 1:length(mydata_list_ms)){
   
   # Initialize from ss weighted
   inits <- ss_run_list_weighted[[1]]$estimated_params

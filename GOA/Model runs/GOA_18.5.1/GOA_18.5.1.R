@@ -1,5 +1,5 @@
 library(Rceattle)
-setwd("Model runs/GOA_18.3.2")
+setwd("Model runs/GOA_18.5.1/")
 
 # Updated the ALK
 
@@ -11,6 +11,17 @@ mydata_aaf <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_aaf_hal
 mydata_coastwide <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
 mydata_survey <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
 mydata_no_hal <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
+
+# What is different
+diff <- data.frame(matrix(NA, nrow = length(mydata_no_hal), ncol = 4))
+diff[,1] <- names(mydata_no_hal)
+colnames(diff) <- c("Object", "Coastwide", "AAF", "Survey")
+for(i in 1:length(mydata_no_hal)){
+  diff[i,2] <- sum(mydata_no_hal[[i]] != mydata_coastwide[[i]])
+  diff[i,3] <- sum(mydata_no_hal[[i]] != mydata_aaf[[i]])
+  diff[i,4] <- sum(mydata_no_hal[[i]] != mydata_survey[[i]])
+}
+
 
 # Note: diet data is from age 0-2, 2-3, 3-4, 4-5,... Nages+. Plus groups for diet data for ATF is 16 for and for Halibut 16 as well.
 
@@ -81,6 +92,15 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Nselages[8] <- 9
   mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
   mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
+  mydata_list[[i]]$projyr <- 2019
+  mydata_list[[i]]$sigma_rec_prior <- rep(2.5, 4)
+  
+  # Make sure species cant cannibalize older species
+  for(sp in 1:mydata_list[[i]]$nspp){
+    for(age in 1:mydata_list[[i]]$nages[sp]){
+      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age & mydata_list[[i]]$UobsWtAge$Prey_sex == mydata_list[[i]]$UobsWtAge$Pred_sex)] <- 0
+    }
+  }
 }
 
 ################################################
@@ -103,7 +123,11 @@ for(i in 1:2){
 ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:2){
-  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = ss_run_list[[i]]$data_list,
+  data <- ss_run_list[[i]]$data_list
+  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
+  
+  # Refit
+  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = data,
                                                  inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
                                                  file = NULL, # Don't save
                                                  debug = 0, # Estimate
@@ -126,28 +150,23 @@ for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
   mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
   mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
-  # 
-  # mydata_list_ms[[i]]$M1_base[1,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[2,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[3,3:32] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[4,3:32] <- 0.1
 }
 
 
 
 ms_mod_list <- list()
 # 3,4 do not converge
-for(i in 1:length(mydata_list_ms)){
+for(i in 10:length(mydata_list_ms)){
   
   # Initialize from ss weighted
   inits <- ss_run_list_weighted[[1]]$estimated_params
   
   # Comp weights
-  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Comp_weights
+  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
   
   # Initialize from previous MS mod
   if(i > 2){
-    inits <- ms_mod_list[[i-1]]$estimated_params
+    #inits <- ms_mod_list[[i-1]]$estimated_params
   }
   
   if(i >= 8){
@@ -155,11 +174,11 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Comp_weights
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
     
     # Initialize from previous MS mod
     if(i > 8){
-      inits <- ms_mod_list[[i-1]]$estimated_params
+      #inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
@@ -173,7 +192,6 @@ for(i in 1:length(mydata_list_ms)){
                                              silent = TRUE, phase = NULL,
                                              niter = 5),
                            silent = TRUE)
-  
   
   
   # Adding try catch, then will phase in predation via increasing consumption little by little
@@ -201,7 +219,25 @@ for(i in 1:length(mydata_list_ms)){
         niter = 5)
     }
   }
+  
+  
+  # Try and phase if hitting discontinous
+  if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
+    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+      data_list = mydata_list_ms[[i]],
+      inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = FALSE, # No random recruitment
+      msmMode = 1, # Multi species mode
+      silent = TRUE, phase = "default",
+      niter = 5),
+      silent = TRUE)
+  }
 }
+
+sapply(ms_mod_list[1:2], function(x) x$opt$objective)
+sapply(ms_mod_list[1:2], function(x) x$quantities$jnll)
 
 # Re-order and name models
 # The long time-series models for 1977 to 2018 were: 
@@ -216,39 +252,6 @@ for(i in 1:length(mydata_list_ms)){
 # •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
 # •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
-
-# Seems model 2 and 3 are having a hard time converging. Perhaps starting them from initial values of 4 or 5
-ms_mod_list_check <- list()
-ms_mod_list_check[[1]] <- try( Rceattle::fit_mod(
-  data_list = mydata_list_ms[[1]],
-  inits = mod_list_all[[1]]$estimated_params, # Initial parameters = 0
-  file = NULL, # Don't save
-  debug = 0, # Estimate
-  random_rec = FALSE, # No random recruitment
-  msmMode = 1, # Multi species mode
-  silent = TRUE, phase = "default",
-  niter = 5),
-  silent = TRUE)
-
-sapply(ms_mod_list_check, function(x) x$opt$objective)
-sapply(ms_mod_list_check, function(x) x$quantities$jnll)
-sapply(ms_mod_list_check, function(x) x$obj$fn(x$obj$env$last.par.best))
-
-ms_mod_list_check[[2]] <- try( Rceattle::fit_mod(
-  data_list = mydata_list_ms[[2]],
-  inits = ms_mod_list[[3]]$estimated_params, # Initial parameters = 0
-  file = NULL, # Don't save
-  debug = 0, # Estimate
-  random_rec = FALSE, # No random recruitment
-  msmMode = 1, # Multi species mode
-  silent = TRUE, phase = NULL,
-  niter = 5),
-  silent = TRUE)
-
-ms_mod_list[1:2] <- ms_mod_list_check[1:2]
-
-sapply(ms_mod_list[1:11], function(x) x$opt$objective)
-sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)
 
 mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:12])
 
