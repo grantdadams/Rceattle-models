@@ -12,6 +12,16 @@ mydata_coastwide <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.
 mydata_survey <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
 mydata_no_hal <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
 
+# What is different
+diff <- data.frame(matrix(NA, nrow = length(mydata_no_hal), ncol = 4))
+diff[,1] <- names(mydata_no_hal)
+colnames(diff) <- c("Object", "Coastwide", "AAF", "Survey")
+for(i in 1:length(mydata_no_hal)){
+  diff[i,2] <- sum(mydata_no_hal[[i]] != mydata_coastwide[[i]])
+  diff[i,3] <- sum(mydata_no_hal[[i]] != mydata_aaf[[i]])
+  diff[i,4] <- sum(mydata_no_hal[[i]] != mydata_survey[[i]])
+}
+
 
 # Note: diet data is from age 0-2, 2-3, 3-4, 4-5,... Nages+. Plus groups for diet data for ATF is 16 for and for Halibut 16 as well.
 

@@ -21,8 +21,8 @@
 #############################################
 # Set directories
 diet_dir  <- "Data/Diet"
-data_dir  <-  "Model runs/GOA_18.5.1./Data"
-mod_dir  <-  "Model runs/GOA_18.5.1."
+data_dir  <-  "Model runs/GOA_18.5.1/Data"
+mod_dir  <-  "Model runs/GOA_18.5.1"
 
 # Load libraries
 library(dplyr)
@@ -222,7 +222,7 @@ names(length_bins)<-names(age_bins)
 
 # Alternative route to get length bins
 # -Get length-at-age bins from weight-at-age converted to length-at-age
-mydata_aaf <- Rceattle::read_data( file = file.path(mod_dir, "GOA_18.3.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx"))
+mydata_aaf <- Rceattle::read_data( file = file.path(mod_dir, "GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx"))
 species_conversion <- data.frame(DietSpecies = c(1:6), ActualSpecies = c(1,2,3,3,4,4), Sex = c(0,0,1,2,1,2))
 
 # Get weight-at-length parameters for pollock
@@ -440,6 +440,8 @@ save(mnDietbyYR,file=file.path(data_dir,"mnDietbyYR_halibut.Rdata"))
 GOAPredPreyL$Lbin_pred<-GOAPredPreyL$ageLenbin_pred<-NA
 GOAPredPreyL$Lbin_prey<-GOAPredPreyL$ageLenbin_prey<-NA
 
+# Funky bit is age 14,15, female ATF eating age-12 cod and Age-10 ATF males eating 12 cod
+
 for(sp in 1:nspp){
   sub<-as_tibble(GOAPredPreyL[GOAPredPreyL$CEATTLE_PRED==names(length_bins)[sp],])
   nbins<-length(length_bins[[sp]])
@@ -471,7 +473,6 @@ for(sp in 1:nspp){
   }else{
     mnPPL_Diet<-rbind(mnPPL_Diet,sub2)
   }
-  
 }
 
 
@@ -479,9 +480,7 @@ for(sp in 1:nspp){
 mnPPL_Diet<-data.frame(mnPPL_Diet)
 save(mnPPL_Diet,file=file.path(data_dir,"mnPPL_Diet_halibut.Rdata"))
 
-
-# convert long to wide now - Grant to pick up here 
-# todo: fill in key with 0 values 
+# Calculate the proportion of each age group for a prey spp for each predator/age
 mnPPL_Diet_ga <- mnPPL_Diet
 mnPPL_Diet_ga$TotpreyWt_kg_prop <- NA
 
@@ -492,8 +491,8 @@ for(pred in 1:nspp){
         # See if data exits
         sub <- mnPPL_Diet[which(mnPPL_Diet$CEATTLE_PRED == names(length_bins)[pred] &
                                   mnPPL_Diet$CEATTLE_PREY == names(length_bins)[prey] &
-                                  mnPPL_Diet$ageLenbin_pred == pred_age &
-                                  mnPPL_Diet$ageLenbin_prey == prey_age),]
+                                  as.numeric(mnPPL_Diet$ageLenbin_pred) == pred_age &
+                                  as.numeric(mnPPL_Diet$ageLenbin_prey) == prey_age),]
         
         # Add rows if it does not
         if(nrow(sub) == 0){
@@ -503,16 +502,19 @@ for(pred in 1:nspp){
         }
       }
       # Turn weight of prey-at-age in pred-at-age to % composition by weight
-      pred_at_age_wt <- (as.numeric(mnPPL_Diet_ga$TotpreyWt_kg_sum[which(mnPPL_Diet_ga$CEATTLE_PRED == names(length_bins)[pred] &
-                                                                           mnPPL_Diet_ga$CEATTLE_PREY == names(length_bins)[prey] &
-                                                                           mnPPL_Diet_ga$ageLenbin_pred == pred_age)]))
-      pred_at_age_wt_sum <- sum(pred_at_age_wt)
-      if(pred_at_age_wt_sum > 0){
-        pred_at_age_wt_prop <- pred_at_age_wt / pred_at_age_wt_sum
+      # - Rows for predator spp, predator spp-at-age, prey spp
+      subs <- which(mnPPL_Diet_ga$CEATTLE_PRED == names(length_bins)[pred] &
+                      mnPPL_Diet_ga$CEATTLE_PREY == names(length_bins)[prey] &
+                      as.numeric(mnPPL_Diet_ga$ageLenbin_pred) == pred_age)
+      pred_at_age_wt <- (as.numeric(mnPPL_Diet_ga$TotpreyWt_kg_sum[subs]))
+      
+      # Make proportions zero
+      mnPPL_Diet_ga$TotpreyWt_kg_prop[subs] <- 0
+      
+      # If sum of stomach weight > 0, take proportion
+      if(sum(pred_at_age_wt) > 0){
+        mnPPL_Diet_ga$TotpreyWt_kg_prop[subs] <- pred_at_age_wt / sum(pred_at_age_wt)
       }
-      mnPPL_Diet_ga$TotpreyWt_kg_prop[which(mnPPL_Diet_ga$CEATTLE_PRED == names(length_bins)[pred] &
-                                              mnPPL_Diet_ga$CEATTLE_PREY == names(length_bins)[prey] &
-                                              mnPPL_Diet_ga$ageLenbin_pred == pred_age)] = pred_at_age_wt_prop
     }
   }
 }
@@ -522,10 +524,9 @@ mnPPL_Diet_ga$TotpreyWt_kg_prop[which(is.na(mnPPL_Diet_ga$TotpreyWt_kg_prop))] <
 
 
 
-
 # Make UObs
-mnPPL_Diet_ga$Est_Prey_wt_by_length <- NA
-mnPPL_Diet_ga$Est_prop_by_wt_prey <- NA
+mnPPL_Diet_ga$Est_Prey_wt_by_length <- 0
+mnPPL_Diet_ga$Est_prop_by_wt_prey <- 0
 mn_diet_names <- c("pollock_mn", "pcod_mn", "atf_mn", "atf_mn", "halibut_mn", "halibut_mn")
 
 Uobs <- array(0, dim = c(4, 4, 2, 2, 30, 30))
