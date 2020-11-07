@@ -92,7 +92,7 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Nselages[8] <- 9
   mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
   mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
-  mydata_list[[i]]$projyr <- 2018
+  mydata_list[[i]]$projyr <- 2019
   
   # Make sure species cant cannibalize older species
   for(sp in 1:mydata_list[[i]]$nspp){
