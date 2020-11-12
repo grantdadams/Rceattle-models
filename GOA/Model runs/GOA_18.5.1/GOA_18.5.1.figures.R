@@ -1,7 +1,7 @@
 library(Rceattle)
 library(wesanderson)
-setwd("Model runs/GOA_18.3.2")
-load("Models/18_3_12020-10-25.RData")
+setwd("Model runs/GOA_18.5.1")
+load("Models/18_5_1_2020-11-08.RData")
 
 mod_list_all <- mod_list_all[1:13]
 abs(sapply(mod_list_all, function(x) x$opt$objective) - sapply(mod_list_all, function(x) x$quantities$jnll)>1)
@@ -40,7 +40,7 @@ rel_diff_lower <- abs(mod_list_all[[2]]$opt$diagnostics$Lower - mod_list_all[[2]
 rel_diff_lower[which(rel_diff_lower != Inf)]
 
 ######################### Plots
-file_name <- "Figures/18.3.1/18.3.1_models_long"
+file_name <- "Figures/18.5.1/18.5.1_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
 plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
 plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
@@ -52,10 +52,16 @@ nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective) 
                        aic = sapply(mod_list_long, function(x) x$opt$AIC) - (999^2)*10 * 2)
 nll_long$daic <- nll_long$aic - min(nll_long$aic)
 nll_long <- round(nll_long)
-write.csv(nll_long, "Figures/18.3.1/18.3.1.long_model_nll.csv")
+write.csv(nll_long, "Figures/18.5.1/18.5.1.long_model_nll.csv")
+
+# Plot an individual model
+file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod3"
+plot_biomass(mod_list_long[3], file = file_name, model_names = mod_names_long[3], line_col = line_col_long[3])
+plot_ssb(mod_list_long[3], file = file_name, model_names = mod_names_long[3], line_col = line_col_long[3])
+plot_recruitment(mod_list_long[3], file = file_name, add_ci = TRUE, model_names = mod_names_long[3], line_col = line_col_long[3])
 
 # Short
-file_name <- "Figures/18.3.1/18.3.1_models_short"
+file_name <- "Figures/18.5.1/18.5.1_models_short"
 plot_biomass(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 0.17, line_col = line_col_short)
 plot_ssb(mod_list_short, file = file_name, model_names = mod_names_short, right_adj = 0.17, line_col = line_col_short)
 plot_recruitment(mod_list_short, file = file_name, add_ci = TRUE, model_names = mod_names_short, right_adj = 0.17, line_col = line_col_short)
@@ -66,17 +72,22 @@ nll_short <- data.frame(nll = sapply(mod_list_short, function(x) x$opt$objective
                         aic = sapply(mod_list_short, function(x) x$opt$AIC))
 nll_short$daic <- nll_short$aic - min(nll_short$aic)
 nll_short <- round(nll_short)
-write.csv(nll_short, "Figures/18.3.1/18.3.1.short_model_nll.csv")
+write.csv(nll_short, "Figures/18.5.1/18.5.1.short_model_nll.csv")
 
 
 # All plots
-file_name <- "Figures/18.3.1/18.3.1_models_all"
+file_name <- "Figures/18.5.1/18.5.1_models_all"
 plot_biomass(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_ssb(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_b_eaten(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
+
+plot_b_eaten_prop(mod_list_all[[3]], file = "Figures/18.5.1/mod_3", add_ci = FALSE, model_names = mod_names_all[3], right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_biomass(mod_list_all[[3]], file = "Figures/18.5.1/mod_3", model_names = mod_names_all[3], right_adj = 0.17, line_col = line_col, lwd = 2)
+
 plot_recruitment(mod_list_all, file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_logindex(mod_list_all, file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
 nll_all <- rbind(nll_long, nll_short)
-write.csv(nll_all, "Figures/18.3.1/18.3.1.all_model_nll.csv")
+write.csv(nll_all, "Figures/18.5.1/18.5.1.all_model_aic_nll.csv")
 
 # Table of likelihood components
 jnll_summary <- data.frame(matrix(NA, nrow = nrow(mod_list_all[[1]]$quantities$jnll_comp), ncol = (length(mod_list_all)+1)))
@@ -88,8 +99,52 @@ for(i in 1:length(mod_list_all)){
     jnll_summary[12,i+1] = jnll_summary[12,i+1] - (999^2 * 10)
   }
 }
+jnll_summary <- rbind(jnll_summary, c("jnll", sapply(mod_list_all, function(x) x$opt$objective)))
 jnll_summary <- rbind(jnll_summary, c("k", sapply(mod_list_all, function(x) x$opt$number_of_coefficients[1])))
-write.csv(jnll_summary, "Figures/18.3.1/18.3.1.all_model_jnll_summary.csv")
+for(i in 1:length(mod_list_all)){
+  jnll_summary[,i+1] <- as.numeric(jnll_summary[,i+1])
+}
+jnll_summary = jnll_summary[-which(rowSums(jnll_summary[,2:14]) == 0),]
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_jnll_summary.csv")
+
+
+# Different in likelihood components
+for(i in 1:(nrow(jnll_summary)-1)){
+  jnll_summary[i,2:9] <- jnll_summary[i,2:9] - min(jnll_summary[i,2:9])
+  jnll_summary[i,10:14] <- jnll_summary[i,10:14] - min(jnll_summary[i,10:14])
+}
+jnll_summary <- rbind(jnll_summary, c("DAIC", nll_long$daic, nll_short$daic))
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_delta_nll_summary.csv")
+
+
+
+# Table of likelihood bits
+jnll_summary <- data.frame(matrix(NA, nrow = length(mod_list_all[[1]]$quantities$jnll_comp), ncol = (length(mod_list_all)+3)))
+jnll_summary[,1] = rep(rownames(mod_list_all[[1]]$quantities$jnll_comp), ncol(mod_list_all[[1]]$quantities$jnll_comp))
+jnll_summary[,2] = paste0(rep(rownames(mod_list_all[[1]]$quantities$jnll_comp), ncol(mod_list_all[[1]]$quantities$jnll_comp)), "_$Sp/Srv/Fsh_", rep(1:ncol(mod_list_all[[1]]$quantities$jnll_comp), each = nrow(mod_list_all[[1]]$quantities$jnll_comp)))
+jnll_summary[,3] <- rep(mod_list_all[[1]]$data_list$fleet_control$Fleet_name[mod_list_all[[1]]$data_list$fleet_control$Fleet_code], each = nrow(mod_list_all[[1]]$quantities$jnll_comp))
+
+for(i in 1:length(mod_list_all)){
+  jnll_summary[,i+3] <- c(mod_list_all[[i]]$quantities$jnll_comp)
+  if(i < 9){
+    jnll_summary[228,i+3] = jnll_summary[228,i+3] - (999^2 * 10)
+  }
+}
+jnll_summary <- jnll_summary[which(rowSums(jnll_summary[,4:16]) !=0),]
+colnames(jnll_summary) <- c("Likelihood component", "Likelihood component2", "Fleet_name", 1:length(mod_list_all))
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_nll_components.csv")
+
+# Different in likelihood components
+for(i in 1:nrow(jnll_summary)){
+  jnll_summary[i,4:11] <- jnll_summary[i,4:11] - min(jnll_summary[i,4:11])
+  jnll_summary[i,12:16] <- jnll_summary[i,12:16] - min(jnll_summary[i,12:16])
+}
+jnll_summary <- jnll_summary[which(rowSums(jnll_summary[,4:16]) !=0),]
+# jnll_summary <- jnll_summary[which(round(rowSums(jnll_summary[,4:16]), 2) !=0),]
+pop_pen <- which(jnll_summary[,1] == "Recruitment deviates" | jnll_summary[,1] == "Initial abundance deviates")
+jnll_summary_pop_pen <- jnll_summary[pop_pen, ]
+jnll_summary <- rbind(jnll_summary[-pop_pen, ], jnll_summary_pop_pen)
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_delta_nll_components.csv")
 
 
 # Difference in biomass
@@ -129,12 +184,13 @@ sapply(biom_diff_short[2:4], function(x) mean(x[1,]))
 
 # Time series of total natural mortality
 # Pollock
+library(ggplot2)
 zmax <- sapply(mod_list_all[1:8], function(x) max(x$quantities$M[1,1,1:10,1:42]))
 zmax2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$M[1,1,1:10,1:26]))
 
 for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
-             file = paste0("Figures/18.3.1/M2 Plots/18.3.1_mod_",i),
+             file = paste0("Figures/18.5.1/M2 Plots/Pollock/18.5.1_mod_",i),
              incl_proj = FALSE,
              zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
              contour = FALSE, spp = 1, maxage = 10,
@@ -143,33 +199,36 @@ for(i in 1:length(mod_list_all)){
 }
 
 # Cod
-zmax <- sapply(mod_list_all[1:8], function(x) max(log(x$quantities$M[2,1,1:12,1:42])))
-zmax2 <- sapply(mod_list_all[9:13], function(x) max(log(x$quantities$M[2,1,1:12,1:26])))
+zmax <- sapply(mod_list_all[1:8], function(x) max((x$quantities$M[2,1,1:12,1:42])))
+zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[2,1,1:12,1:26])))
 
-zmin <- sapply(mod_list_all[1:8], function(x) min(log(x$quantities$M[2,1,1:12,1:42])))
-zmin2 <- sapply(mod_list_all[9:13], function(x) min(log(x$quantities$M[2,1,1:12,1:26])))
+zmin <- sapply(mod_list_all[1:8], function(x) min((x$quantities$M[2,1,1:12,1:42])))
+zmin2 <- sapply(mod_list_all[9:13], function(x) min((x$quantities$M[2,1,1:12,1:26])))
 
 natage <- sapply(mod_list_all[1:8], function(x) max(x$quantities$NByage[2,1,12:12,1:42]))
 natage2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$NByage[2,1,12:12,1:26]))
 
 for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
-                 file = paste0("Figures/18.3.1/M2 Plots/18.3.1_mod_",i),
+                 file = paste0("Figures/18.5.1/M2 Plots/Cod/18.5.1_mod_",i),
                  incl_proj = FALSE,
                  zlim = c(ifelse(i < 9, min(zmin), min(zmin2)),ifelse(i < 9, max(zmax), max(zmax2))),
-                 contour = FALSE, spp = 2, maxage = 12, log = TRUE,
+                 contour = FALSE, spp = 2, maxage = 12, log = FALSE,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
   
 }
-mod_list_all[[3]]$data_list$UobsWtAge[which(mod_list_all[[3]]$data_list$UobsWtAge$Prey ==2 & mod_list_all[[3]]$data_list$UobsWtAge$Prey_age == 12 & mod_list_all[[3]]$data_list$UobsWtAge$Stomach_proportion_by_weight > 0),]
+round(mod_list_all[[3]]$quantities$M2_prop[1,2,,1,,1,42],2)
+round(mod_list_all[[3]]$quantities$M2_prop[2,2,,1,,1,42],2)
+round(mod_list_all[[3]]$quantities$M2_prop[3,2,,1,,1,42],2)
+round(mod_list_all[[3]]$quantities$M2_prop[4,2,,1,,1,42],2)
 
 # ATF
 zmax <- sapply(mod_list_all[1:8], function(x) max((x$quantities$M[3,,1:30,1:42])))
 zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[3,,1:30,1:26])))
 
-for(i in 9:length(mod_list_all)){
+for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
-                 file = paste0("Figures/18.3.1/M2 Plots/18.3.1_mod_",i),
+                 file = paste0("Figures/18.5.1/M2 Plots/ATF/18.5.1_mod_",i),
                  incl_proj = FALSE,
                  zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
                  contour = FALSE, spp = 3, maxage = 30, log = FALSE,
@@ -181,9 +240,9 @@ mod_list_all[[3]]$data_list$UobsWtAge[which(mod_list_all[[3]]$data_list$UobsWtAg
 
 # Plot comp data of a few key models
 for(i in 1:length(mod_list_all)){
-  dir.create(paste0("Figures/18.3.1/Comp plots/Model ",i))
+  dir.create(paste0("Figures/18.5.1/Comp plots/Model ",i))
   plot_comp(Rceattle = mod_list_all[[i]],
-            file = paste0("Figures/18.3.1/Comp plots/","Model ",i,"/18.3.1_mod_",i))
+            file = paste0("Figures/18.5.1/Comp plots/","Model ",i,"/18.5.1_mod_",i))
 }
 
 
