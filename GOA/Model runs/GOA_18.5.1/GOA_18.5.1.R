@@ -88,6 +88,7 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
   mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
   
+  # Update atf selectivity
   mydata_list[[i]]$fleet_control$Selectivity[8] <- 2
   mydata_list[[i]]$fleet_control$Nselages[8] <- 9
   mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
