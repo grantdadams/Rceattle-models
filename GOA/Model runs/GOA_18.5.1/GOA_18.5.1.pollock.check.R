@@ -8,6 +8,7 @@ setwd("Model runs/GOA_18.5.1/")
 mydata_pollock <- Rceattle::read_data( file = "Data/GOA_18.5.1_pollock_single_species_1970-2018.xlsx")
 mydata_pollock2 <- Rceattle::read_data( file = "Data/GOA_18.5.1_pollock_single_species_1970-2018_fixed_bt_sel.xlsx")
 
+mydata_pollock$sigma_rec_prior <- 4
 pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock,
                                   inits = NULL, # Initial parameters = 0
                                   file = NULL, # Don't save
@@ -62,6 +63,18 @@ pollock_safe$quantities$biomass[1,1:49] <- t(safe2018biomass[,2]) * 1000000
 pollock_safe$quantities$biomassSSB[1,1:49] <- t(safe2018ssb[,2])  * 1000000 
 pollock_safe$quantities$R[1,1:49] <- t(safe2018rec[,2]) * 1000000
 
+# Look at index
+safe_2018_index <- as.data.frame(read_xlsx("Data/2018_safe_expected_survey.xlsx", sheet = 1))
+index_cols <- data.frame(Index = c(7,1,2,3,4,5,6), Col = c(2,3,4,5,6,7,8))
+srv_biom <- pollock_safe$data_list$srv_biom
+for(i in 1:nrow(index_cols)){
+  sub <- which(srv_biom$Fleet_code == index_cols$Index[i])
+  yrs <- srv_biom$Year[sub]
+  bio_hat <- safe_2018_index[which(safe_2018_index$Year %in% yrs),index_cols$Col[i]]
+  srv_biom$Observation[sub] <- bio_hat
+}
+pollock_safe$quantities$srv_bio_hat <- srv_biom$Observation
+
 
 pollock_base$quantities$biomass[1,1:49] <- colSums(pollock_base$quantities$biomassByage[1,3:10,1:49])
 pollock_rw$quantities$biomass[1,1:49] <- colSums(pollock_rw$quantities$biomassByage[1,3:10,1:49])
@@ -80,7 +93,7 @@ plot_recruitment(mod_list, file = file_name, add_ci = FALSE, model_names = mod_n
 
 
 # rec plots
-jpeg(filename = "Figures/natage.compare.jpg", height = 1, width = 8, res = 300, units = "in")
+jpeg(filename = "Figures/natage.compare.jpg", height = 10, width = 8, res = 300, units = "in")
 par(mfrow = c(5,2), mar = c(2.8,3.8,1,1))
 for(i in 1:10){
   safe = safe_nage[[paste0("Age",i)]]
@@ -91,3 +104,6 @@ for(i in 1:10){
   legend("top", paste0("Age ",i), bty = "n")
 }
 dev.off()
+
+
+# Loglike 1 = catch, 2 = catch-age-comp, 3 = length-comp fishery, 4 = shelikof index, 5 = shelikof age comp, 6 = shelikof length comp, 7 = bt index, 8 = bt age comp, 9 = bt length comp, 10 = nothing, 11, = adfg surve index, 12 = adfg age, 13 = adfg length comp, 14 = age1 index, 15 = age2 index, age 6 = summer acoustic index,
