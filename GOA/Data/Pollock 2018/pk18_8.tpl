@@ -1548,6 +1548,9 @@ REPORT_SECTION
   report << "Numbers at age" << endl;
   report << N << endl;
 
+  report << "Total mortality at age" << endl;
+  report << Z << endl;
+
   report << "Projection output" << endl;
 
   report << "Selectivity" << endl;

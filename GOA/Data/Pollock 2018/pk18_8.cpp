@@ -1471,6 +1471,8 @@ void model_parameters::report(const dvector& gradients)
   report << Espawnbio << endl;
   report << "Numbers at age" << endl;
   report << N << endl;
+  report << "Total mortality at age" << endl;
+  report << Z << endl;
   report << "Projection output" << endl;
   report << "Selectivity" << endl;
   report << slctfsh_proj << endl;

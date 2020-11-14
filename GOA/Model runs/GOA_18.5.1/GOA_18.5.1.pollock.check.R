@@ -54,10 +54,10 @@ pollock_fix_q <- Rceattle::fit_mod(data_list = mydata_pollock_fq,
 
 # SAFE Models
 library(readxl)
-safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates.xlsx", sheet = 1))
+safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates_v2.xlsx", sheet = 1))
 safe_nage <- as.data.frame(read_xlsx("Data/2018_safe_n_at_age.xlsx", sheet = 1))
-safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates.xlsx", sheet = 2))
-safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates.xlsx", sheet = 3))
+safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates_v2.xlsx", sheet = 2))
+safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_estimates_v2.xlsx", sheet = 3))
 pollock_safe <- pollock_base
 pollock_safe$quantities$biomass[1,1:49] <- t(safe2018biomass[,2]) * 1000000
 pollock_safe$quantities$biomassSSB[1,1:49] <- t(safe2018ssb[,2])  * 1000000 
@@ -80,15 +80,18 @@ pollock_base$quantities$biomass[1,1:49] <- colSums(pollock_base$quantities$bioma
 pollock_rw$quantities$biomass[1,1:49] <- colSums(pollock_rw$quantities$biomassByage[1,3:10,1:49])
 pollock_fix_q$quantities$biomass[1,1:49] <- colSums(pollock_fix_q$quantities$biomassByage[1,3:10,1:49])
 
+
+
 ######################### Plots
 # - SAFE vs SS
 file_name <- "Figures/18.5.1/18.5.1_SAFE_vs_ceattle_pollock"
-mod_list <- list(pollock_base, pollock_rw, pollock_safe)
-mod_names <- c("CEATTLE pollock", "CEATTLE pollock rw", "2018 SAFE (mt)")
+mod_list <- list(pollock_base, pollock_safe)
+mod_names <- c("CEATTLE pollock", "2018 SAFE (mt)")
 
 plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 plot_recruitment(mod_list, file = file_name, add_ci = FALSE, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+plot_logindex(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
 
 
 
@@ -105,5 +108,22 @@ for(i in 1:10){
 }
 dev.off()
 
+
+# Scale post 1990 mean
+pollock_base_scaled <- pollock_base
+pollock_rw_scaled <- pollock_rw
+pollock_rw_scaled$quantities$biomassSSB <- pollock_rw_scaled$quantities$biomassSSB * mean(pollock_safe$quantities$biomassSSB[,21:49]/pollock_rw_scaled$quantities$biomassSSB[,21:49])
+
+pollock_base_scaled$quantities$biomassSSB <- pollock_base_scaled$quantities$biomassSSB * mean(pollock_safe$quantities$biomassSSB[,21:49]/pollock_base_scaled$quantities$biomassSSB[,21:49])
+
+pollock_rw_scaled$quantities$biomass <- pollock_rw_scaled$quantities$biomass * mean(pollock_safe$quantities$biomass[,21:49]/pollock_rw_scaled$quantities$biomass[,21:49])
+
+pollock_base_scaled$quantities$biomass <- pollock_base_scaled$quantities$biomass * mean(pollock_safe$quantities$biomass[,21:49]/pollock_base_scaled$quantities$biomass[,21:49])
+
+mod_list <- list(pollock_base_scaled, pollock_rw_scaled, pollock_safe)
+mod_names <- c("CEATTLE pollock scaled", "CEATTLE pollock rw scaled", "2018 SAFE (mt)")
+
+plot_biomass(mod_list, file = "scaled", model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+plot_ssb(mod_list, file = "scaled", model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 
 # Loglike 1 = catch, 2 = catch-age-comp, 3 = length-comp fishery, 4 = shelikof index, 5 = shelikof age comp, 6 = shelikof length comp, 7 = bt index, 8 = bt age comp, 9 = bt length comp, 10 = nothing, 11, = adfg surve index, 12 = adfg age, 13 = adfg length comp, 14 = age1 index, 15 = age2 index, age 6 = summer acoustic index,
