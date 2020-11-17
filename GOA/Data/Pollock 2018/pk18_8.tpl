@@ -715,6 +715,7 @@ FUNCTION Expected_values
 
     Ecatp(i) = (C(i)/sum(C(i)))*age_trans;
     Elenp(i) = Ecatp(i) * len_trans1;
+    C(i) = C(i)*1000000;
 
     Eindxsurv1_bs(i)= q1_bs*sum(elem_prod(elem_prod(elem_prod(N(i),mfexp(-yrfrct_srv1(i)*Z(i))),slctsrv1),wt_srv1(i)));
     Eindxsurv1(i)= q1(i)*sum(elem_prod(elem_prod(elem_prod(N(i),mfexp(-yrfrct_srv1(i)*Z(i))),slctsrv1),wt_srv1(i)));
@@ -1548,8 +1549,17 @@ REPORT_SECTION
   report << "Numbers at age" << endl;
   report << N << endl;
 
+  report << "Total fishery catch at age" << endl;
+  report << C << endl;
+
   report << "Total mortality at age" << endl;
   report << Z << endl;
+
+  report << "Total catch at age" << endl;
+  report << C << endl;
+
+  report << "Age transition matrix" << endl;
+  report << age_trans << endl;
 
   report << "Projection output" << endl;
 
