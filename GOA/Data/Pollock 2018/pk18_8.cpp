@@ -1144,13 +1144,11 @@ void model_parameters::Objective_function(void)
   {
   loglik(20)=0;
   }
-  loglik(21)  = -0.5*norm2(elem_div(first_difference(log_q1_dev),q1_rwlk_sd)); 
-  loglik(21)  += -0.5*norm2(elem_div(first_difference(log_q2_dev),q2_rwlk_sd)); 
-  loglik(21)  += -0.5*norm2(elem_div(first_difference(log_q3_dev),q3_rwlk_sd)); 
-   loglik(22)= 0;
+  loglik(21)  = -0.5*norm2(elem_div(first_difference(log_q1_dev),q1_rwlk_sd));
+   loglik(22)= -0.5*norm2(elem_div(first_difference(log_q2_dev),q2_rwlk_sd)); 
  //Prior on trawl catchability       
  loglik(23) = -.5*square((log_q2_mean-log(0.85))/0.1);
- loglik(24) = 0;
+ loglik(24) = -0.5*norm2(elem_div(first_difference(log_q3_dev),q3_rwlk_sd)); 
   objfun = -sum(loglik);
     var_prof=Esumbio(endyr);
 }
@@ -1472,6 +1470,8 @@ void model_parameters::report(const dvector& gradients)
   report << Espawnbio << endl;
   report << "Numbers at age" << endl;
   report << N << endl;
+  report << "Total fishery catch at age" << endl;
+  report << C << endl;
   report << "Total mortality at age" << endl;
   report << Z << endl;
   report << "Total catch at age" << endl;

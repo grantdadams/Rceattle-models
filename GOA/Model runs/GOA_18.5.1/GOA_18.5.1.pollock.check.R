@@ -6,61 +6,74 @@ setwd("Model runs/GOA_18.5.1/")
 # Data
 ################################################
 # Read the data in
-mydata_pollock <- Rceattle::read_data( file = "Data/GOA_18.5.1_pollock_single_species_1970-2018.xlsx")
-mydata_pollock$spawn_month = 0.21 * 12
-mydata_pollock_fixed <- Rceattle::read_data( file = "Data/GOA_18.5.1_pollock_single_species_1970-2018_fixed_bt_sel.xlsx")
-mydata_pollock_fixed$spawn_month = 0.21 * 12
+mydata_pollock_fixed <- Rceattle::read_data( file = "Data/GOA_18.5.1_pollock_single_species_1970-2018_true_fixed.xlsx")
+mydata_pollock <-  mydata_pollock_fixed
+mydata_pollock$estDynamics = 0
 safe2018est <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_parameters.xlsx", sheet = 1))
+safe2018estMain <- as.data.frame(read_xlsx("Data/2018_SAFE_pollock_parameters.xlsx", sheet = 2))
+# Fishery - Double logistic, random walk ascending params
+# Survey 1 - Descending logistic, random walk q
+# Survey 2 - Logistic, prior on q
+# Survey 3 - Logistic, random walk q
+# Survey 4 - Selectivity = 1 for age 1, single q
+# Survey 5 - Selectivity  = 1 for age 2, single q
+# Survey 6 - Selectivity  = 1 for all ages, single q
 
-
-mydata_pollock_rw <- mydata_pollock
-
-mydata_pollock_rw$fleet_control$Time_varying_sel[8] <- 0
-mydata_pollock_rw$fleet_control$Sel_sd_prior[8] <- 0.05
-mydata_pollock_rw$fleet_control$Selectivity[c(8)] <- 3
-pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock_rw,
-                                  inits = NULL, # Initial parameters = 0
-                                  file = NULL, # Don't save
-                                  debug = 0, # Estimate
-                                  random_rec = FALSE, # No random recruitment
-                                  msmMode = 0, # Single species mode
-                                  silent = TRUE,
-                                  recompile = FALSE,
-                                  phase = "default")
-
-# Fix n-at-age and F and selectivities
+#######################################
+# Mod 1 - Fix n-at-age and parameters - Check likelihoods
+#######################################
 mydata_pollock_fixed <- mydata_pollock_fixed
+mydata_pollock_fixed$estDynamics = 1
 
-mydata_pollock_fixed$fleet_control$Time_varying_sel[8] <- 5
-mydata_pollock_fixed$fleet_control$Sel_sd_prior[8] <- 0.05
-mydata_pollock_fixed$fleet_control$Selectivity[c(8)] <- 3
-
+# Scale n-at-age to vals
 mydata_pollock_fixed$NByageFixed[,5:15] <- mydata_pollock_fixed$NByageFixed[,5:15] * 1000000
-
+mydata_pollock_fixed$srv_biom$Observation <- mydata_pollock_fixed$srv_biom$Observation * 1000000
 mydata_pollock_fixed$msmMode = 0
 inits <- build_params(mydata_pollock_fixed)
-inits$sel_slp[1:2,8,1] <- c(0.771142817517, 0.895652703661 )
+
+# Fishery selectivity
+inits$ln_sel_slp[1:2,8,1] <- c(0.771142817517, 0.895652703661 )
 inits$sel_inf[1:2,8,1] <- c(3.79539137331, 9.74118767032)
-inits$ln_mean_F[8] <- -1.96496591515
-inits$ln_mn_rec = 1.14237068498
-inits$sel_slp_dev[1,8,1,] <- safe2018est$sel_slp_dev1
+inits$ln_sel_slp_dev[1,8,1,] <- safe2018est$sel_slp_dev1
 inits$sel_inf_dev[1,8,1,] <- safe2018est$sel_inf_dev1
-inits$rec_dev[1:49] <- safe2018est$R_dev
-#inits$init_dev[1,] <- safe2018est$R_dev[1]
+
+# Fishing mortality
+inits$ln_mean_F[8] <- -1.96496591515
 inits$F_dev[8,] <- safe2018est$F_dev
-map <- build_map(mydata_pollock_fixed, inits)
 
-# Map out F and selectivity for fishery
-map[[1]]$sel_inf_dev <- as.factor(replace(map[[2]]$sel_inf_dev, values = rep( NA, length(map[[2]]$sel_inf_dev))))
-map[[1]]$sel_slp_dev <- as.factor(replace(map[[2]]$sel_slp_dev, values = rep( NA, length(map[[2]]$sel_slp_dev))))
-map[[1]]$F_dev <- as.factor(replace(map[[2]]$F_dev, values = rep( NA, length(map[[2]]$F_dev))))
-map[[2]]$sel_slp[1:2,8,] <- NA
-map[[2]]$sel_inf[1:2,8,] <- NA
-map[[1]]$sel_slp <- as.factor(map[[2]]$sel_slp)
-map[[1]]$sel_inf <- as.factor(map[[2]]$sel_inf)
-#map[[1]]$init_dev <- as.factor(replace(map[[2]]$init_dev, values = rep( NA, length(map[[2]]$init_dev))))
-map[[1]]$ln_mean_F <- as.factor(rep(NA, 8))
+# Recruitment
+inits$ln_mn_rec = 1.14237068498
+inits$rec_dev[1:49] <- safe2018est$R_dev
 
+# Survey 1 - Descending logistic, random walk q
+inits$ln_sel_slp[2,1,1] <- safe2018estMain$log_slp2_srv1
+inits$sel_inf[2,1,1] <- safe2018estMain$inf2_srv1
+inits$ln_srv_q[1] <- safe2018estMain$log_q1_mean
+inits$ln_srv_q_dev[1,] <- safe2018est$log_q1_dev
+
+# Survey 2 -  Logistic, prior on q
+inits$ln_sel_slp[1,2,1] <- safe2018estMain$log_slp1_srv2
+inits$sel_inf[1,2,1] <- safe2018estMain$inf1_srv2
+inits$ln_srv_q[2] <- safe2018estMain$log_q2_mean
+
+
+# Survey 3 - Logistic, random walk q
+inits$ln_sel_slp[1,3,1] <- safe2018estMain$log_slp1_srv3
+inits$sel_inf[1,3,1] <- safe2018estMain$inf1_srv3
+inits$ln_srv_q[3] <- safe2018estMain$log_q3_mean
+inits$ln_srv_q_dev[3,] <- safe2018est$log_q3_dev
+
+# Survey 4 - Selectivity = 1 for age 1, single q
+inits$ln_srv_q[4] <- safe2018estMain$log_q4
+
+# Survey 5 - Selectivity  = 1 for age 2, single q
+inits$ln_srv_q[5] <- safe2018estMain$log_q5
+
+
+# Survey 6 - Selectivity  = 1 for all ages, single q
+inits$ln_srv_q[6] <- safe2018estMain$log_q6
+
+library(Rceattle)
 pollock_fixed <- Rceattle::fit_mod(data_list = mydata_pollock_fixed,
                                    inits = inits, # Initial parameters = 0
                                    file = NULL, # Don't save
@@ -70,43 +83,68 @@ pollock_fixed <- Rceattle::fit_mod(data_list = mydata_pollock_fixed,
                                    silent = TRUE,
                                    recompile = FALSE,
                                    phase = "default")
-round(pollock_fixed$quantities$jnll_comp,4)
-comp_hat <- mydata_pollock_fixed$comp_data[,1:8]
-comp_hat <- cbind(comp_hat, pollock_fixed$quantities$comp_hat)
 
-age_hat <- mydata_pollock_fixed$comp_data[,1:8]
-age_hat <- cbind(age_hat, pollock_fixed$quantities$age_hat)
+#######################################
+# Mod 2 - Base
+#######################################
 
-write.csv(comp_hat, file = "comp_hat.csv")
-write.csv(t(pollock_fixed$quantities$NByage[1,1,,]), file = "n_hat.csv")
-write.csv(t(pollock_fixed$quantities$Zed[1,1,,]), file = "zed_hat.csv")
-write.csv(age_hat, file = "c_hat.csv")
+mydata_pollock_est <- mydata_pollock_fixed
+mydata_pollock_est$estDynamics = 0
+pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock_est,
+                                 inits = NULL, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 debug = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 silent = TRUE,
+                                 recompile = FALSE,
+                                 phase = "default")
 
-
-
-# Map out F and selectivity for fishery
-mydata_pollock_rw$msmMode = 0
-map <- build_map(mydata_pollock_rw, inits)
-map[[1]]$sel_inf_dev <- as.factor(replace(map[[2]]$sel_inf_dev, values = rep( NA, length(map[[2]]$sel_inf_dev))))
-map[[1]]$sel_slp_dev <- as.factor(replace(map[[2]]$sel_slp_dev, values = rep( NA, length(map[[2]]$sel_slp_dev))))
-map[[2]]$sel_slp[1:2,8,] <- NA
-map[[2]]$sel_inf[1:2,8,] <- NA
-map[[1]]$sel_slp <- as.factor(map[[2]]$sel_slp)
-map[[1]]$sel_inf <- as.factor(map[[2]]$sel_inf)
-#map[[1]]$init_dev <- as.factor(replace(map[[2]]$init_dev, values = rep( NA, length(map[[2]]$init_dev))))
-
-pollock_fixed_sel <- Rceattle::fit_mod(data_list = mydata_pollock_rw,
-                                   inits = inits, # Initial parameters = 0
-                                   map = map,
-                                   file = NULL, # Don't save
-                                   debug = 0, # Estimate
-                                   random_rec = FALSE, # No random recruitment
-                                   msmMode = 0, # Single species mode
-                                   silent = TRUE,
-                                   recompile = FALSE,
-                                   phase = "default")
+pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock_est,
+                                  inits = pollock_base$estimated_params, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  debug = 0, # Estimate
+                                  random_rec = FALSE, # No random recruitment
+                                  msmMode = 0, # Single species mode
+                                  silent = TRUE,
+                                  recompile = FALSE,
+                                  phase = "default")
 
 
+# Start year 1977
+mydata_pollock_est$styr = 1977
+pollock_base_short <- Rceattle::fit_mod(data_list = mydata_pollock_est,
+                                  inits = NULL, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  debug = 0, # Estimate
+                                  random_rec = FALSE, # No random recruitment
+                                  msmMode = 0, # Single species mode
+                                  silent = TRUE,
+                                  recompile = FALSE,
+                                  phase = "default")
+# inits_short <- pollock_base_short$estimated_params
+# inits_short$rec_dev[1,] <- pollock_base$estimated_params$rec_dev[1,8:81]
+# inits_short$F_dev[,1:42] <- pollock_base$estimated_params$rec_dev[,8:49]
+# inits_short$ln_srv_q_dev[,1:42] <- pollock_base$estimated_params$ln_srv_q_dev[,8:49]
+# inits_short$ln_srv_q <- pollock_base$estimated_params$ln_srv_q
+# inits_short$ln_mean_F <- pollock_base$estimated_params$ln_mean_F
+# inits_short$ln_mn_rec <- pollock_base$estimated_params$ln_mn_rec
+# inits_short$sel_inf <- pollock_base$estimated_params$sel_inf
+# inits_short$ln_sel_slp <- pollock_base$estimated_params$ln_sel_slp
+# inits_short$ln_sel_slp_dev[,,,1:42] <- pollock_base$estimated_params$ln_sel_slp_dev[,,,8:49]
+# 
+# inits_short$sel_inf_dev[,,,1:42] <- pollock_base$estimated_params$sel_inf_dev[,,,8:49]
+
+
+pollock_base_short <- Rceattle::fit_mod(data_list = mydata_pollock_est,
+                                  inits =inits_short, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  debug = 0, # Estimate
+                                  random_rec = FALSE, # No random recruitment
+                                  msmMode = 0, # Single species mode
+                                  silent = TRUE,
+                                  recompile = FALSE,
+                                  phase = "default")
 
 
 ######################### 
@@ -141,29 +179,35 @@ for(i in 1:7){
 
 
 
-#pollock_fixed$quantities$biomass[1,1:49] <- colSums(pollock_fixed$quantities$biomassByage[1,3:10,1:49])*1000000
-#pollock_fixed$quantities$biomassSSB <- pollock_fixed$quantities$biomassSSB * 1000000
-#pollock_fixed$quantities$fsh_bio_hat <- pollock_fixed$quantities$fsh_bio_hat * 1000000
-
-# Convert to age-3 biomass
-pollock_base$quantities$biomass[1,1:49] <- colSums(pollock_base$quantities$biomassByage[1,3:10,1:49])
-pollock_fixed_sel$quantities$biomass[1,1:49] <- colSums(pollock_fixed_sel$quantities$biomassByage[1,3:10,1:49])
-pollock_fixed$quantities$biomass[1,1:49] <- colSums(pollock_fixed$quantities$biomassByage[1,3:10,1:49])
-
-
 ######################### 
 # Plots
 #########################
 # - SAFE vs SS
 file_name <- "Figures/18.5.1/18.5.1_SAFE_vs_ceattle_pollock"
-mod_list <- c(list(pollock_fixed_sel, pollock_fixed, pollock_base, pollock_safe_list[[1]], pollock_safe_list[[7]]))
-mod_names <- c("CEATTLE fixed sel", "CEATTLE fixed all", "CEATTLE est", "2018 SAFE (mt)", "No tv sel")
+mod_list <- c(list(pollock_fixed, pollock_base, pollock_base_short, pollock_safe_list[[1]]))
+mod_names <- c( "CEATTLE fixed all", "CEATTLE est", "CEATTLE est 1977-2018", "2018 SAFE (mt)")
+
+# Convert to age-3 biomass
+for(i in c(1:3)){
+  mod_list[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list[[i]]$quantities$biomassByage[1,3:10,1:49])
+}
 
 plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+
+sapply(mod_list, function(x) sum(x$quantities$jnll_comp))
+
+
+
 plot_recruitment(mod_list, file = file_name, add_ci = FALSE, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 plot_logindex(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
 plot_catch(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
+
+for(i in 1:6){
+  mod_list <- c(list(pollock_fixed_sel, pollock_fixed, pollock_base, pollock_safe_list[[1]], pollock_base_list[[i]]))
+  mod_names <- c("CEATTLE fixed sel", "CEATTLE fixed all", "CEATTLE est", "2018 SAFE (mt)", i)
+  plot_ssb(mod_list, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+}
 
 # 
 # 

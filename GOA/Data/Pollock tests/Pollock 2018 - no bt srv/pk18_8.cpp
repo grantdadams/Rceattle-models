@@ -239,8 +239,8 @@ model_parameters::model_parameters(int sz,int argc,char * argv[]) :
   #endif
   log_slp2_srv1.allocate(-5,5,7,"log_slp2_srv1");
   inf2_srv1.allocate(3,10,7,"inf2_srv1");
-  log_slp1_srv2.allocate(-5,5,6,"log_slp1_srv2");
-  inf1_srv2.allocate(1,50,6,"inf1_srv2");
+  log_slp1_srv2.allocate(-5,5,-1,"log_slp1_srv2");
+  inf1_srv2.allocate(1,50,-1,"inf1_srv2");
   log_slp2_srv2.allocate(-5,5,-1,"log_slp2_srv2");
   inf2_srv2.allocate(5,25,-1,"inf2_srv2");
   log_slp1_srv3.allocate(-5,5,9,"log_slp1_srv3");
@@ -262,7 +262,7 @@ model_parameters::model_parameters(int sz,int argc,char * argv[]) :
   #ifndef NO_AD_INITIALIZE
     log_q1.initialize();
   #endif
-  log_q2_mean.allocate(-10,10,5,"log_q2_mean");
+  log_q2_mean.allocate(-10,10,-1,"log_q2_mean");
   log_q2_dev.allocate(styr,endyr,-5,5,-1,"log_q2_dev");
   log_q2.allocate(styr,endyr,"log_q2");
   #ifndef NO_AD_INITIALIZE
@@ -1024,8 +1024,8 @@ void model_parameters::Objective_function(void)
       llsrvlenp1(i) += multNlen_srv1(i)*(srvlenp1(i,j)+o)*log((Esrvlenp1(srv_lenyrs1(i),j)+o)/(srvlenp1(i,j)+o));
     }}
    loglik(6) = sum(llsrvlenp1);
-  loglik(7) = -.5*norm2(elem_div(
-       (log(indxsurv2)-log(Eindxsurv2(srvyrs2))+square(indxsurv_log_sd2)/2.),indxsurv_log_sd2));
+ // loglik(7) = -.5*norm2(elem_div(
+      // (log(indxsurv2)-log(Eindxsurv2(srvyrs2))+square(indxsurv_log_sd2)/2.),indxsurv_log_sd2));
   RMSE_srv2= sqrt(norm2(log(indxsurv2)-log(Eindxsurv2(srvyrs2))+square(indxsurv_log_sd2)/2.)/nyrs_srv2);
   for (i=1;i<=nyrsac_srv2;i++)
     {
@@ -1045,7 +1045,7 @@ void model_parameters::Objective_function(void)
     effN_srv2(i) = sum(elem_prod(Esrvp2(srv_acyrs2(i)),(1-Esrvp2(srv_acyrs2(i)))))/sum(square(srvp2(i)-Esrvp2(srv_acyrs2(i))));
 	}
 	}
-  loglik(8) = sum(llsrvp2);
+  //loglik(8) = sum(llsrvp2);
   for (i=1;i<=nyrslen_srv2;i++)
     {
     llsrvlenp2(i) = 0;
@@ -1053,7 +1053,7 @@ void model_parameters::Objective_function(void)
     {
       llsrvlenp2(i) += multNlen_srv2(i)*(srvlenp2(i,j)+o)*log((Esrvlenp2(srv_lenyrs2(i),j)+o)/(srvlenp2(i,j)+o));
     }}
-   loglik(9) = sum(llsrvlenp2);
+   //loglik(9) = sum(llsrvlenp2);
   loglik(10) = 0;
     loglik(11) = -.5*norm2(elem_div(
        (log(indxsurv3)-log(Eindxsurv3(srvyrs3))+square(indxsurv_log_sd3)/2.),indxsurv_log_sd3));
@@ -1472,6 +1472,8 @@ void model_parameters::report(const dvector& gradients)
   report << Espawnbio << endl;
   report << "Numbers at age" << endl;
   report << N << endl;
+  report << "Total fishery catch at age" << endl;
+  report << C << endl;
   report << "Total mortality at age" << endl;
   report << Z << endl;
   report << "Total catch at age" << endl;
