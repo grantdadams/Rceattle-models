@@ -958,6 +958,7 @@ REPORT_SECTION
   report << "Fishsel_mal"<<endl<<sel(2)/maxsel_fish<<endl; 
   report << "Survsel_fem"<<endl<<sel_srv(1)/maxsel_srv(1)<<endl; 
   report << "Survsel_mal"<<endl<<sel_srv(2)/maxsel_srv(1)<<endl; 
+  report << "maxsel_srv"<<endl<<maxsel_srv<<endl; 
   report << "Obs_srv_biomass"<<endl<<obs_srv<<endl; 
   report << "Pred_srv_biomass"<<endl<<pred_srv<<endl;
   report << "obs_srv_sd" <<endl <<obs_srv_sd<<endl;  
