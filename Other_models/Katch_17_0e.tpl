@@ -320,7 +320,7 @@ PRELIMINARY_CALCS_SECTION
   offset.initialize();
 
 //fishery offset
-  if(assess<3){
+  if(assess<3){ // Assess 2 = GOA
   for (i=1; i <= nobs_fish; i++)
   {
   double sumtot ;  
@@ -569,7 +569,7 @@ FUNCTION get_numbers_at_age
     natage(2,styr,nages)=mfexp(mean_log_rec+rec_dev(itmp)-(M(2)*(nages-1)))/(1.- surv(2));
 
  // Now do for next several years----------------------------------
-  if(assess<3)
+  if(assess<3) // assess = 2 is the GOA
   {
   for (i=styr+1;i<=endyr;i++)
   {
@@ -630,6 +630,7 @@ FUNCTION get_numbers_at_age
   pred_bio(i)=0.; 
   pred_srv(j,i)=0.;
   //catchability calculation for survey years
+  // BSAI
   if (assess==1 && (i>=1982) && (i-1981 <= nobs_srv(1)))      //JNI catchability calculation for survey years    
    {   
    qtime(i)=q_surv(1)*mfexp(-alpha+beta*bottom_temps(i-1981));
