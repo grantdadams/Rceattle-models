@@ -38,7 +38,6 @@ pcod_base <- Rceattle::fit_mod(
   silent = FALSE,
   recompile = FALSE,
   phase = "default")
-pcod_base$quantities$jnll_comp
 
 pcod_base <- Rceattle::fit_mod(
   # cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
@@ -113,9 +112,18 @@ pcod_safe$quantities$biomassSSB[1,1:42] <- t(safe2018ssb[1:42,3])
 pcod_safe$quantities$R[1,1:42] <- t(safe2018rec[1:42,3])
 
 
+# 18.3.2
+# load("C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA/Model runs/GOA_18.3.2/Models/18_3_12020-10-25.RData")
+# pcod_18_3_2 <- pcod_base
+# pcod_18_3_2$quantities$biomass[1,1:42] <- mod_list_all[[1]]$quantities$biomass[2,1:42]
+# pcod_18_3_2$quantities$biomassSSB[1,1:42] <- mod_list_all[[1]]$quantities$biomassSSB[2,1:42]
+# pcod_18_3_2$quantities$R[1,1:42] <- mod_list_all[[1]]$quantities$R[2,1:42]
+
+
 ######################### 
 # Plots
 #########################
+
 # - SAFE vs SS
 file_name <- "Data/Cod tests/18.5.1_SAFE_vs_ceattle_pcod"
 mod_list <- list(pcod_base, pcod_fix, pcod_safe)

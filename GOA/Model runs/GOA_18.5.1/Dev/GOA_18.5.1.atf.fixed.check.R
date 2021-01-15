@@ -73,7 +73,7 @@ inits$F_dev[3,1:57] <- c(-2.10118573832, -2.08609460688, -2.07238231061, -2.0615
 
 # Recruitment
 rec_devs <- c(-0.739710902648, -0.237138698571, -0.268353357901, -0.301867192388, -0.337505720529, -0.375031912909, -0.414088611502, -0.454340440749, -0.495357027284, -0.536600282121, -0.577367504712, -0.616819962668, -0.653608862842, -0.685885882083, -0.711623905743, -0.706079505905, -0.692292752822, -0.647376957152, -0.584069818184, -0.551065401423, -0.560477810220, -0.588151167004, -0.625849890608, -0.659791642825, -0.693804018794, -0.718442253025, -0.730745178336, -0.703450418372, -0.640373884111, -0.526387774500, -0.371823217485, -0.165854200884, 0.100405270028, 0.164069868753, 0.0363368301871, 0.210413173685, 0.306921959568, 0.446140456923, 0.543776378424, 0.446017997671, 0.268735102643, 0.191866395446, 0.215939022922, 0.453604639234, 0.734287225895, 0.564850056242, 0.599553011941, 0.741336430642, 0.605042509596, 0.475610843795, 0.622614043434, 0.519527794187, 0.289041744625, 0.353741926375, 0.389949546224, 0.382605126510, 0.651344120618, 0.837038020887, 0.873969353410, 1.14567938117, 0.692245495666, 0.622527730009, 0.513015167763, 0.590386638062, 0.600923019971, 0.566808345383, 0.218103299351, 0.210533753689, -0.109161997485, -0.125284188942, 0.105061535089, 0.293061518087, 0.269651324027, 0.127461439969, -0.264736348518, 0.0903210770001, 1.16145763022e-007)
-inits$ln_mean_rec = 19.4535948326
+inits$ln_mn_rec = 19.4535948326
 inits$rec_dev[1:57] <- rec_devs[21:77]
 inits$init_dev[1:20] <- rec_devs[1:20]
 
@@ -83,7 +83,7 @@ inits$ln_sel_slp[1,1,2] <- log(0.499999956106) # Male
 inits$sel_inf[1,1,1] <- 3.25807092424 # Female
 inits$sel_inf[1,1,2] <- 4.48573166827 # Male
 
-# Survey 2 - Logistic, q = 1
+# Survey Males - Logistic, q = 1
 inits$ln_sel_slp[1,2,1] <- log(1.29423268707) # Female
 inits$ln_sel_slp[1,2,2] <- log(0.499999956106) # Male
 inits$sel_inf[1,2,1] <- 3.25807092424 # Female
@@ -92,7 +92,7 @@ inits$sel_inf[1,2,2] <- 4.48573166827 # Male
 
 library(Rceattle)
 atf_fixed <- Rceattle::fit_mod(data_list = mydata_atf_fixed,
-                               inits = inits, # Initial parameters = 0
+                               inits = NULL, # Initial parameters = 0
                                file = NULL, # Don't save
                                debug = 1, # Estimate
                                random_rec = FALSE, # No random recruitment
@@ -101,55 +101,55 @@ atf_fixed <- Rceattle::fit_mod(data_list = mydata_atf_fixed,
                                recompile = FALSE,
                                phase = "default")
 
-# Check selectivity
-# - Survey
-round(atf_fixed$quantities$sel[1,,,1] - mydata_atf_fixed$emp_sel[3:4, 6:26],5)
-# - Fishery
-round(atf_fixed$quantities$sel[2,,,1] - mydata_atf_fixed$emp_sel[1:2, 6:26],6)
-#  Selectivities are the same
-
-
-round(atf_fixed$quantities$jnll_comp,4)[1:12,1:2]
-
-safe_jnll <- read.csv( file = "Data/ATF Tests/2018_SAFE_nll_components.csv")
-rownames(safe_jnll) <- safe_jnll[,1]
-safe_jnll = safe_jnll[,-c(1, 4:9)]
-round(safe_jnll,6)[1:12,1:2]
-
-# Save bits
-srv_biom <- atf_fixed$data_list$srv_biom
-srv_biom$est <- atf_fixed$quantities$srv_bio_hat
-
-# Look at index
-library(readxl)
-safe_2018_index <- as.data.frame(read_xlsx("Data/2018_safe_expected_survey.xlsx", sheet = 1))
-srv_biom$SAFE <- NA
-index_cols <- data.frame(Index = c(7,1,2,3,4,5,6), Col = c(2,3,4,5,6,7,8))
-for(i in 1:nrow(index_cols)){
-  sub <- which(srv_biom$Fleet_code == index_cols$Index[i])
-  yrs <- srv_biom$Year[sub]
-  bio_hat <- safe_2018_index[which(safe_2018_index$Year %in% yrs),index_cols$Col[i]]
-  srv_biom$SAFE[sub] <- bio_hat
-}
-srv_biom
-srv_biom$RE <- (srv_biom$est - srv_biom$SAFE)/srv_biom$SAFE
-write.csv(srv_biom, file = "srv_biom.csv")
-
-
-# Check selectivities
-# Srv 1 is all good
-
-comp_hat <- mydata_atf_fixed$comp_data[,1:8]
-comp_hat <- cbind(comp_hat, atf_fixed$quantities$comp_hat)
-
-age_hat <- mydata_atf_fixed$comp_data[,1:8]
-age_hat <- cbind(age_hat, atf_fixed$quantities$age_hat)
-
-write.csv(comp_hat, file = "comp_hat.csv")
-write.csv(t(atf_fixed$quantities$NByage[1,1,,]), file = "n_hat.csv")
-write.csv(t(atf_fixed$quantities$Zed[1,1,,]), file = "zed_hat.csv")
-write.csv(age_hat, file = "c_hat.csv")
-
+# # Check selectivity
+# # - Survey
+# round(atf_fixed$quantities$sel[1,,,1] - mydata_atf_fixed$emp_sel[3:4, 6:26],5)
+# # - Fishery
+# round(atf_fixed$quantities$sel[2,,,1] - mydata_atf_fixed$emp_sel[1:2, 6:26],6)
+# #  Selectivities are the same
+# 
+# 
+# round(atf_fixed$quantities$jnll_comp,4)[1:12,1:2]
+# 
+# safe_jnll <- read.csv( file = "Data/ATF Tests/2018_SAFE_nll_components.csv")
+# rownames(safe_jnll) <- safe_jnll[,1]
+# safe_jnll = safe_jnll[,-c(1, 4:9)]
+# round(safe_jnll,6)[1:12,1:2]
+# 
+# # Save bits
+# srv_biom <- atf_fixed$data_list$srv_biom
+# srv_biom$est <- atf_fixed$quantities$srv_bio_hat
+# 
+# # Look at index
+# library(readxl)
+# safe_2018_index <- as.data.frame(read_xlsx("Data/2018_safe_expected_survey.xlsx", sheet = 1))
+# srv_biom$SAFE <- NA
+# index_cols <- data.frame(Index = c(7,1,2,3,4,5,6), Col = c(2,3,4,5,6,7,8))
+# for(i in 1:nrow(index_cols)){
+#   sub <- which(srv_biom$Fleet_code == index_cols$Index[i])
+#   yrs <- srv_biom$Year[sub]
+#   bio_hat <- safe_2018_index[which(safe_2018_index$Year %in% yrs),index_cols$Col[i]]
+#   srv_biom$SAFE[sub] <- bio_hat
+# }
+# srv_biom
+# srv_biom$RE <- (srv_biom$est - srv_biom$SAFE)/srv_biom$SAFE
+# write.csv(srv_biom, file = "srv_biom.csv")
+# 
+# 
+# # Check selectivities
+# # Srv 1 is all good
+# 
+# comp_hat <- mydata_atf_fixed$comp_data[,1:8]
+# comp_hat <- cbind(comp_hat, atf_fixed$quantities$comp_hat)
+# 
+# age_hat <- mydata_atf_fixed$comp_data[,1:8]
+# age_hat <- cbind(age_hat, atf_fixed$quantities$age_hat)
+# 
+# write.csv(comp_hat, file = "comp_hat.csv")
+# write.csv(t(atf_fixed$quantities$NByage[1,1,,]), file = "n_hat.csv")
+# write.csv(t(atf_fixed$quantities$Zed[1,1,,]), file = "zed_hat.csv")
+# write.csv(age_hat, file = "c_hat.csv")
+# 
 
 
 
@@ -175,8 +175,8 @@ for(i in 1:1){
 #########################
 # - SAFE vs SS
 file_name <- "Figures/18.5.1/18.5.1_SAFE_vs_ceattle_atf"
-mod_list <- c(list(atf_base, atf_fix_sel, atf_fixed, atf_safe_list[[1]]))
-mod_names <- c( "CEATTLE est", "CEATTLE fixed sel", "CEATTLE all fixed", "2018 SAFE (mt)")
+mod_list <- c(list(atf_base, atf_fixed, atf_safe_list[[1]]))
+mod_names <- c( "CEATTLE est", "CEATTLE natage fixed", "2018 SAFE (mt)")
 for(i in 1:length(mod_list)){
   mod_list[[i]]$data_list$endyr = 2017
 }

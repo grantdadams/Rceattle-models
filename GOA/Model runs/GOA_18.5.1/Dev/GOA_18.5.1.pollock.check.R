@@ -29,53 +29,53 @@ mydata_pollock_fixed$estDynamics = 1
 mydata_pollock_fixed$NByageFixed[,5:15] <- mydata_pollock_fixed$NByageFixed[,5:15] * 1000000
 mydata_pollock_fixed$srv_biom$Observation <- mydata_pollock_fixed$srv_biom$Observation * 1000000
 mydata_pollock_fixed$msmMode = 0
-inits <- build_params(mydata_pollock_fixed)
-
-# Fishery selectivity
-inits$ln_sel_slp[1:2,8,1] <- c(0.771142817517, 0.895652703661 )
-inits$sel_inf[1:2,8,1] <- c(3.79539137331, 9.74118767032)
-inits$ln_sel_slp_dev[1,8,1,] <- safe2018est$sel_slp_dev1
-inits$sel_inf_dev[1,8,1,] <- safe2018est$sel_inf_dev1
-
-# Fishing mortality
-inits$ln_mean_F[8] <- -1.96496591515
-inits$F_dev[8,] <- safe2018est$F_dev
-
-# Recruitment
-inits$ln_mn_rec = 1.14237068498
-inits$rec_dev[1:49] <- safe2018est$R_dev
-
-# Survey 1 - Descending logistic, random walk q
-inits$ln_sel_slp[2,1,1] <- safe2018estMain$log_slp2_srv1
-inits$sel_inf[2,1,1] <- safe2018estMain$inf2_srv1
-inits$ln_srv_q[1] <- safe2018estMain$log_q1_mean
-inits$ln_srv_q_dev[1,] <- safe2018est$log_q1_dev
-
-# Survey 2 -  Logistic, prior on q
-inits$ln_sel_slp[1,2,1] <- safe2018estMain$log_slp1_srv2
-inits$sel_inf[1,2,1] <- safe2018estMain$inf1_srv2
-inits$ln_srv_q[2] <- safe2018estMain$log_q2_mean
-
-
-# Survey 3 - Logistic, random walk q
-inits$ln_sel_slp[1,3,1] <- safe2018estMain$log_slp1_srv3
-inits$sel_inf[1,3,1] <- safe2018estMain$inf1_srv3
-inits$ln_srv_q[3] <- safe2018estMain$log_q3_mean
-inits$ln_srv_q_dev[3,] <- safe2018est$log_q3_dev
-
-# Survey 4 - Selectivity = 1 for age 1, single q
-inits$ln_srv_q[4] <- safe2018estMain$log_q4
-
-# Survey 5 - Selectivity  = 1 for age 2, single q
-inits$ln_srv_q[5] <- safe2018estMain$log_q5
-
-
-# Survey 6 - Selectivity  = 1 for all ages, single q
-inits$ln_srv_q[6] <- safe2018estMain$log_q6
+# inits <- build_params(mydata_pollock_fixed)
+# 
+# # Fishery selectivity
+# inits$ln_sel_slp[1:2,8,1] <- c(0.771142817517, 0.895652703661 )
+# inits$sel_inf[1:2,8,1] <- c(3.79539137331, 9.74118767032)
+# inits$ln_sel_slp_dev[1,8,1,] <- safe2018est$sel_slp_dev1
+# inits$sel_inf_dev[1,8,1,] <- safe2018est$sel_inf_dev1
+# 
+# # Fishing mortality
+# inits$ln_mn_F[8] <- -1.96496591515
+# inits$F_dev[8,] <- safe2018est$F_dev
+# 
+# # Recruitment
+# inits$ln_mn_rec = 1.14237068498
+# inits$rec_dev[1:49] <- safe2018est$R_dev
+# 
+# # Survey 1 - Descending logistic, random walk q
+# inits$ln_sel_slp[2,1,1] <- safe2018estMain$log_slp2_srv1
+# inits$sel_inf[2,1,1] <- safe2018estMain$inf2_srv1
+# inits$ln_srv_q[1] <- safe2018estMain$log_q1_mean
+# inits$ln_srv_q_dev[1,] <- safe2018est$log_q1_dev
+# 
+# # Survey 2 -  Logistic, prior on q
+# inits$ln_sel_slp[1,2,1] <- safe2018estMain$log_slp1_srv2
+# inits$sel_inf[1,2,1] <- safe2018estMain$inf1_srv2
+# inits$ln_srv_q[2] <- safe2018estMain$log_q2_mean
+# 
+# 
+# # Survey 3 - Logistic, random walk q
+# inits$ln_sel_slp[1,3,1] <- safe2018estMain$log_slp1_srv3
+# inits$sel_inf[1,3,1] <- safe2018estMain$inf1_srv3
+# inits$ln_srv_q[3] <- safe2018estMain$log_q3_mean
+# inits$ln_srv_q_dev[3,] <- safe2018est$log_q3_dev
+# 
+# # Survey 4 - Selectivity = 1 for age 1, single q
+# inits$ln_srv_q[4] <- safe2018estMain$log_q4
+# 
+# # Survey 5 - Selectivity  = 1 for age 2, single q
+# inits$ln_srv_q[5] <- safe2018estMain$log_q5
+# 
+# 
+# # Survey 6 - Selectivity  = 1 for all ages, single q
+# inits$ln_srv_q[6] <- safe2018estMain$log_q6
 
 library(Rceattle)
 pollock_fixed <- Rceattle::fit_mod(data_list = mydata_pollock_fixed,
-                                   inits = inits, # Initial parameters = 0
+                                   inits = NULL, # Initial parameters = 0
                                    file = NULL, # Don't save
                                    debug = 1, # Estimate
                                    random_rec = FALSE, # No random recruitment
@@ -100,6 +100,8 @@ pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock_est,
                                  recompile = FALSE,
                                  phase = "default")
 
+pollock_base_right <- pollock_base
+plot_biomass(list(pollock_base, pollock_base_right))
 
 # Start year 1977
 mydata_pollock_est$styr = 1977
@@ -155,30 +157,30 @@ mod_list <- c(list(pollock_base, pollock_fixed, pollock_safe_list[[1]]))
 mod_names <- c( "CEATTLE est","CEATTLE fixed natage","2018 SAFE (mt)")
 
 # Convert to age-3 biomass
-for(i in c(1)){
+for(i in c(1,2)){
   mod_list[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list[[i]]$quantities$biomassByage[1,3:10,1:49])
 }
 
 plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
-plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
-
-sapply(mod_list, function(x) sum(x$quantities$jnll_comp))
-
-
-
-plot_recruitment(mod_list, file = file_name, add_ci = FALSE, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
-plot_logindex(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
-plot_catch(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
-
-for(i in 1:6){
-  mod_list <- c(list(pollock_fixed_sel, pollock_fixed, pollock_base, pollock_safe_list[[1]], pollock_base_list[[i]]))
-  mod_names <- c("CEATTLE fixed sel", "CEATTLE fixed all", "CEATTLE est", "2018 SAFE (mt)", i)
-  plot_ssb(mod_list, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
-}
-
+# plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+# 
+# sapply(mod_list, function(x) sum(x$quantities$jnll_comp))
 # 
 # 
 # 
+# plot_recruitment(mod_list, file = file_name, add_ci = FALSE, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+# plot_logindex(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
+# plot_catch(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL)
+# 
+# for(i in 1:6){
+#   mod_list <- c(list(pollock_fixed_sel, pollock_fixed, pollock_base, pollock_safe_list[[1]], pollock_base_list[[i]]))
+#   mod_names <- c("CEATTLE fixed sel", "CEATTLE fixed all", "CEATTLE est", "2018 SAFE (mt)", i)
+#   plot_ssb(mod_list, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+# }
+# 
+# # 
+# # 
+# # 
 # #######################
 # # Test plots
 # #######################
