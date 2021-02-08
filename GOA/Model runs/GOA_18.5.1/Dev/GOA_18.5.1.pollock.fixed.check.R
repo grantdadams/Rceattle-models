@@ -43,7 +43,7 @@ inits$ln_mean_F[8] <- -1.96496591515
 inits$F_dev[8,] <- safe2018est$F_dev
 
 # Recruitment
-inits$ln_mn_rec = 1.14237068498
+inits$ln_mean_rec = 1.14237068498
 inits$rec_dev[1:49] <- safe2018est$R_dev
 
 # Survey 1 - Descending logistic, random walk q
@@ -97,7 +97,7 @@ srv_biom$est <- pollock_fixed$quantities$srv_bio_hat
 
 # Look at index
 library(readxl)
-safe_2018_index <- as.data.frame(read_xlsx("Data/2018_safe_expected_survey.xlsx", sheet = 1))
+safe_2018_index <- as.data.frame(read_xlsx("Data/Pollock tests/2018_safe_expected_survey.xlsx", sheet = 1))
 srv_biom$SAFE <- NA
 index_cols <- data.frame(Index = c(7,1,2,3,4,5,6), Col = c(2,3,4,5,6,7,8))
 for(i in 1:nrow(index_cols)){

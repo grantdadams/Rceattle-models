@@ -100,9 +100,6 @@ pollock_base <- Rceattle::fit_mod(data_list = mydata_pollock_est,
                                  recompile = FALSE,
                                  phase = "default")
 
-pollock_base_right <- pollock_base
-plot_biomass(list(pollock_base, pollock_base_right))
-
 # Start year 1977
 mydata_pollock_est$styr = 1977
 pollock_base_short <- Rceattle::fit_mod(data_list = mydata_pollock_est,

@@ -16,26 +16,23 @@ mydata_pcod_fixed$pmature[1,2:13] <- 2
 # Pcod_pot_fishery - dome - timevarying
 
 
-
 #######################################
 # Mod 0 - Estimate
 #######################################
 mydata_pcod_est <- mydata_pcod_fixed
 mydata_pcod_est$msmMode = 0
 
-dat <- rearrange_dat(mydata_pcod_est)
-params <- build_params(mydata_pcod_est)
-map <- build_map(data_list = mydata_pcod_est, params = params)
 
 pcod_base <- Rceattle::fit_mod(
   # cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
+  # TMBfilename = "ceattle_v01_06",
   data_list = mydata_pcod_est,
   inits = NULL, # Initial parameters = 0
   file = NULL, # Don't save
   debug = FALSE, # Estimate
   random_rec = FALSE, # No random recruitment
   msmMode = 0, # Single species mode
-  silent = FALSE,
+  silent = TRUE,
   recompile = FALSE,
   phase = "default")
 
@@ -106,7 +103,7 @@ safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx
 safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 2))
 safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 3))
 
-pcod_safe <- pcod_base
+pcod_safe <- pcod_fix
 pcod_safe$quantities$biomass[1,1:42] <- t(safe2018biomass[1:42,3])
 pcod_safe$quantities$biomassSSB[1,1:42] <- t(safe2018ssb[1:42,3])
 pcod_safe$quantities$R[1,1:42] <- t(safe2018rec[1:42,3])
@@ -125,9 +122,9 @@ pcod_safe$quantities$R[1,1:42] <- t(safe2018rec[1:42,3])
 #########################
 
 # - SAFE vs SS
-file_name <- "Data/Cod tests/18.5.1_SAFE_vs_ceattle_pcod"
-mod_list <- list(pcod_base, pcod_fix, pcod_safe)
-mod_names <- c( "CEATTLE est","CEATTLE fixed natage","2018 SAFE (mt)")
+file_name <- "Data/Cod tests/18.5.1_SAFE_vs_ceattle_pcod_Feb_2021"
+mod_list <- list(pcod_base, pcod_fix_sel, pcod_fix, pcod_safe)
+mod_names <- c( "CEATTLE est", "CEATTLE fixed selectivity", "CEATTLE fixed natage","2018 SAFE (mt)")
 
 plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 # plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
