@@ -1,0 +1,3 @@
+load("/Users/kholsman/Documents/D_AFSC_Files/AFSC_data/01_SRVY_AFSC_data_all/Newest/Out_SMRY_QRYS/Biom_weighted/propB/BS_propB.Rdata")
+ls()
+head(BS_propB)
