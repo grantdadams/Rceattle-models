@@ -6,7 +6,7 @@ setwd("Model runs/GOA_18.5.1/")
 # Data
 ################################################
 # Read the data in
-mydata_pcod_fixed <- Rceattle::read_data( file = "Data/GOA_18.5.1_pcod_single_species_1977-2018.xlsx")
+mydata_pcod_fixed <- Rceattle::read_data( file = "Data/GOA_18.5.1_pcod_single_species_1977-2018_Git260f3a1.xlsx")
 mydata_pcod_fixed$pmature[1,2:13] <- 2
 
 # Pcod_bt_survey - dome - timevarying (but logistic in recent years)
@@ -22,12 +22,15 @@ mydata_pcod_fixed$pmature[1,2:13] <- 2
 mydata_pcod_est <- mydata_pcod_fixed
 mydata_pcod_est$msmMode = 0
 
+inits <- build_params(mydata_pcod_est)
+inits$sel_inf[1,,] <- 0
+inits$sel_inf[2,,] <- 0
 
 pcod_base <- Rceattle::fit_mod(
   # cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
   # TMBfilename = "ceattle_v01_06",
   data_list = mydata_pcod_est,
-  inits = NULL, # Initial parameters = 0
+  inits = inits, # Initial parameters = 0
   file = NULL, # Don't save
   debug = FALSE, # Estimate
   random_rec = FALSE, # No random recruitment
@@ -128,3 +131,4 @@ mod_names <- c( "CEATTLE est", "CEATTLE fixed selectivity", "CEATTLE fixed natag
 
 plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
 # plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+plot_selectivity(pcod_base)
