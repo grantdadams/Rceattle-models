@@ -1,6 +1,4 @@
 #TODO - Take weighted average of annual age proportion using annual density
-#TODO - Set rowsums of ALKS to zero
-#TODO - Expand data to missing halibut ages
 
 ##### Load libraries and directories
 library(Rceattle)
@@ -13,12 +11,90 @@ diet_dir  <- "Data/Diet"
 halibut_alk_dir <- "Data/Halibut 2018/GOA A-L keys"
 
 
-#### Read in data
-# - Read in CEATTLE data for ALKs
-mydata_pollock <- Rceattle::read_data( file = paste0(model_dir, "Data/GOA_18.5.1_pollock_single_species_1970-2018.xlsx"))
-mydata_pcod_est <- Rceattle::read_data( file = paste0(model_dir, "Data/GOA_18.5.1_pcod_single_species_1977-2018.xlsx"))
-mydata_atf_est <- Rceattle::read_data( file = paste0(model_dir, "Data/GOA_18.5.1_arrowtooth_single_species_1961-2018.xlsx"))
+#### Bins
+# Length bins in ALKs (cm)
+# atf_lbin <- c(0, 10, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 75, 999) # 26
+# pollock_lbin = c(0, 17, 28, 36, 43, 51, 56, 999) # 7, Length transition 3 (From Shelikof Strait survey 1992-98)	
+# pcod_lbin <- c(0, seq(1.5, 116.5, by = 2), 999) # 0.5 is start of first bin and 116.5-999 is last bin
+pollock_lbin <- c(0, seq(12, 58, by = 2), 999) 
+atf_lbin = c(0,seq(10, 70, by = 2), 999) 
+pcod_lbin <- c(0, seq(5.5, 99.5, by = 2), 999)
+halibut_lbin = c(0,seq(16, 100, by = 2), 999) 
 
+# - ALK length bins, had to do a dimension reduction above or lost data
+halibut_lbin_alk = c(0,seq(16, 100, by = 1), 999) 
+
+pollock_age_bins <- c(0:9 + 0.5, 99)
+atf_age_bins <- c(0:20 + 0.5, 99)
+pcod_age_bins <- c(0:11 + 0.5, 99)
+
+pollock_ages <- 1:10
+atf_ages <- 1:21
+pcod_ages <- 1:12
+halibut_ages <- 1:30
+
+
+#### ALKs
+# Load alk data
+pollock <- read.csv("Data/ALKs/race_specimen.csv")
+atf <- read.csv("Data/ALKs/race_specimen 2.csv")
+cod <- read.csv("Data/ALKs/SppLengthWeightAge.csv")
+cod <- cod[which(cod$COMMON_NAME == "Pacific cod"),]
+
+# Convert length mm to length cm
+pollock$Length <- pollock$Length..mm./10
+atf$Length <- atf$Length..mm./10
+cod$Length <- cod$LENGTH/10
+
+# Cut bins
+# - Length
+pollock$BIN = cut(pollock$Length, breaks = pollock_lbin)
+atf$BIN = cut(atf$Length, breaks = atf_lbin)
+cod$BIN = cut(cod$Length, breaks = pcod_lbin)
+
+levels(pollock$BIN) = 1:length(pollock_lbin[-1])
+levels(atf$BIN) = 1:length(atf_lbin[-1])
+levels(cod$BIN) = 1:length(pcod_lbin[-1])
+
+# - Age
+pollock$AgeBIN = cut(pollock$Age..years., breaks = pollock_age_bins)
+atf$AgeBIN = cut(atf$Age..years., breaks = atf_age_bins)
+cod$AgeBIN = cut(cod$AGE, breaks = pcod_age_bins)
+
+levels(pollock$AgeBIN) = pollock_ages
+levels(atf$AgeBIN) = atf_ages
+levels(cod$AgeBIN) = pcod_ages
+
+# Set up alk matrices
+# - Empirical
+# -- Pollock
+pollock <- pollock[-which(is.na(pollock$AgeBIN )),]
+pollock_table <- with(pollock,table(BIN,AgeBIN))
+alk_pollock <- prop.table(pollock_table,margin=1)
+alk_pollock[is.na(alk_pollock)] <- 0
+
+# -- ATF
+# --- Males
+atf_males <- atf[-which(is.na(atf$AgeBIN )),]
+atf_males <- atf_males[which(atf_males$Sex == "Male"),]
+atf_males_table <- with(atf_males,table(BIN,AgeBIN))
+alk_atf_males <- prop.table(atf_males_table,margin=1)
+alk_atf_males[is.na(alk_atf_males)] <- 0
+
+# --- Females
+atf_females <- atf[-which(is.na(atf$AgeBIN )),]
+atf_females <- atf_females[which(atf_females$Sex == "Female"),]
+atf_females_table <- with(atf_females,table(BIN,AgeBIN))
+alk_atf_females <- prop.table(atf_females_table,margin=1)
+alk_atf_females[is.na(alk_atf_females)] <- 0
+
+# -- COD
+cod <- cod[-which(is.na(cod$AgeBIN )),]
+cod_table <- with(cod,table(BIN,AgeBIN))
+alk_cod <- prop.table(cod_table,margin=1)
+alk_cod[is.na(alk_cod)] <- 0
+
+# -- Halibut
 # Ages 2-15+, Lengths 15-100 cm
 halibut_alk_files <- list.files(halibut_alk_dir, pattern = "*.dat")
 halibut_alk_list <- lapply(paste0(halibut_alk_dir,"/",halibut_alk_files), read.table)
@@ -26,21 +102,27 @@ halibut_alk_list <- c(list(halibut_alk_list[[1]]), halibut_alk_list) # Assuming 
 halibut_alk_list <- c(halibut_alk_list[1:4], list(halibut_alk_list[[5]]), halibut_alk_list[5:12], list(halibut_alk_list[[12]])) # Assuming 2001 is the same as 2003 and 2019 is the same as 2017
 years <- c(1990, 1993, 1996, 1999, 2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017, 2019)
 for(i in 1:length(halibut_alk_list)){
-  halibut_alk_list[[i]] <- as.data.frame(t(halibut_alk_list[[i]])) # Make ages x lengths
-  colnames(halibut_alk_list[[i]]) <- 1:ncol(halibut_alk_list[[i]]) # Should be 86 
-  halibut_alk_list[[i]]$PredAge <- c(2:15)
+  halibut_alk_list[[i]] <- as.data.frame((halibut_alk_list[[i]])) # Make ages x lengths
+  halibut_alk_list[[i]] <- cbind(halibut_alk_list[[i]][,1], halibut_alk_list[[i]]) # Make age 1
+  for(age in 16:30){
+    halibut_alk_list[[i]] <- cbind(halibut_alk_list[[i]], halibut_alk_list[[i]][,15]) # Make age 16:30 the same as 15
+  }
+  colnames(halibut_alk_list[[i]]) <- c(1:30) # Should be 2:15 
+  halibut_alk_list[[i]]$PredBINalk <- 1:nrow(halibut_alk_list[[i]])
   halibut_alk_list[[i]]$Yr = years[i]
 }
 halibut_alk_wide <- do.call(rbind.data.frame, halibut_alk_list)
 halibut_alk_wide$Pred_species <- "P_Halibut"
 halibut_alk_wide$PredSex <- 1 # Females
-halibut_alk_tall <- halibut_alk_wide %>% pivot_longer(1:86, names_to = "PredBINalk",values_to = "PredAgeLengthProb")
+halibut_alk_tall <- halibut_alk_wide %>% pivot_longer(1:30, names_to = "PredAge",values_to = "PredAgeLengthProb")
 
 # Add males
 halibut_alk_tall_males <- halibut_alk_tall
 halibut_alk_tall_males$PredSex <- 2
 halibut_alk_tall <- rbind(halibut_alk_tall, halibut_alk_tall_males)
 
+
+#### Diet analysis
 # -  Read in diet DATA
 load("Data/Diet/Kirstin biomass weighting/cpue_files_noObserver/cpue_allsp_noObs.Rdata") # Load CPUE
 load(file.path(diet_dir,"GOAPredPreyL.Rdata")) # Subset of 100 fish per year of prey lengths
@@ -82,18 +164,6 @@ GOAPredPreyL$Prey_species <- ifelse(GOAPredPreyL$CEATTLE_PREY == "Arrow or Kam",
                                            ifelse(GOAPredPreyL$CEATTLE_PREY == "W. Pollock", "W_Pollock",
                                                   ifelse(GOAPredPreyL$CEATTLE_PREY == "P. Cod", "P_Cod",
                                                          ifelse(GOAPredPreyL$CEATTLE_PREY == "P. Halibut", "P_Halibut", NA)))))
-
-
-#### Bins
-# Length bins in ALKs (cm)
-atf_lbin <- c(0, 10, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 75, 999) # 26
-pollock_lbin = c(0, 17, 28, 36, 43, 51, 56, 999) # 7, Length transition 3 (From Shelikof Strait survey 1992-98)	
-pcod_lbin <- c(0, seq(1.5, 116.5, by = 2), 999) # 0.5 is start of first bin and 116.5-999 is last bin
-halibut_lbin = c(0,seq(16, 100, by = 2), 999) 
-
-# - ALK length bins, had to do a dimension reduction above or lost data
-pcod_lbin_alk <- c(0, seq(1.5, 116.5, by = 1), 999) # 0.5 is start of first bin and 116.5-999 is last bin
-halibut_lbin_alk = c(0,seq(16, 100, by = 1), 999) 
 
 
 ####  Convert fork length measurements (mm to cm):
@@ -263,7 +333,6 @@ propSizeLengths = na.omit(propSizeLengths)
 colnames(propSizeLengths) <- c("Strata","Vessel", "Cruise", "Haul", "Yr" ,"Pred_species", "PredBIN", "NUM_KM2", "propFreq_Lengths" )
 
 
-
 # - Calculate sample weights from dividing length-based proportions of fish caught by those subsampled for gut content analysis in each survey year and grid cell:
 LengthProp = merge(propSizeDiets, propSizeLengths)
 LengthProp[is.na(LengthProp)] = 0
@@ -337,18 +406,22 @@ propPreyAnnual[is.na(propPreyAnnual)] = 0 # Convert NAs to zeros
 propPrey <- propPrey[-which(propPrey$PreyBIN == 0),] # Get rid of no prey lengths
 propPreyAnnual <- propPreyAnnual[-which(propPreyAnnual$PreyBIN == 0),] # Get rid of no prey lengths
 
+error_check2 <- propPreyAnnual[which(propPreyAnnual$Pred_species == "P_Halibut" & propPreyAnnual$Prey_species == "W_Pollock" & propPreyAnnual$Yr == 1990),]
+length(unique(error_check2$propPrey[which(error_check2$propPrey > 0)])) /length(error_check2$propPrey[which(error_check2$propPrey > 0)]) # Should ideally be 1
 
+#FIXME something going on here....
 # Create data.frame of prey species, pred species, l bin diet, l bind diet prey, lbin diet alk, lbin diet pred alk
-# -- Cod and Halibut ALK and Diet length bins are different
-alk_lbin_diet_lbin_cod <- data.frame(Pred_species = rep("P_Cod", length(pcod_lbin_alk[-1])), FL = pcod_lbin_alk[1:length(pcod_lbin_alk[-1])] +0.5, BINalk = 1:length(pcod_lbin_alk[-1])) # - Note FL is the lower limit of the length bin
-alk_lbin_diet_lbin_cod$BIN = cut(alk_lbin_diet_lbin_cod$FL, breaks = pcod_lbin)
-levels(alk_lbin_diet_lbin_cod$BIN) = 1:length(pcod_lbin)
-
+# -- Halibut ALK and Diet length bins are different
 alk_lbin_diet_lbin_halibut <- data.frame(Pred_species = rep("P_Halibut", length(halibut_lbin_alk[-1])), FL = halibut_lbin_alk[1:length(halibut_lbin_alk[-1])] + 0.5,  BINalk = 1:length(halibut_lbin_alk[-1])) # - Note FL is the lower limit of the length bin
 alk_lbin_diet_lbin_halibut$BIN = cut(alk_lbin_diet_lbin_halibut$FL, breaks = halibut_lbin)
 levels(alk_lbin_diet_lbin_halibut$BIN) = 1:length(halibut_lbin)
 
-# -- ATF and Pollock ALK and Diet Bins are the same
+# -- Cod, ATF and Pollock ALK and Diet Bins are the same
+# -- Cod
+alk_lbin_diet_lbin_cod <- data.frame(Pred_species = rep("P_Cod", length(pcod_lbin[-1])), FL = pcod_lbin[1:length(pcod_lbin[-1])] +0.5, BINalk = 1:length(pcod_lbin[-1])) # - Note FL is the lower limit of the length bin
+alk_lbin_diet_lbin_cod$BIN = cut(alk_lbin_diet_lbin_cod$FL, breaks = pcod_lbin)
+levels(alk_lbin_diet_lbin_cod$BIN) = 1:length(pcod_lbin)
+
 # -- Pollock
 alk_lbin_diet_lbin_pollock <- data.frame(Pred_species = rep("W_Pollock", length(pollock_lbin[-1])), FL = pollock_lbin[1:length(pollock_lbin[-1])] + 0.5,  BINalk = 1:length(pollock_lbin[-1])) # - Note FL is the lower limit of the length bin
 alk_lbin_diet_lbin_pollock$BIN = cut(alk_lbin_diet_lbin_pollock$FL, breaks = pollock_lbin)
@@ -383,45 +456,41 @@ propPreyLengthAnnual <- merge(alk_lbin_diet_lbin_annual, propPreyAnnual, all = T
 propPreyLength[is.na(propPreyLength)] = 0 # Convert NAs to zeros
 propPreyLengthAnnual[is.na(propPreyLengthAnnual)] = 0 # Convert NAs to zeros
 
+# Reorder
+propPreyLength <- propPreyLength[with(propPreyLength, order(PredBINalk, PreyBINalk)),]
+propPreyLengthAnnual <- propPreyLengthAnnual[with(propPreyLengthAnnual, order(PredBINalk, PreyBINalk)),]
+
+error_check3 <- propPreyLengthAnnual[which(propPreyLengthAnnual$Pred_species == "P_Halibut" & propPreyLengthAnnual$Prey_species == "W_Pollock" & propPreyLengthAnnual$Yr == 1990),]
+length(unique(error_check3$propPrey[which(error_check3$propPrey > 0)])) /length(error_check3$propPrey[which(error_check3$propPrey > 0)]) # Should ideally be ~0.5
 
 #### Convert length to age
 # -- Get ALKs and make long
 # --- Cod
-pcod_alk <- mydata_pcod_est$age_trans_matrix[which(mydata_pcod_est$age_trans_matrix$ALK_name == "Cod"),]
-pcod_alk <- pcod_alk[,1:(5+mydata_pcod_est$nlengths[1])]
-pcod_alk_long <- pcod_alk %>% pivot_longer(c(6:(5+mydata_pcod_est$nlengths[1])), names_to = "BINalk", values_to = "Prob")
-pcod_alk_long$BINalk <- substring(pcod_alk_long$BINalk, 8, 10)
+alk_cod_long <- as.data.frame(alk_cod)
+alk_cod_long$Species_name <- "P_Cod"
+alk_cod_long$Sex <- 0
 
 # --- Pollock
-pollock_alk <- mydata_pollock$age_trans_matrix[which(mydata_pollock$age_trans_matrix$ALK_name == "Pollock"),]
-pollock_alk <- pollock_alk[,1:(5+mydata_pollock$nlengths[1])]
-pollock_alk_long <- pollock_alk %>% pivot_longer(c(6:(5+mydata_pollock$nlengths[1])), names_to = "BINalk", values_to = "Prob")
-pollock_alk_long$BINalk <- substring(pollock_alk_long$BINalk, 8, 10)
+alk_pollock_long <- as.data.frame(alk_pollock)
+alk_pollock_long$Species_name <- "W_Pollock"
+alk_pollock_long$Sex <- 0
 
 # --- ATF male
-atf_male_alk <- mydata_atf_est$age_trans_matrix[which(mydata_atf_est$age_trans_matrix$ALK_name == "ATF_males"),]
-atf_male_alk <- atf_male_alk[,1:(5+mydata_atf_est$nlengths[1])]
-atf_male_alk_long <- atf_male_alk %>% pivot_longer(c(6:(5+mydata_atf_est$nlengths[1])), names_to = "BINalk", values_to = "Prob")
-atf_male_alk_long$BINalk <- substring(atf_male_alk_long$BINalk, 8, 10)
+alk_atf_males_long <- as.data.frame(alk_atf_males)
+alk_atf_males_long$Species_name <- "Arrowtooth"
+alk_atf_males_long$Sex = 2
 
 # --- ATF female
-atf_female_alk <- mydata_atf_est$age_trans_matrix[which(mydata_atf_est$age_trans_matrix$ALK_name == "ATF_females"),]
-atf_female_alk <- atf_female_alk[,1:(5+mydata_atf_est$nlengths[1])]
-atf_female_alk_long <- atf_female_alk %>% pivot_longer(c(6:(5+mydata_atf_est$nlengths[1])), names_to = "BINalk", values_to = "Prob")
-atf_female_alk_long$BINalk <- substring(atf_female_alk_long$BINalk, 8, 10)
+alk_atf_females_long <- as.data.frame(alk_atf_females)
+alk_atf_females_long$Species_name <- "Arrowtooth"
+alk_atf_females_long$Sex = 1
 
 
 # -- Combine ALKs and update for merging with pred-prey data
-alk_long <- rbind(pollock_alk_long, pcod_alk_long, atf_female_alk_long, atf_male_alk_long)
-alk_long <- alk_long[,c("ALK_name","Sex", "Age", "BINalk", "Prob")]
+alk_long <- rbind(alk_pollock_long, alk_cod_long, alk_atf_females_long, alk_atf_males_long)
+alk_long <- alk_long[,c("Species_name","Sex", "AgeBIN", "BIN", "Freq")]
 colnames(alk_long) <- c("Pred_species", "Sex","Age", "BINalk", "AgeLengthProb")
-
-alk_long$Pred_species <- ifelse(alk_long$Pred_species == "ATF_males", "Arrowtooth",
-                                ifelse(alk_long$Pred_species == "ATF_females" , "Arrowtooth",
-                                       ifelse(alk_long$Pred_species == "Pollock", "W_Pollock",
-                                              ifelse(alk_long$Pred_species == "Cod", "P_Cod",
-                                                     ifelse(alk_long$Pred_species == "Halibut", "P_Halibut", NA)))))
-
+alk_long$BINalk <- as.numeric(as.character(alk_long$BINalk))
 
 # -- Make a pred and prey version
 alk_long_pred <- alk_long
@@ -438,7 +507,6 @@ alk_long_prey_annual <- merge(alk_long_prey, data.frame(Yr = years), all = TRUE)
 halibut_alk_tall <- halibut_alk_tall[,c("Pred_species", "PredSex", "PredAge", "PredBINalk", "PredAgeLengthProb", "Yr")]
 halibut_alk_tall_prey <- halibut_alk_tall
 colnames(halibut_alk_tall_prey) <- c("Prey_species", "PreySex", "PreyAge", "PreyBINalk", "PreyAgeLengthProb", "Yr")
-
 
 alk_long_pred_annual <- rbind(alk_long_pred_annual, halibut_alk_tall)
 alk_long_prey_annual <- rbind(alk_long_prey_annual, halibut_alk_tall_prey)
@@ -475,36 +543,80 @@ for(pred in unique(alk_long_pred_annual$Pred_species)){ # Pred loop
     
     for(pred_sex in pred_sexes){
       for(prey_sex in prey_sexes){
-        for(yr in years){ # Year loop
+        for(yr in 1:length(years)){ # Year loop
           
-          # Get alk values
-          pred_alk <- alk_long_pred_annual$PredAgeLengthProb[which(alk_long_pred_annual$Pred_species == pred &
-                                                                     alk_long_pred_annual$PredSex == pred_sex &
-                                                                     alk_long_pred_annual$Yr == yr)]
-          prey_alk <- alk_long_prey_annual$PreyAgeLengthProb[which(alk_long_prey_annual$Prey_species == prey &
-                                                                     alk_long_prey_annual$PreySex == prey_sex &
-                                                                     alk_long_prey_annual$Yr == yr)]
+          # Get pred alk values
+          if(pred == "P_Halibut"){
+            pred_alk = halibut_alk_list[[yr]][,halibut_ages]
+          } 
+          if(pred == "W_Pollock"){
+            pred_alk = alk_pollock
+          }
+          if(pred == "P_Cod"){
+            pred_alk = alk_cod
+          }
+          if(pred == "Arrowtooth"){
+            if(pred_sex == 1){
+              pred_alk = alk_atf_females
+            } else { 
+              pred_alk = alk_atf_males
+            }
+          }
           
-          # - Make into matrix
-          pred_alk <- matrix(pred_alk, nrow = length(pred_ages), ncol = length(pred_lengths), byrow = TRUE)
-          prey_alk <- matrix(prey_alk, nrow = length(prey_ages), ncol = length(prey_lengths), byrow = TRUE)
+          # Get prey alk values
+          if(prey == "P_Halibut"){
+            prey_alk = halibut_alk_list[[yr]][,halibut_ages]
+          } 
+          if(prey == "W_Pollock"){
+            prey_alk = alk_pollock
+          }
+          if(prey == "P_Cod"){
+            prey_alk = alk_cod
+          }
+          if(prey == "Arrowtooth"){
+            if(prey_sex == 1){
+              prey_alk = alk_atf_females
+            } 
+            if(prey_sex == 2){
+              prey_alk = alk_atf_males
+            }
+          }
+          prey_alk <- as.matrix(prey_alk)
+          rownames(prey_alk) <- paste0("PreyLength" , prey_lengths)
+          colnames(prey_alk) <- paste0("PreyAge" , prey_ages)
+          
+          pred_alk <- as.matrix(pred_alk)
+          rownames(pred_alk) <- paste0("PredLength" , pred_lengths)
+          colnames(pred_alk) <- paste0("PredAge" , pred_ages)
+          
           
           # Get length-specific diet proportions
           prop_prey_length_tmp <- propPreyLengthAnnual[which(propPreyLengthAnnual$Pred_species == pred &
                                                             propPreyLengthAnnual$Prey_species == prey &
-                                                            propPreyLengthAnnual$Yr == yr),]
+                                                            propPreyLengthAnnual$Yr == years[yr]),]
           
-          prop_prey_length_mat <- matrix(prop_prey_length_tmp$propPrey, ncol = length(pred_lengths), nrow = length(prey_lengths)) # Rows =  pred_lengths, cols = prey_lengths
+          prop_prey_length_mat <- matrix(prop_prey_length_tmp$propPrey, ncol = length(pred_lengths), nrow = length(prey_lengths), byrow = FALSE) # Rows =  pred_lengths, cols = prey_lengths
+          
+          colnames(prop_prey_length_mat) <- paste0("PredLength" , pred_lengths)
+          rownames(prop_prey_length_mat) <- paste0("PreyLength" , prey_lengths)
+          
+          count_prey_length_mat <- matrix(1, ncol = length(pred_lengths), nrow = length(prey_lengths), byrow = FALSE) # Rows =  pred_lengths, cols = prey_lengths
+          colnames(count_prey_length_mat) <- paste0("PredLength" , pred_lengths)
+          rownames(count_prey_length_mat) <- paste0("PreyLength" , prey_lengths)
           
           # Multiply length based diet proportion by alks to get age based
-          prop_prey_age_mat <- prey_alk %*% prop_prey_length_mat %*% t(pred_alk)
+          prop_prey_age_mat <- t(prey_alk) %*% prop_prey_length_mat %*% pred_alk
+          count_prey_age_mat <- t(prey_alk) %*% count_prey_length_mat %*% pred_alk
+          
+          # Take weighted mean
+          prop_prey_age_mat <- prop_prey_age_mat/count_prey_age_mat
           
           # Assign to data.frame
           propPreyAgeAnnual$propPreyAge[which(propPreyAgeAnnual$Pred_species == pred & 
                                                 propPreyAgeAnnual$PredSex == pred_sex &
                                                 propPreyAgeAnnual$Prey_species == prey &
                                                 propPreyAgeAnnual$PreySex == prey_sex &
-                                                propPreyAgeAnnual$Yr == yr)] <- as.numeric(t(prop_prey_age_mat))
+                                                propPreyAgeAnnual$Yr == years[yr])] <- as.numeric(t(prop_prey_age_mat))
           
           rm(prop_prey_length_mat, prop_prey_length_tmp, prey_alk, pred_alk)
         }
@@ -521,3 +633,18 @@ propPreyAgeAnnual <- merge(propPreyAgeAnnual, annual_density, all = TRUE)
 propPreyAge = propPreyAgeAnnual %>%
   group_by(Pred_species, PredSex, PredAge, Prey_species, PreySex, PreyAge) %>%
   summarize(propPreyAge = weighted.mean(propPreyAge, Annual_density))
+
+# Give species numbers per ceattle
+ceattle_pred = data.frame(Pred_species = c("W_Pollock", "Arrowtooth", "P_Cod", "P_Halibut"), Pred = 1:4)
+ceattle_prey = data.frame(Prey_species = c("W_Pollock", "Arrowtooth", "P_Cod", "P_Halibut"), Prey = 1:4)
+
+
+propPreyAge <- merge(propPreyAge, ceattle_pred, all = TRUE)
+propPreyAge <- merge(propPreyAge, ceattle_prey, all = TRUE)
+
+# Reorder
+propPreyAge <- propPreyAge[with(propPreyAge, order(Pred, PredAge, Prey, PreyAge)), c("Pred", "Pred_species", "Prey", "Prey_species", "PredSex", "PreySex", "PredAge", "PreyAge", "propPreyAge")]
+
+# Save
+write.csv(propPreyAge, file = paste0(model_dir,"Data/CEATTE_", Sys.Date() ,"_propPreyAge.csv"))
+

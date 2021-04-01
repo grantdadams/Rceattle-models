@@ -1,7 +1,7 @@
 library(Rceattle)
 library(wesanderson)
 setwd("Model runs/GOA_18.5.1")
-load("Models/18_5_1_2020-11-08.RData")
+load("Models/18_5_1_2021-03-24.RData")
 
 # SAFE Models
 library(readxl)
@@ -36,15 +36,15 @@ sapply(mod_list_all[1:13], function(x) x$sdrep$sd[1])
 
 
 
-mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg", "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
-mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
-ms_mod_list <- mod_list_all[c(2:8, 10:13)]
-mod_list_long <- mod_list_all[1:8]
-mod_list_short <- mod_list_all[9:13]
-mod_names_all <- c(mod_names_long, mod_names_short)
-line_col <- oce::oce.colorsViridis(13)[1:13] #tableau_color_pal(palette = "Hue Circle", type = c("regular", "ordered-sequential", "ordered-diverging"), direction = 1)(19)[c(1:8, 9,11,13,15,19)] # c(wes_palette("Darjeeling1", 8, type = "continuous"), wes_palette("Darjeeling2", 5, type = "continuous"))
-line_col_long <- line_col[1:8]
-line_col_short <- line_col[9:13]
+mod_names_long <- c("1. SS", "2. MS-No Halibut", "3. MS-Coast avg") #, "4. MS-Coast low", "5. MS-Coast high", "6. MS-AAF avg", "7. MS-AAF low", "8. MS-AAF high")
+# mod_names_short <- c("9. SS", "10. MS-No Halibut", "11. MS-Coast", "12. MS-AAF", "13. MS-Survey")
+# ms_mod_list <- mod_list_all[c(2:8, 10:13)]
+mod_list_long <- mod_list_all[1:3]
+# mod_list_short <- mod_list_all[9:13]
+mod_names_all <- c(mod_names_long)# , mod_names_short)
+line_col <- oce::oce.colorsViridis(4)[1:4] #tableau_color_pal(palette = "Hue Circle", type = c("regular", "ordered-sequential", "ordered-diverging"), direction = 1)(19)[c(1:8, 9,11,13,15,19)] # c(wes_palette("Darjeeling1", 8, type = "continuous"), wes_palette("Darjeeling2", 5, type = "continuous"))
+line_col_long <- line_col[1:3]
+# line_col_short <- line_col[9:13]
 
 # Bounds diagnostics
 rel_diff_upper <- abs(mod_list_all[[2]]$opt$diagnostics$Upper - mod_list_all[[2]]$opt$diagnostics$MLE)
@@ -64,12 +64,13 @@ plot_recruitment(mod_list_all[c(1,14)], file = file_name, add_ci = FALSE, model_
 
 # - Long time series
 file_name <- "Figures/18.5.1/18.5.1_models_long"
-plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
-plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
+plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.2, line_col = line_col_long)
+plot_ssb(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.2, line_col = line_col_long)
 plot_recruitment(mod_list_long, file = file_name, add_ci = TRUE, model_names = mod_names_long, right_adj = 0.27, line_col = line_col_long)
 plot_index(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0, line_col = line_col_long)
 plot_logindex(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.25, top_adj = 0.27, line_col = line_col_long)
 plot_catch(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.25, top_adj = 0, line_col = line_col_long)
+plot_b_eaten(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 0.17, line_col = line_col, lwd = 2)
 
 nll_long <- data.frame(nll = sapply(mod_list_long, function(x) x$opt$objective) - (999^2)*10,
                        aic = sapply(mod_list_long, function(x) x$opt$AIC) - (999^2)*10 * 2)
@@ -104,8 +105,8 @@ plot_biomass(mod_list_all[1:13], file = file_name, model_names = mod_names_all, 
 plot_ssb(mod_list_all[1:13], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_b_eaten(mod_list_all[1:13], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 
-plot_b_eaten_prop(mod_list_all[[3]], file = "Figures/18.5.1/mod_3", add_ci = FALSE, model_names = mod_names_all[3], right_adj = 0.17, line_col = line_col, lwd = 2)
-plot_biomass(mod_list_all[[3]], file = "Figures/18.5.1/mod_3", model_names = mod_names_all[3], right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_b_eaten_prop(mod_list_all[[2]], file = "Figures/18.5.1/mod_2", add_ci = FALSE, model_names = mod_names_all[2], right_adj = 0.17, line_col = line_col, lwd = 2.5)
+plot_biomass(mod_list_all[[2]], file = "Figures/18.5.1/mod_2", model_names = mod_names_all[2], right_adj = 0.17, line_col = line_col, lwd = 2.5)
 
 plot_recruitment(mod_list_all[1:13], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_logindex(mod_list_all[1:13], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
@@ -208,10 +209,10 @@ sapply(biom_diff_short[2:4], function(x) mean(x[1,]))
 # Time series of total natural mortality
 # Pollock
 library(ggplot2)
-zmax <- sapply(mod_list_all[1:8], function(x) max(x$quantities$M[1,1,1:10,1:42]))
-zmax2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$M[1,1,1:10,1:26]))
+zmax <- sapply(mod_list_all[1:3], function(x) max(x$quantities$M[1,1,1:10,1:42]))
+# zmax2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$M[1,1,1:10,1:26]))
 
-for(i in 1:length(mod_list_all[1:13])){
+for(i in 1:length(mod_list_all[1:3])){
   plot_mortality(Rceattle = mod_list_all[[i]],
              file = paste0("Figures/18.5.1/M2 Plots/Pollock/18.5.1_mod_",i),
              incl_proj = FALSE,
@@ -222,21 +223,21 @@ for(i in 1:length(mod_list_all[1:13])){
 }
 
 # Cod
-zmax <- sapply(mod_list_all[1:8], function(x) max((x$quantities$M[2,1,1:12,1:42])))
-zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[2,1,1:12,1:26])))
+zmax <- sapply(mod_list_all[1:3], function(x) max((x$quantities$M[3,1,1:12,1:42])))
+# zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[2,1,1:12,1:26])))
 
-zmin <- sapply(mod_list_all[1:8], function(x) min((x$quantities$M[2,1,1:12,1:42])))
-zmin2 <- sapply(mod_list_all[9:13], function(x) min((x$quantities$M[2,1,1:12,1:26])))
+zmin <- sapply(mod_list_all[1:3], function(x) min((x$quantities$M[3,1,1:12,1:42])))
+# zmin2 <- sapply(mod_list_all[9:13], function(x) min((x$quantities$M[2,1,1:12,1:26])))
 
-natage <- sapply(mod_list_all[1:8], function(x) max(x$quantities$NByage[2,1,12:12,1:42]))
-natage2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$NByage[2,1,12:12,1:26]))
+natage <- sapply(mod_list_all[1:3], function(x) max(x$quantities$NByage[3,1,12:12,1:42]))
+# natage2 <- sapply(mod_list_all[9:13], function(x) max(x$quantities$NByage[2,1,12:12,1:26]))
 
-for(i in 1:length(mod_list_all[1:13])){
+for(i in 1:length(mod_list_all[1:3])){
   plot_mortality(Rceattle = mod_list_all[[i]],
                  file = paste0("Figures/18.5.1/M2 Plots/Cod/18.5.1_mod_",i),
                  incl_proj = FALSE,
                  zlim = c(ifelse(i < 9, min(zmin), min(zmin2)),ifelse(i < 9, max(zmax), max(zmax2))),
-                 contour = FALSE, spp = 2, maxage = 12, log = FALSE,
+                 contour = FALSE, spp = 3, maxage = 12, log = FALSE,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
   
 }
@@ -246,15 +247,15 @@ round(mod_list_all[[3]]$quantities$M2_prop[3,2,,1,,1,42],2)
 round(mod_list_all[[3]]$quantities$M2_prop[4,2,,1,,1,42],2)
 
 # ATF
-zmax <- sapply(mod_list_all[1:8], function(x) max((x$quantities$M[3,,1:30,1:42])))
-zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[3,,1:30,1:26])))
+zmax <- sapply(mod_list_all[1:3], function(x) max((x$quantities$M[2,,1:30,1:42])))
+# zmax2 <- sapply(mod_list_all[9:13], function(x) max((x$quantities$M[3,,1:30,1:26])))
 
-for(i in 1:length(mod_list_all[1:13])){
+for(i in 1:length(mod_list_all[1:3])){
   plot_mortality(Rceattle = mod_list_all[[i]],
                  file = paste0("Figures/18.5.1/M2 Plots/ATF/18.5.1_mod_",i),
                  incl_proj = FALSE,
                  zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
-                 contour = FALSE, spp = 3, maxage = 30, log = FALSE,
+                 contour = FALSE, spp = 2, maxage = 30, log = FALSE,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 4, 6))
   
 }
@@ -262,10 +263,9 @@ mod_list_all[[3]]$data_list$UobsWtAge[which(mod_list_all[[3]]$data_list$UobsWtAg
 
 
 # Plot comp data of a few key models
-for(i in 1:length(mod_list_all[1:13])){
+for(i in 1:length(mod_list_all[1:3])){
   dir.create(paste0("Figures/18.5.1/Comp plots/Model ",i))
   plot_comp(Rceattle = mod_list_all[[i]],
             file = paste0("Figures/18.5.1/Comp plots/","Model ",i,"/18.5.1_mod_",i))
 }
-
 

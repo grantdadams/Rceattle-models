@@ -1,110 +1,100 @@
-# Problem - convert length to age
-# Age to length
-ALK1 <- matrix(c(1,0,0,0,0,0,
-                       0.7,0.2,0.1,0,0,0,
-                       0,0.1,0.2, 0.2,0.2,0.3), 3, 6, byrow = TRUE)
-rownames(ALK1) <- paste0("Age", 1:3)
-colnames(ALK1) <- paste0("Length", 1:6)
+# Problem - convert length-based proportion to age-based
+library(reshape2)
+library(tidyr)
 
-n_at_age <- c(1:3)
+# - Predator - 3 ages,  6 lengths
+# - Prey - 5 ages,  10 lengths
+PredLengths = 6
+PredAges = 3
 
-# Get n-at-length
-n_at_length <- n_at_age %*% ALK1
+PreyLengths = 10
+PreyAges = 4
 
-# Get age from length
-n_at_age2 <- ALK1 %*% c(n_at_length) # Doesnt work
-n_at_age2 != n_at_age
+# - Generate random Alks
+# -- Pred
+alk_pred <- matrix(rbeta(PredLengths * PredAges,2,2), nc = PredAges)
+alk_pred <- sweep(alk_pred, 1, rowSums(alk_pred), FUN="/") # Divide by rowSums to make prob of age conditional on length
+colnames(alk_pred) <- paste0("PredAge",  1:PredAges)
+rownames(alk_pred) <- paste0("PredLength",  1:PredLengths)
+rowSums(alk_pred) # Should be 1
 
-ALK1_standardized <- t(t(ALK1)/colSums(ALK1))# Divide each column by sum of that column
-n_at_age2 <- ALK1_standardized %*% c(n_at_length) # Doesnt work
-n_at_age2 != n_at_age
+# -- Prey
+alk_prey <- matrix(rbeta(PreyLengths * PreyAges,2,2), nc = PreyAges)
+alk_prey <- sweep(alk_prey, 1, rowSums(alk_prey), FUN="/") # Divide by rowSums to make prob of age conditional on length
+colnames(alk_prey) <- paste0("PreyAge",  1:PreyAges)
+rownames(alk_prey) <- paste0("PreyLength",  1:PreyLengths)
+rowSums(alk_prey) # Should be 1
 
+# Proportion prey-at-length in stomach of predator-at-length,  conditional of predator-at-length relative to all other prey
+PropPreyLength <- matrix(runif(PreyLengths*PredLengths,  0, (PreyLengths:1)/(PreyLengths*4)),  ncol = PredLengths,  nrow = PreyLengths, byrow = FALSE) # Trying to simulate smaller percentage with larger prey age
+CountPreyLength <- matrix(1,  ncol = PredLengths,  nrow = PreyLengths, byrow = FALSE) 
 
-age_2_length_pred
-
-length_2_age_pred <- (matrix(c(1,0,0,
-                                 0.8,0.2,0,
-                               0.3,0.5,0.2,
-                               0.1,0.3,0.6,
-                               0,0.2,0.8,
-                               0,0,1), 6,3, byrow = TRUE))
-colnames(length_2_age_pred) <- paste0("PredAge", 1:3)
-rownames(length_2_age_pred) <- paste0("PredLength", 1:6)
-
-# - Prey
-age_2_length_prey <- matrix(c(1,0,0,0,
-                               0.7,0.2,0.1,0,
-                               0,0.2,0.3, 0.5,
-                               0,0,0.4,0.6,
-                               0,0,0,1), 5, 4, byrow = TRUE)
-rownames(age_2_length_prey) <- paste0("PreyAge", 1:5)
-colnames(age_2_length_prey) <- paste0("PreyLength", 1:4)
-age_2_length_prey
-
-length_2_age_prey <- (matrix(c(1,0,0,0,0,
-                                  0.7,0.2,0.1,0,0,
-                                  0,0,0.2,0.3, 0.5,
-                                  0,0,0,0.4,0.6), 4, 5, byrow = TRUE))
-colnames(length_2_age_prey) <- paste0("PreyAge", 1:5)
-rownames(length_2_age_prey) <- paste0("PreyLength", 1:4)
+rownames(PropPreyLength) <- paste0("PreyLength",  1:PreyLengths)
+colnames(PropPreyLength) <- paste0("PredLength",  1:PredLengths)
+rownames(CountPreyLength) <- paste0("PreyLength",  1:PreyLengths)
+colnames(CountPreyLength) <- paste0("PredLength",  1:PredLengths)
 
 
-n_at_age_pred <- 3:1
-n_at_age_prey <- 5:1
+colSums(PropPreyLength) # Note: Column sums should not sum to 1 because there are other prey species/lengths not accounted for
+
+# This is wrong
+PropPreyAge1 <- t(alk_prey) %*% PropPreyLength %*% alk_pred
+CountPreyAge <- t(alk_prey) %*% CountPreyLength %*% alk_pred
+
+colSums(PropPreyAge1) # Col sums should be less than 1
+
+# Weighted mean?
+# - Make the ALKs long
+alk_prey_df <- as.data.frame(alk_prey)
+colnames(alk_prey_df) <- 1:PreyAges
+alk_prey_df$PreyLength = 1:PreyLengths
+alk_prey_df <- alk_prey_df %>% pivot_longer(1:PreyAges, names_to = "PreyAge",values_to = "PreyAgeLengthProb")
+
+alk_pred_df <- as.data.frame(alk_pred)
+colnames(alk_pred_df) <- 1:PredAges
+alk_pred_df$PredLength = 1:PredLengths
+alk_pred_df <- alk_pred_df %>% pivot_longer(1:PredAges, names_to = "PredAge",values_to = "PredAgeLengthProb")
+
+# - All combo of pred lengths and prey lengths
+alk_long <- merge(alk_pred_df, alk_prey_df)
+alk_long <- alk_long[with(alk_long, order(PredLength, PredAge, PreyLength, PreyAge)),]
+
+# - Make propLength long
+PropPreyLength_df <- as.data.frame(PropPreyLength)
+colnames(PropPreyLength_df) <- 1:PredLengths
+PropPreyLength_df$PreyLength = 1:PreyLengths
+PropPreyLength_df <- PropPreyLength_df %>% pivot_longer(1:PredLengths, names_to = "PredLength",values_to = "PropLength")
+
+# - Merge propLength with ALKs
+propLengthLong <- merge(alk_long, PropPreyLength_df, all = TRUE)
+propLengthLong <- propLengthLong[with(propLengthLong, order(PredLength, PredAge, PreyLength, PreyAge)),]
+
+# - Take weighted mean
+propAge1 = propLengthLong %>%
+  group_by(PredAge, PreyAge) %>%
+  summarize(propAge = weighted.mean(PropLength, PredAgeLengthProb * PreyAgeLengthProb))
+
+# - Take mean, multiplied by probs
+propAge2 = propLengthLong %>%
+  group_by(PredAge, PreyAge) %>%
+  summarize(propAge = mean(PropLength * PredAgeLengthProb * PreyAgeLengthProb))
+
+# - Make into matrix
+PropPreyAge2 <- propAge1 %>% pivot_wider(names_from = PredAge, values_from = propAge)
+colnames(PropPreyAge2) <- c("PreyAge", paste0("PredAge",1:PredAges))
+colSums(PropPreyAge2)
+
+PropPreyAge3 <- propAge2 %>% pivot_wider(names_from = PredAge, values_from = propAge)
+colnames(PropPreyAge3) <- c("PreyAge", paste0("PredAge",1:PredAges))
+colSums(PropPreyAge3)
+
+PropPreyAge4 <- PropPreyAge1/CountPreyAge
 
 
-n_at_age_pred %*% age_2_length_pred
-sum(n_at_age_pred %*% age_2_length_pred)
 
-n_at_age_pred %*% t(length_2_age_pred)
-sum(n_at_age_pred %*% t(length_2_age_pred))
+#### Compare
+round(PropPreyAge1,3) # Multiplied matrices
+round(PropPreyAge2[,2:4],3) # Weighted mean
+round(PropPreyAge3[,2:4],3) # "Scaled" mean
+round(PropPreyAge4,3) # Weighted mean
 
-# Prey comp by length
-PropPreyLength <- matrix(runif(4*6, 0,0.3), ncol = 6, nrow = 4)
-rownames(PropPreyLength) <- paste0("PreyLength", 1:4)
-colnames(PropPreyLength) <- paste0("PredLength", 1:6)
-PropPreyLength
-
-PropPreyAge <- matrix(0, nrow = 5, ncol = 3)
-rownames(PropPreyAge) <- paste0("PreyAge", 1:5)
-colnames(PropPreyAge) <- paste0("PredAge", 1:3)
-PropPreyAge2 <-  PropPreyAge # Hal pred, other prey
-PropPreyAge3 <-  PropPreyAge # Hal prey, other pred
-PropPreyAge4 <-  PropPreyAge # Hal pred and prey
-
-for(pred_l in 1:6){
-  for(prey_l in 1:4){
-    for(prey_a in 1:5){
-      for(pred_a in 1:3){
-        PropPreyAge[prey_a, pred_a] <- PropPreyAge[prey_a, pred_a] + PropPreyLength[prey_l, pred_l] * age_2_length_pred[pred_a, pred_l] * age_2_length_prey[prey_a, prey_l]
-        
-        PropPreyAge2[prey_a, pred_a] <- PropPreyAge2[prey_a, pred_a] + PropPreyLength[prey_l, pred_l] * length_2_age_pred[pred_l, pred_a] * age_2_length_prey[prey_a, prey_l] # Hal pred
-        
-        PropPreyAge3[prey_a, pred_a] <- PropPreyAge3[prey_a, pred_a] + PropPreyLength[prey_l, pred_l] * age_2_length_pred[pred_a, pred_l] * length_2_age_prey[prey_l, prey_a] # Hal prey
-        
-        PropPreyAge4[prey_a, pred_a] <- PropPreyAge4[prey_a, pred_a] + PropPreyLength[prey_l, pred_l] * length_2_age_pred[pred_l, pred_a] * length_2_age_prey[prey_l, prey_a] # Hal pred and prey
-      }
-    }
-  }
-}
-
-PropPreyAge
-age_2_length_prey %*% PropPreyLength %*% t(age_2_length_pred)
-
-PropPreyAge2 # Hal pred
-age_2_length_prey %*% PropPreyLength %*% t(t(length_2_age_pred))
-
-PropPreyAge3 # Hal prey
-t(length_2_age_prey) %*% PropPreyLength %*% t(age_2_length_pred)
-
-PropPreyAge4 # Hal pred and prey
-t(length_2_age_prey) %*% PropPreyLength %*% t(t(length_2_age_pred))
-sum(t(length_2_age_prey) %*% PropPreyLength %*% length_2_age_pred)
-
-
-pollock_alk <- (pollock_alk[,c(6:12)])
-pollock_alk <- as.matrix(pollock_alk)
-n_at_length <- c(1:7)
-
-
-n_at_age <- t(t(pollock_alk)/colSums(pollock_alk)) %*% n_at_length
