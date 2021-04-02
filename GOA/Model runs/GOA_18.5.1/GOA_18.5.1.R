@@ -1,29 +1,21 @@
 library(Rceattle)
+library(readxl)
 setwd("Model runs/GOA_18.5.1/")
 
-# Updated the ALK
 
-################################################
-# Data
-################################################
-# Read the data in
-mydata_aaf <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_aaf_halibut_total_diet2.xlsx")
-mydata_coastwide <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_diet2.xlsx")
-mydata_survey <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_survey_halibut_total_diet2.xlsx")
-mydata_no_hal <- Rceattle::read_data( file = "GOA_18.5.1_small_pcod_removed_coastwide_halibut_total_no_halibut_uobs.xlsx")
+######################### 
+# Read in different halibut
+#########################
+# - Long
+mydata_aaf <- Rceattle::read_data( file = "Data/GOA_18_5_1_data_1977-2018_aaf_long.xlsx")
+mydata_coastwide <- Rceattle::read_data( file = "Data/GOA_18_5_1_data_1977-2018_coastwide_long.xlsx")
 
-# What is different
-diff <- data.frame(matrix(NA, nrow = length(mydata_no_hal), ncol = 4))
-diff[,1] <- names(mydata_no_hal)
-colnames(diff) <- c("Object", "Coastwide", "AAF", "Survey")
-for(i in 1:length(mydata_no_hal)){
-  diff[i,2] <- sum(mydata_no_hal[[i]] != mydata_coastwide[[i]])
-  diff[i,3] <- sum(mydata_no_hal[[i]] != mydata_aaf[[i]])
-  diff[i,4] <- sum(mydata_no_hal[[i]] != mydata_survey[[i]])
-}
+# - Short
+mydata_aaf_short <- Rceattle::read_data( file = "Data/GOA_18_5_1_data_1996-2018_aaf_short.xlsx")
+mydata_coastwide_short <- Rceattle::read_data( file = "Data/GOA_18_5_1_data_1996-2018_coastwide_short.xlsx")
 
-
-# Note: diet data is from age 0-2, 2-3, 3-4, 4-5,... Nages+. Plus groups for diet data for ATF is 16 for and for Halibut 16 as well.
+# - Survey
+mydata_survey <- Rceattle::read_data( file = "Data/GOA_18_5_1_data_1993-2018_survey_short.xlsx")
 
 
 ################################################
@@ -33,84 +25,84 @@ for(i in 1:length(mydata_no_hal)){
 # From Ian:
 # 2018 Stock distribution estimates for all sizes of Pacific halibut captured by the IPHC's fishery-independent setline survey
 # These are roughly applicable to ages 5+.
-halibut_dist <- read.csv("Halibut_3_dist_age5plus.csv")
+halibut_dist <- read.csv("Data/Halibut_3_dist_age5plus.csv")
 halibut_dist_avg <- rbind(data.frame(Year = 1977:1992, Region.3 = mean(halibut_dist$Region.3)), halibut_dist)
 halibut_dist_low <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.25)), halibut_dist) # Lower 25th percentile
 halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.75)), halibut_dist) # Upper 75th percentile
 
 
 # Scale halibut numbers at age
-# Coastwide
-mydata_no_hal_avg <- mydata_no_hal
-mydata_no_hal_avg$NByageFixed[,5:ncol(mydata_no_hal_avg$NByageFixed)] <- mydata_no_hal_avg$NByageFixed[,5:ncol(mydata_no_hal_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
-
+# Coastwide long
 mydata_coastwide_avg <- mydata_coastwide
-mydata_coastwide_avg$NByageFixed[,5:ncol(mydata_coastwide_avg$NByageFixed)] <- mydata_coastwide_avg$NByageFixed[,5:ncol(mydata_coastwide_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
+mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] <- mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
 
 mydata_coastwide_low <- mydata_coastwide
-mydata_coastwide_low$NByageFixed[,5:ncol(mydata_coastwide_low$NByageFixed)] <- mydata_coastwide_low$NByageFixed[,5:ncol(mydata_coastwide_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
+mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] <- mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
 
 mydata_coastwide_high <- mydata_coastwide
-mydata_coastwide_high$NByageFixed[,5:ncol(mydata_coastwide_high$NByageFixed)] <- mydata_coastwide_high$NByageFixed[,5:ncol(mydata_coastwide_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
+mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] <- mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
 
-# AAF
+# AAF long
 mydata_aaf_avg <- mydata_aaf
-mydata_aaf_avg$NByageFixed[,5:ncol(mydata_aaf_avg$NByageFixed)] <- mydata_aaf_avg$NByageFixed[,5:ncol(mydata_aaf_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
+mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] <- mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
 
 mydata_aaf_low <- mydata_aaf
-mydata_aaf_low$NByageFixed[,5:ncol(mydata_aaf_low$NByageFixed)] <- mydata_aaf_low$NByageFixed[,5:ncol(mydata_aaf_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
+mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] <- mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
 
 mydata_aaf_high <- mydata_aaf
-mydata_aaf_high$NByageFixed[,5:ncol(mydata_aaf_high$NByageFixed)] <- mydata_aaf_high$NByageFixed[,5:ncol(mydata_aaf_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
+mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] <- mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
 
+# Coastwide short
+mydata_coastwide_short$NByageFixed[which(mydata_coastwide_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short$NByageFixed)] <- mydata_coastwide_short$NByageFixed[which(mydata_coastwide_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
 
-# Update survey data for pre 1993
-mydata_survey_avg <- mydata_survey
-mydata_survey_avg$NByageFixed[which(mydata_survey_avg$NByageFixed$Sex==1 & mydata_survey_avg$NByageFixed$Year < 1993),5:ncol(mydata_survey_avg$NByageFixed)] <- colMeans(mydata_survey_avg$NByageFixed[which(mydata_survey_avg$NByageFixed$Sex==1 & mydata_survey_avg$NByageFixed$Year > 1992),5:ncol(mydata_survey_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3))
+# AAF short
+mydata_aaf_short$NByageFixed[which(mydata_aaf_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short$NByageFixed)] <- mydata_aaf_short$NByageFixed[which(mydata_aaf_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
 
 # Add model wilt age-dependent population scalar
-mydata_survey_avg_age_dep <- mydata_survey_avg
-mydata_survey_avg_age_dep$estDynamics[4] <- 3
+mydata_survey_age_dep <- mydata_survey
+mydata_survey_age_dep$estDynamics[4] <- 3
 
 # Combine in list
+
+# - Long time series
+# - No hal
+mydata_no_hal_avg <- mydata_coastwide_avg
+mydata_no_hal_avg$Pvalue[4] <- 0 # Set ration to 0
+
 mydata_list_long <- list(mydata_no_hal_avg, mydata_coastwide_avg, mydata_coastwide_low, mydata_coastwide_high, mydata_aaf_avg, mydata_aaf_low, mydata_aaf_high)
-mydata_list_short <- list( mydata_no_hal_avg, mydata_coastwide_avg, mydata_aaf_avg, mydata_survey_avg, mydata_survey_avg_age_dep)
+
+
+# - No halibut version of survey 1993-2018
+mydata_survey_no_hal_srv <- mydata_survey
+mydata_survey_no_hal_srv$Pvalue[4] <- 0 # Set ration to 0
+
+mydata_list_1993 <- list( mydata_survey_no_hal_srv, mydata_survey)
+
+# - No halibut version of short 1996-2018
+mydata_coastwide_short_no_hal <- mydata_coastwide_short
+mydata_coastwide_short_no_hal$Pvalue[4] <- 0 # Set ration to 0
+
+mydata_list_1996 <- list( mydata_coastwide_short_no_hal, mydata_coastwide_short, mydata_aaf_short)
 
 # Adjust start year
-for(i in 1:length(mydata_list_short)){
-  mydata_list_short[[i]]$styr <- 1993
+for(i in 1:length(mydata_list_1993)){
+  mydata_list_1993[[i]]$styr <- 1993
 }
 
-mydata_list <- c(mydata_list_long, mydata_list_short)
-
-# Set atf q to 1
-for(i in 1:length(mydata_list)){
-  mydata_list[[i]]$fleet_control$Estimate_q[9] <- 0
-  mydata_list[[i]]$fleet_control$Comp_weights <- 1 # Add comp weights
-  
-  # Update atf selectivity
-  mydata_list[[i]]$fleet_control$Selectivity[8] <- 2
-  mydata_list[[i]]$fleet_control$Nselages[8] <- 9
-  mydata_list[[i]]$fleet_control$Time_varying_sel[8] <- 20
-  mydata_list[[i]]$fleet_control$Sel_sd_prior[8] <- 12.50
-  mydata_list[[i]]$projyr <- 2019
-  mydata_list[[i]]$sigma_rec_prior <- rep(2, 4)
-  
-  # Make sure species cant cannibalize older species
-  for(sp in 1:mydata_list[[i]]$nspp){
-    for(age in 1:mydata_list[[i]]$nages[sp]){
-      mydata_list[[i]]$UobsWtAge$Stomach_proportion_by_weight[which(mydata_list[[i]]$UobsWtAge$Prey == sp & mydata_list[[i]]$UobsWtAge$Pred == sp & mydata_list[[i]]$UobsWtAge$Pred_age == age & mydata_list[[i]]$UobsWtAge$Prey_age > age & mydata_list[[i]]$UobsWtAge$Prey_sex == mydata_list[[i]]$UobsWtAge$Pred_sex)] <- 0
-    }
-  }
+for(i in 1:length(mydata_list_1996)){
+  mydata_list_1996[[i]]$styr <- 1996
 }
+
+# 7 Long time series models (1977-1933), 2 medium time series models (1993-2018), 3 short time series models (1996-2018)
+mydata_list <- c(mydata_list_long, mydata_list_1993, mydata_list_1996)
+
 
 ################################################
 # Single species
 ################################################
-# NOTE: Moved the GOA pollock fishery from double logistic to logisitic
 ss_run_list <- list()
-for(i in 1:2){
-  ss_run_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[c(1,11)[i]]],
+for(i in 1:3){
+  ss_run_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[c(1,8,10)[i]]],
                                         inits = NULL, # Initial parameters = 0
                                         file = NULL, # Don't save
                                         debug = 0, # Estimate
@@ -123,7 +115,7 @@ for(i in 1:2){
 
 ss_run_list_weighted <- list()
 # Reweight the models
-for(i in 1:2){
+for(i in 1:3){
   data <- ss_run_list[[i]]$data_list
   data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
   
@@ -140,10 +132,40 @@ for(i in 1:2){
 }
 
 
+
+######################### 
+# Compare with SAFE Models
+#########################
+# Columns = year, pollock, cod, atf
+safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 1))
+safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 2))
+safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 3))
+
+# Assign data to CEATTLE object
+Mod_18_SAFE <- ss_run_list_weighted[[1]]
+# - Pollock and ATF
+Mod_18_SAFE$quantities$biomass[1:2,1:42] <- t(safe2018biomass[1:42,c(2,4)]) * 1000
+Mod_18_SAFE$quantities$biomassSSB[1:2,1:42] <- t(safe2018ssb[1:42,c(2,4)]) * 1000
+
+# - Cod
+Mod_18_SAFE$quantities$biomass[3,1:42] <- t(safe2018biomass[1:42,c(3)])
+Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
+
+# Convert to age-3 biomass
+Mod_18_5_1_3plusBiomass <- ss_run_list_weighted
+for(i in 1:3){
+  Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:49] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:49])
+}
+
+plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.5.1/18.5.1. Bridging weighted March 2021", model_names = c("2018 CEATTLE SS - long", "2018 CEATTLE SS - medium", "2018 CEATTLE SS - short", "2018 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
+
+
+
 ################################################
 # Model 2 - Add multi-species
 ################################################
 mydata_list_ms <- mydata_list
+
 # Update M1 so it is smaller
 for(i in 1:length(mydata_list_ms)){
   mydata_list_ms[[i]]$M1_base[1,3] <- .143
@@ -155,21 +177,27 @@ for(i in 1:length(mydata_list_ms)){
 
 
 # Run models
-# - 4 couldnt converge from 3
+# - 10 and 11 arge giving me trouble
 ms_mod_list <- list()
 for(i in 1:length(mydata_list_ms)){
   
-  # Initialize from ss weighted
-  inits <- ss_run_list_weighted[[1]]$estimated_params
   
-  # Comp weights
-  mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
-  
-  # Initialize from previous MS mod
-  if(i > 2){
-    #inits <- ms_mod_list[[i-1]]$estimated_params
+  # Long time series models (1977-2018)
+  if(i >= 1){
+    # Initialize from ss weighted
+    inits <- ss_run_list_weighted[[1]]$estimated_params
+    
+    # Comp weights
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
+    
+    # Initialize from previous MS mod
+    if(i > 2){
+      inits <- ms_mod_list[[i-1]]$estimated_params
+    }
   }
   
+  
+  # Medium time series models (1993-2018)
   if(i >= 8){
     # Initialize from ss weighted
     inits <- ss_run_list_weighted[[2]]$estimated_params
@@ -179,7 +207,21 @@ for(i in 1:length(mydata_list_ms)){
     
     # Initialize from previous MS mod
     if(i > 8){
-      #inits <- ms_mod_list[[i-1]]$estimated_params
+      inits <- ms_mod_list[[i-1]]$estimated_params
+    }
+  }
+  
+  # Short time series models (1996-2018)
+  if(i >= 10){
+    # Initialize from ss weighted
+    inits <- ss_run_list_weighted[[3]]$estimated_params
+    
+    # Comp weights
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
+    
+    # Initialize from previous MS mod
+    if(i > 10){
+      inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
@@ -192,7 +234,7 @@ for(i in 1:length(mydata_list_ms)){
     random_rec = FALSE, # No random recruitment
     msmMode = 1, # Multi species mode
     silent = TRUE, phase = NULL,
-    niter = 5),
+    niter = 3),
     silent = TRUE)
   
   
@@ -218,7 +260,7 @@ for(i in 1:length(mydata_list_ms)){
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
         silent = TRUE, phase = NULL,
-        niter = 5)
+        niter = 3)
     }
   }
   
@@ -233,11 +275,13 @@ for(i in 1:length(mydata_list_ms)){
       random_rec = FALSE, # No random recruitment
       msmMode = 1, # Multi species mode
       silent = TRUE, phase = "default",
-      niter = 5),
+      niter = 3),
       silent = TRUE)
   }
 }
+mydata_list_ms_save <- mydata_list_ms
 
+# Check convergence
 sapply(ms_mod_list[1:11], function(x) x$opt$objective)
 sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)
 sapply(ms_mod_list, function(x) x[1])
@@ -251,12 +295,11 @@ sapply(ms_mod_list, function(x) x[1])
 
 # The five short term models for 1993 to 2018 were: 
 #   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
-# •	Model 10: a model that did not include halibut predation (model 10). 
+# •	Model 10: a mutlispecies model that did not include halibut predation (model 10). 
 # •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
 # •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
 # •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
-
+mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:2])
 mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:12])
 
 save(mod_list_all, file = paste0("Models/18_5_1_", Sys.Date(),".RData"))
-

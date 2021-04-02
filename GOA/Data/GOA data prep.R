@@ -13,6 +13,19 @@ pcod_dat <- r4ss::SS_readdat_3.30(file = "Data/data-raw/GOA/Pcod 2018/data2018.d
 pcod_report <- r4ss::SS_output(dir = "Data/Pcod 2018/GOApcod_Appendix2.3/2018 GOA Pacific cod figures and Files/Model18.09.35/")
 
 
+
+halibut_cw_short_report <- r4ss::SS_output(dir = "Data/Halibut 2018/2018 CW Short")
+halibut_cw_short_natage <- halibut_cw_short_report$natage
+halibut_cw_short_natage <- halibut_cw_short_natage[which(halibut_cw_short_natage$`Beg/Mid` == "M"),]
+write.csv(halibut_cw_short_natage, file = "Data/Halibut 2018/2018 CW Short/2018_natage_cw_short.csv")
+
+
+halibut_aaf_short_report <- r4ss::SS_output(dir = "Data/Halibut 2018/2018 AAF Short")
+halibut_aaf_short_natage <- halibut_aaf_short_report$natage
+halibut_aaf_short_natage <- halibut_aaf_short_natage[which(halibut_aaf_short_natage$`Beg/Mid` == "M"),]
+write.csv(halibut_aaf_short_natage, file = "Data/Halibut 2018/2018 AAF Short/2018_natage_aaf_short.csv.csv")
+
+
 ##################################################
 # GENERAL SPECIFICATIONS
 ##################################################
