@@ -629,6 +629,8 @@ for(pred in unique(alk_long_pred_annual$Pred_species)){ # Pred loop
 #### Reduce annual age specific prop to average by taking weighted average given relative density
 propPreyAgeAnnual <- merge(propPreyAgeAnnual, annual_density, all = TRUE)
 propPreyAgeAnnualShort <- propPreyAgeAnnual[which(propPreyAgeAnnual$Yr >= 1993), ]
+propPreyAgeAnnualShort2 <- propPreyAgeAnnual[which(propPreyAgeAnnual$Yr >= 1996), ]
+
 
 # - Take weighted mean
 propPreyAge = propPreyAgeAnnual %>%
@@ -636,6 +638,10 @@ propPreyAge = propPreyAgeAnnual %>%
   summarize(propPreyAge = weighted.mean(propPreyAge, Annual_density))
 
 propPreyAgeShort = propPreyAgeAnnualShort %>%
+  group_by(Pred_species, PredSex, PredAge, Prey_species, PreySex, PreyAge) %>%
+  summarize(propPreyAge = weighted.mean(propPreyAge, Annual_density))
+
+propPreyAgeShort2 = propPreyAgeAnnualShort2 %>%
   group_by(Pred_species, PredSex, PredAge, Prey_species, PreySex, PreyAge) %>%
   summarize(propPreyAge = weighted.mean(propPreyAge, Annual_density))
 
@@ -650,6 +656,9 @@ propPreyAge <- merge(propPreyAge, ceattle_prey, all = TRUE)
 propPreyAgeShort <- merge(propPreyAgeShort, ceattle_pred, all = TRUE)
 propPreyAgeShort <- merge(propPreyAgeShort, ceattle_prey, all = TRUE)
 
+propPreyAgeShort2 <- merge(propPreyAgeShort2, ceattle_pred, all = TRUE)
+propPreyAgeShort2 <- merge(propPreyAgeShort2, ceattle_prey, all = TRUE)
+
 
 propPreyAge$Year = 0
 propPreyAge$Sample_size = 20
@@ -657,11 +666,18 @@ propPreyAge$Sample_size = 20
 propPreyAgeShort$Year = 0
 propPreyAgeShort$Sample_size = 20
 
+propPreyAgeShort2$Year = 0
+propPreyAgeShort2$Sample_size = 20
+
 # Reorder
 propPreyAge <- propPreyAge[with(propPreyAge, order(Pred, PredAge, Prey, PreyAge)), c("Pred_species", "Prey_species", "Pred", "Prey",  "PredSex", "PreySex", "PredAge", "PreyAge", "Year", "Sample_size", "propPreyAge")]
 
 propPreyAgeShort <- propPreyAgeShort[with(propPreyAgeShort, order(Pred, PredAge, Prey, PreyAge)), c("Pred_species", "Prey_species", "Pred", "Prey",  "PredSex", "PreySex", "PredAge", "PreyAge", "Year", "Sample_size", "propPreyAge")]
 
+propPreyAgeShort2 <- propPreyAgeShort2[with(propPreyAgeShort2, order(Pred, PredAge, Prey, PreyAge)), c("Pred_species", "Prey_species", "Pred", "Prey",  "PredSex", "PreySex", "PredAge", "PreyAge", "Year", "Sample_size", "propPreyAge")]
+
+
 # Save
 write.csv(propPreyAge, file = paste0(model_dir,"Data/CEATTE_", Sys.Date() ,"_propPreyAge_Avg1990-2018.csv"))
 write.csv(propPreyAgeShort, file = paste0(model_dir,"Data/CEATTE_", Sys.Date() ,"_propPreyAgeShort_Avg1993-2018.csv"))
+write.csv(propPreyAgeShort2, file = paste0(model_dir,"Data/CEATTE_", Sys.Date() ,"_propPreyAgeShort_Avg1996-2018.csv"))
