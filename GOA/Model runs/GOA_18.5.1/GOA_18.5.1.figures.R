@@ -116,7 +116,7 @@ mod_list_tmp <- c(mod_list_tmp, list(Mod_18_SAFE))
 model_names_tmp = c(mod_names_all[c(1,2)], "2018 SAFE")
 
 file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod_2"
-plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp)
+plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp, species = c(1:3))
 plot_ssb(mod_list_tmp, file = file_name, model_names = model_names_tmp)
 plot_recruitment(mod_list_tmp, file = file_name, add_ci = TRUE, model_names = model_names_tmp)
 
