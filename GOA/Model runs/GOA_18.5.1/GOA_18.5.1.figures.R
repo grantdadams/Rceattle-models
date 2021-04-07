@@ -107,10 +107,19 @@ write.csv(nll_long, "Figures/18.5.1/18.5.1.long_model_nll.csv")
 
 
 # Plot an individual model
-file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod3"
-plot_biomass(mod_list_long[3], file = file_name, model_names = mod_names_long[3], line_col = line_col_long[3])
-plot_ssb(mod_list_long[3], file = file_name, model_names = mod_names_long[3], line_col = line_col_long[3])
-plot_recruitment(mod_list_long[3], file = file_name, add_ci = TRUE, model_names = mod_names_long[3], line_col = line_col_long[3])
+mod_list_tmp <- mod_list_all[c(1,2)]
+for(i in 1:length(mod_list_tmp)){
+  mod_list_tmp[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list_tmp[[i]]$quantities$biomassByage[1,3:10,1:49])
+}
+
+mod_list_tmp <- c(mod_list_tmp, list(Mod_18_SAFE))
+model_names_tmp = c(mod_names_all[c(1,2)], "2018 SAFE")
+
+file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod_2"
+plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp)
+plot_ssb(mod_list_tmp, file = file_name, model_names = model_names_tmp)
+plot_recruitment(mod_list_tmp, file = file_name, add_ci = TRUE, model_names = model_names_tmp)
+
 
 
 # Medium time-series
