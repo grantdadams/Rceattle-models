@@ -282,8 +282,23 @@ for(i in 1:length(mydata_list_ms)){
 mydata_list_ms_save <- mydata_list_ms
 
 # Check convergence
-sapply(ms_mod_list[1:11], function(x) x$opt$objective)
-sapply(ms_mod_list[1:11], function(x) x$quantities$jnll)
+round(sapply(ms_mod_list, function(x) x$opt$objective) - sapply(ms_mod_list, function(x) x$quantities$jnll), 3)
+# Run two and 8
+
+for(i in c(2,8)){
+  ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+    data_list = mydata_list_ms[[i]],
+    inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+    file = NULL, # Don't save
+    debug = 0, # Estimate
+    random_rec = FALSE, # No random recruitment
+    msmMode = 1, # Multi species mode
+    silent = TRUE, phase = NULL,
+    niter = 3),
+    silent = TRUE)
+}
+
+
 sapply(ms_mod_list, function(x) x[1])
 
 # Re-order and name models
@@ -293,13 +308,16 @@ sapply(ms_mod_list, function(x) x[1])
 # •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018. 
 # •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model. 
 
-# The five short term models for 1993 to 2018 were: 
+# The three moderate term models for 1993 to 2018 were: 
 #   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
 # •	Model 10: a mutlispecies model that did not include halibut predation (model 10). 
-# •	Model 11: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
-# •	Model 12: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
-# •	Model 13: a model relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:2])
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:12])
+# •	Model 11: a mutlispecies model with relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
+
+# The four short term models for 1996 to 2018 were: 
+#   •	Model 12: a model that does not include predation (model 9) to represent a base single-species model 
+# •	Model 13: a mutlispecies model that did not include halibut predation (model 10). 
+# •	Model 14: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
+# •	Model 15: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
+mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:9], list(ss_run_list_weighted[[3]]), ms_mod_list[10:12])
 
 save(mod_list_all, file = paste0("Models/18_5_1_", Sys.Date(),".RData"))
