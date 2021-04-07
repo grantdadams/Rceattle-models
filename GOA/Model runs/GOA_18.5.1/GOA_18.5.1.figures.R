@@ -106,22 +106,6 @@ nll_long <- round(nll_long)
 write.csv(nll_long, "Figures/18.5.1/18.5.1.long_model_nll.csv")
 
 
-# Plot an individual model
-mod_list_tmp <- mod_list_all[c(1,3)]
-for(i in 1:length(mod_list_tmp)){
-  mod_list_tmp[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list_tmp[[i]]$quantities$biomassByage[1,3:10,1:49])
-}
-
-mod_list_tmp <- c(mod_list_tmp, list(Mod_18_SAFE))
-model_names_tmp = c(mod_names_all[c(1,3)], "2018 SAFE")
-
-file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod_3"
-plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp, species = c(1:4))
-plot_ssb(mod_list_tmp, file = file_name, model_names = model_names_tmp)
-plot_recruitment(mod_list_tmp, file = file_name, add_ci = TRUE, model_names = model_names_tmp)
-
-
-
 # Medium time-series
 file_name <- "Figures/18.5.1/18.5.1_models_medium"
 plot_biomass(mod_list_medium, file = file_name, model_names = mod_names_medium, right_adj = 0.17, line_col = line_col_medium)
@@ -131,7 +115,7 @@ plot_index(mod_list_medium, file = file_name, model_names = mod_names_medium, ri
 plot_logindex(mod_list_medium, file = file_name, model_names = mod_names_medium, right_adj = 0.1, line_col = line_col_medium)
 plot_catch(mod_list_medium, file = file_name, model_names = mod_names_medium, right_adj = 0, line_col = line_col_medium)
 nll_medium <- data.frame(nll = sapply(mod_list_medium, function(x) x$opt$objective),
-                        aic = sapply(mod_list_medium, function(x) x$opt$AIC))
+                         aic = sapply(mod_list_medium, function(x) x$opt$AIC))
 nll_medium$daic <- nll_medium$aic - min(nll_medium$aic)
 nll_medium <- round(nll_medium)
 write.csv(nll_medium, "Figures/18.5.1/18.5.1.medium_model_nll.csv")
@@ -157,10 +141,6 @@ file_name <- "Figures/18.5.1/18.5.1_models_all"
 plot_biomass(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_b_eaten(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
-
-plot_b_eaten_prop(mod_list_all[[2]], file = "Figures/18.5.1/mod_2", add_ci = FALSE, model_names = mod_names_all[2], right_adj = 0.17, line_col = line_col, lwd = 2.5)
-plot_biomass(mod_list_all[[2]], file = "Figures/18.5.1/mod_2", model_names = mod_names_all[2], right_adj = 0.17, line_col = line_col, lwd = 2.5)
-
 plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_logindex(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
 nll_all <- rbind(nll_long, nll_short)
@@ -267,11 +247,11 @@ zmax <- sapply(mod_list_all[1:3], function(x) max(x$quantities$M[1,1,1:10,1:42])
 
 for(i in 1:length(mod_list_all[1:3])){
   plot_mortality(Rceattle = mod_list_all[[i]],
-             file = paste0("Figures/18.5.1/M2 Plots/Pollock/18.5.1_mod_",i),
-             incl_proj = FALSE,
-             zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
-             contour = FALSE, spp = 1, maxage = 10,
-             title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
+                 file = paste0("Figures/18.5.1/M2 Plots/Pollock/18.5.1_mod_",i),
+                 incl_proj = FALSE,
+                 zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
+                 contour = FALSE, spp = 1, maxage = 10,
+                 title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
   
 }
 
@@ -318,3 +298,26 @@ for(i in 1:length(mod_list_all[1:3])){
             file = paste0("Figures/18.5.1/Comp plots/","Model ",i,"/18.5.1_mod_",i))
 }
 
+
+
+# Plot an individual model
+mod_list_tmp <- mod_list_all[c(1,3)]
+for(i in 1:length(mod_list_tmp)){
+  mod_list_tmp[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list_tmp[[i]]$quantities$biomassByage[1,3:10,1:49])
+}
+
+mod_list_tmp <- c(mod_list_tmp, list(Mod_18_SAFE))
+model_names_tmp = c(mod_names_all[c(1,3)], "2018 SAFE")
+
+file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod_3"
+plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp, species = c(1:4))
+plot_ssb(mod_list_tmp, file = file_name, model_names = model_names_tmp)
+plot_recruitment(mod_list_tmp, file = file_name, add_ci = TRUE, model_names = model_names_tmp)
+plot_b_eaten_prop(mod_list_tmp[[2]], file = file_name, model_names = model_names_tmp[2])
+for(sp in 1:3){
+  plot_mortality(Rceattle = mod_list_tmp[[2]],
+                 file = paste0(file_name,"_SPP", sp),
+                 incl_proj = FALSE,
+                 contour = FALSE, spp = sp, maxage = 30, log = FALSE,
+                 title = paste0("Model ",mod_names_all[3]), height = ifelse(i < 9, 4, 6))
+}
