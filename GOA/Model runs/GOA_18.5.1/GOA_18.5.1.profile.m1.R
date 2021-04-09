@@ -13,13 +13,14 @@ ms_m1_profile_list <- list() # Level 1 is species group; 2 is Model;
 
 profile_sp <- list();
 profile_sp[[1]] <- 1; 
-profile_sp[[2]] <- c(2:3); 
-profile_sp[[3]] <- 4; 
+profile_sp[[2]] <- 2 
+profile_sp[[3]] <- 3
+profile_sp[[4]] <- 4; 
 
 jnll_profile <- array(NA, dim = c(length(profile_sp), length(models), length(m1_vec)) )
 
 # Loop through species profiles
-for(sp in 1:length(profile_sp)){
+for(sp in 2:3){
   
   # Loop through models
   for(i in 1:length(models)){
@@ -63,8 +64,14 @@ for(sp in 1:length(profile_sp)){
       if( class(mod_tmp) != "try-error"){
         jnll_profile[sp, i , m1] <- mod_tmp$quantities$jnll
       }
+      
+      rm(mod_tmp)
     }
   }
 }
+
+m1_profile <- jnll_profile[,1,]
+colnames(m1_profile) <- m1_vec
+m1_profile - apply(m1_profile, 1, function(x) min(x, na.rm = TRUE))
 
 save(ms_m1_profile_list, file = paste0("Models/18.5.1.ms_m1_profiles_",Sys.Date(),".Rdata"))
