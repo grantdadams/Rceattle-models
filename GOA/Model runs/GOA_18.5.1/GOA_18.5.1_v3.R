@@ -58,9 +58,6 @@ mydata_coastwide_short$NByageFixed[which(mydata_coastwide_short$NByageFixed$Spec
 # AAF short
 mydata_aaf_short$NByageFixed[which(mydata_aaf_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short$NByageFixed)] <- mydata_aaf_short$NByageFixed[which(mydata_aaf_short$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
 
-# Add model wilt age-dependent population scalar
-mydata_survey_age_dep <- mydata_survey
-mydata_survey_age_dep$estDynamics[4] <- 3
 
 # Combine in list
 
@@ -76,62 +73,143 @@ mydata_list_long <- list(mydata_no_hal_avg, mydata_coastwide_avg, mydata_coastwi
 mydata_survey_no_hal_srv <- mydata_survey
 mydata_survey_no_hal_srv$Pvalue[4] <- 0 # Set ration to 0
 
-mydata_list_1993 <- list( mydata_survey_no_hal_srv, mydata_survey)
+mydata_survey_no_hal_srv$styr <- 1993
+mydata_survey$styr <- 1993
 
 # - No halibut version of short 1996-2018
 mydata_coastwide_short_no_hal <- mydata_coastwide_short
 mydata_coastwide_short_no_hal$Pvalue[4] <- 0 # Set ration to 0
 
-mydata_list_1996 <- list( mydata_coastwide_short_no_hal, mydata_coastwide_short, mydata_aaf_short)
+mydata_coastwide_short_no_hal$styr <- 1996
+mydata_coastwide_short$styr <- 1996
+mydata_aaf_short$styr <- 1996
 
-# Adjust start year
-for(i in 1:length(mydata_list_1993)){
-  mydata_list_1993[[i]]$styr <- 1993
-}
+# Set up model list
+# The long time-series models for 1977 to 2018 were: 
+#   •	Model 1: a model that did not include predation (single-species models) representing a base model. 
+# •	Model 2: a model that did not include halibut predation to allow comparisons in which halibut does not impact the dynamics of groundfish in the GOA. 
+# •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018. 
+# •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model. 
 
-for(i in 1:length(mydata_list_1996)){
-  mydata_list_1996[[i]]$styr <- 1996
-}
+# The three moderate term models for 1993 to 2018 were: 
+#   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
+# •	Model 10: a mutlispecies model that did not include halibut predation (model 10). 
+# •	Model 11: a mutlispecies model with relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
 
-# 7 Long time series models (1977-1933), 2 medium time series models (1993-2018), 3 short time series models (1996-2018)
-mydata_list <- c(mydata_list_long, mydata_list_1993, mydata_list_1996)
+# The four short term models for 1996 to 2018 were: 
+#   •	Model 12: a model that does not include predation (model 9) to represent a base single-species model 
+# •	Model 13: a mutlispecies model that did not include halibut predation (model 10). 
+# •	Model 14: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
+# •	Model 15: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
+
+mydata_list <- list(
+  
+  # Long time-series 1977-2018
+  mydata_no_hal_avg, # 1 - single-species SAFE M
+  mydata_no_hal_avg, # 2 - Multi-species est M1 no halibut
+  mydata_coastwide_avg, # 3 - Multi-species est M1 coastwide historical average dist
+  mydata_coastwide_low, # 4 - Multi-species est M1 coastwide historical low dist
+  mydata_coastwide_high, # 5 - Multi-species est M1 coastwide historical high dist
+  mydata_aaf_avg, # 6 - Multi-species est M1 aaf historical avg dist
+  mydata_aaf_low, # 7 - Multi-species est M1 aaf historical low dist
+  mydata_aaf_high,# 8 - Multi-species est M1 aaf historical high dist
+  
+  # Medium time series 1993-2018
+  mydata_survey_no_hal_srv, # 9 - single-species SAFE M 
+  mydata_survey_no_hal_srv, # 10 - Multi-species no hal M1 from #3 
+  mydata_survey, # 11 - Multi-species survey n-at-age M1 from #4 
+  
+  # Medium time series 1993-2018 - 50% M1 sensitivity
+  mydata_survey_no_hal_srv, # 12 - Multi-species no hal 50% M1 from #3 
+  mydata_survey, # 13 - Multi-species survey n-at-age 50% M1 from #4 
+  
+  # Medium time series 1993-2018 - 150% M1 sensitivity
+  mydata_survey_no_hal_srv, # 14 - Multi-species no hal 150% M1 from #3 
+  mydata_survey, # 15 - Multi-species survey n-at-age 150% M1 from #4 
+  
+  # Short time series 1996-2018
+  mydata_coastwide_short_no_hal, # 16 - single-species SAFE M 
+  mydata_coastwide_short_no_hal, # 17 - Multi-species no hal M1 from #3 
+  mydata_coastwide_short, # 18 - Multi-species M1 from #4 - coastwide short
+  mydata_aaf_short, # 19 - Multi-species M1 from #5 - aaf short
+  
+  # Short time series 1996-2018 - 50% M1 Sensitivity
+  mydata_coastwide_short_no_hal, # 20 - Multi-species no hal 50% M1 from #3 
+  mydata_coastwide_short, # 21 - Multi-species 50% M1 from #4 - coastwide short
+  mydata_aaf_short, # 22 - Multi-species 50% M1 from #5 - aaf short
+  
+  # Short time series 1996-2018 - 150% M1 Sensitivity
+  mydata_coastwide_short_no_hal, # 23 - Multi-species no hal 150% M1 from #3 
+  mydata_coastwide_short, # 24 - Multi-species 150% M1 from #4 - coastwide short
+  mydata_aaf_short # 25 - Multi-species 150% M1 from #5 - aaf short
+)
+
+
+# Set up inits vectors
+inits_M1_df <- data.frame(
+  Model = 1:25,
+  MsmMode = c(0, rep(1,7), # Long
+              0, rep(1,2), rep(1,2), rep(1,2), # Medium
+              0, rep(1,3), rep(1,3), rep(1,3)), # Short 
+  EstM1 = c(0, rep(1,7), rep(0, 17)),
+  InitModel = c(NA, rep(1,7), # Long
+                NA, rep(9,2), rep(9,2),rep(9,2), # Medium
+                NA, rep(16,3), rep(16,3),rep(16,3)), # Short 
+  M1_fixed_Model = c(rep(NA, 8), # Long
+                     NA, 3:4,3:4,3:4, # Medium
+                     NA, 3:5,3:5,3:5), # Short 
+  M_mult = c(rep(NA, 8), # Long
+             NA, rep(1,2), rep(0.5,2), rep(1.5,2), # Medium
+             NA, rep(1,3), rep(0.5,3), rep(1.5,3)) # Short
+) 
+
+
+
+# Set up M1 estimation switches
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$est_M1 = rep(0,4)
+  if(inits_M1_df$EstM1[i] == 1){
+    mydata_list[[i]]$est_M1 = c(1,2,1,0)
+  }
 }
 
 
 ################################################
 # Single species
 ################################################
-ss_run_list <- list()
-for(i in 1:3){
-  ss_run_list[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[c(1,8,10)[i]]],
-                                        inits = NULL, # Initial parameters = 0
-                                        file = NULL, # Don't save
-                                        debug = 0, # Estimate
-                                        random_rec = FALSE, # No random recruitment
-                                        msmMode = 0, # Single species mode
-                                        silent = TRUE,
-                                        recompile = FALSE,
-                                        phase = "default")
+mod_list_all <- list()
+
+for(i in 1:length(mydata_list)){
+  if(inits_M1_df$MsmMode[i] == 0){
+    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
+                                           inits = NULL, # Initial parameters = 0
+                                           file = NULL, # Don't save
+                                           debug = 0, # Estimate
+                                           random_rec = FALSE, # No random recruitment
+                                           msmMode = 0, # Single species mode
+                                           silent = TRUE,
+                                           recompile = FALSE,
+                                           phase = "default")
+  }
 }
 
-ss_run_list_weighted <- list()
-# Reweight the models
-for(i in 1:3){
-  data <- ss_run_list[[i]]$data_list
-  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
-  
-  # Refit
-  ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = data,
-                                                 inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
-                                                 file = NULL, # Don't save
-                                                 debug = 0, # Estimate
-                                                 random_rec = FALSE, # No random recruitment
-                                                 msmMode = 0, # Single species mode
-                                                 silent = TRUE,
-                                                 recompile = FALSE,
-                                                 phase = NULL)
+# Reweight the single species models
+for(i in 1:length(mydata_list)){
+  if(inits_M1_df$MsmMode[i] == 0){
+    data <- mod_list_all[[i]]$data_list
+    data$fleet_control$Comp_weights <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_macallister
+    
+    # Refit
+    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = data,
+                                           inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+                                           file = NULL, # Don't save
+                                           debug = 0, # Estimate
+                                           random_rec = FALSE, # No random recruitment
+                                           msmMode = 0, # Single species mode
+                                           silent = TRUE,
+                                           recompile = FALSE,
+                                           phase = NULL)
+  }
 }
 
 
@@ -145,7 +223,7 @@ safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", s
 safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 3))
 
 # Assign data to CEATTLE object
-Mod_18_SAFE <- ss_run_list_weighted[[1]]
+Mod_18_SAFE <- mod_list_all[[1]]
 # - Pollock and ATF
 Mod_18_SAFE$quantities$biomass[1:2,1:42] <- t(safe2018biomass[1:42,c(2,4)]) * 1000
 Mod_18_SAFE$quantities$biomassSSB[1:2,1:42] <- t(safe2018ssb[1:42,c(2,4)]) * 1000
@@ -155,7 +233,7 @@ Mod_18_SAFE$quantities$biomass[3,1:42] <- t(safe2018biomass[1:42,c(3)])
 Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
 
 # Convert to age-3 biomass
-Mod_18_5_1_3plusBiomass <- ss_run_list_weighted
+Mod_18_5_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
 for(i in 1:3){
   Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:49] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:49])
 }
@@ -167,26 +245,32 @@ plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.
 ################################################
 # Model 2 - Add multi-species
 ################################################
-mydata_list_ms <- mydata_list
+ms_mod_list <- list()
 
 # Update M1 so it is smaller
 for(i in 1:length(mydata_list_ms)){
-  mydata_list_ms[[i]]$M1_base[1,3] <- .143
-  mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
-  mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
-  mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
-  mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
+  
+  # Old version
+  # mydata_list_ms[[i]]$M1_base[1,3] <- .143
+  # mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
+  # mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
+  # mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
+  
+  # From profiles - Grid search would be better
+  mydata_list_ms[[i]]$M1_base[1,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.3394736 # Pollock
+  mydata_list_ms[[i]]$M1_base[2,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.207894 # Atf M
+  mydata_list_ms[[i]]$M1_base[3,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.28684 # Atf F
+  mydata_list_ms[[i]]$M1_base[4,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.444736 # Cod
 }
 
 
 # Run models
-# - 10 and 11 arge giving me trouble
-ms_mod_list <- list()
 for(i in 1:length(mydata_list_ms)){
   
   
   # Long time series models (1977-2018)
-  if(i >= 1){
+  if(i >= 1 & i < 8){
     # Initialize from ss weighted
     inits <- ss_run_list_weighted[[1]]$estimated_params
     
@@ -201,7 +285,7 @@ for(i in 1:length(mydata_list_ms)){
   
   
   # Medium time series models (1993-2018)
-  if(i >= 8){
+  if(i >= 8 & i < 10){
     # Initialize from ss weighted
     inits <- ss_run_list_weighted[[2]]$estimated_params
     
@@ -210,7 +294,7 @@ for(i in 1:length(mydata_list_ms)){
     
     # Initialize from previous MS mod
     if(i > 8){
-      inits <- ms_mod_list[[i-1]]$estimated_params
+      # inits <- ms_mod_list[[i-1]]$estimated_params
     }
   }
   
@@ -220,12 +304,12 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[3]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[3]]$data_list$fleet_control$Est_weights_macallister
     
     # Initialize from previous MS mod
-    if(i > 10){
-      inits <- ms_mod_list[[i-1]]$estimated_params
-    }
+    # if(i > 10){
+    #   inits <- ms_mod_list[[i-1]]$estimated_params
+    # }
   }
   
   # Fit model
@@ -268,8 +352,8 @@ for(i in 1:length(mydata_list_ms)){
   }
   
   
-  # Try and phase if likelihood is discontinous
-  if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
+  # If Hessian cant invert
+  if( is.null(ms_mod_list[[i]]$opt$objective) ){
     ms_mod_list[[i]] <- try( Rceattle::fit_mod(
       data_list = mydata_list_ms[[i]],
       inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
@@ -281,16 +365,35 @@ for(i in 1:length(mydata_list_ms)){
       niter = 3),
       silent = TRUE)
   }
+  
+  # Try and phase if likelihood is discontinous
+  if(!is.null(ms_mod_list[[i]]$opt$objective)){
+    if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
+      ms_mod_list[[i]] <- try( Rceattle::fit_mod(
+        data_list = mydata_list_ms[[i]],
+        inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = "default",
+        niter = 3),
+        silent = TRUE)
+    }
+  }
 }
-mydata_list_ms_save <- mydata_list_ms
+
 
 # Check convergence
-round(sapply(ms_mod_list, function(x) x$opt$objective) - sapply(ms_mod_list, function(x) x$quantities$jnll), 3)
-# Run two and 8
+sapply(ms_mod_list, function(x) x$opt$objective) 
+round(sapply(ms_mod_list, function(x) x$quantities$jnll - x$opt$objective), 3)
+sapply(ms_mod_list, function(x) x[1])
 
-for(i in c(2,8)){
+# Run models again that have divergent likelihoods
+for(i in c(11)){
+  # Fit model
   ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-    data_list = mydata_list_ms[[i]],
+    data_list = ms_mod_list[[i]]$data_list,
     inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
     file = NULL, # Don't save
     debug = 0, # Estimate
@@ -300,27 +403,8 @@ for(i in c(2,8)){
     niter = 3),
     silent = TRUE)
 }
+ms_mod_list_save <- ms_mod_list
 
 
-sapply(ms_mod_list, function(x) x[1])
-
-# Re-order and name models
-# The long time-series models for 1977 to 2018 were: 
-#   •	Model 1: a model that did not include predation (single-species models) representing a base model. 
-# •	Model 2: a model that did not include halibut predation to allow comparisons in which halibut does not impact the dynamics of groundfish in the GOA. 
-# •	Models 3-5: models that included pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide long-time (1917-2018) series model developed by the IPHC. To account for a lack of information on halibut distribution prior to 1993, numbers-at-age prior to 1993 were multiplied by the 50th (model 3), 15th (model 4), and 85th (model 5) quantiles of the distribution of adult halibut in area 3 between 1993 and 2018. 
-# •	Models 6-8: as for models 3-5 but using numbers-at-age of Pacific halibut from the areas-as-fleets long-time series model. 
-
-# The three moderate term models for 1993 to 2018 were: 
-#   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
-# •	Model 10: a mutlispecies model that did not include halibut predation (model 10). 
-# •	Model 11: a mutlispecies model with relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
-
-# The four short term models for 1996 to 2018 were: 
-#   •	Model 12: a model that does not include predation (model 9) to represent a base single-species model 
-# •	Model 13: a mutlispecies model that did not include halibut predation (model 10). 
-# •	Model 14: a model with pre-specified mid-year numbers-at-age of Pacific halibut from the coastwide short-time series model. 
-# •	Model 15: as for models 11but using numbers-at-age of Pacific halibut from the areas-as-fleets short-time series model 
-mod_list_all <- c(list(ss_run_list_weighted[[1]]), ms_mod_list[1:7], list(ss_run_list_weighted[[2]]), ms_mod_list[8:9], list(ss_run_list_weighted[[3]]), ms_mod_list[10:12])
-
+# Save
 save(mod_list_all, file = paste0("Models/18_5_1_", Sys.Date(),".RData"))

@@ -55,6 +55,8 @@ for(sp1 in 1:n_m1){
       if( class(mod_tmp) != "try-error"){
         jnll_grid[sp1, sp2, sp3] <- mod_tmp$quantities$jnll
       }
+      
+      rm(mod_tmp)
     }
   }
 }
