@@ -1,6 +1,5 @@
 library(Rceattle)
 setwd("Model runs/GOA_18.5.1")
-load("Models/18_5_1_2021-04-23.RData")
 
 
 ################################################
@@ -17,34 +16,48 @@ inits_M1_df <- data.frame(
 inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-species")
 
 
-
+################################################
+# Estimate 
+################################################
 for(i in 1:nrow(inits_M1_df)){
   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
     
+    
+    load("Models/18_5_1_2021-04-23.RData")
+    mod_fe = mod_list_all[[i]]
+    rm(mod_list_all)
+    
     # Update size of data by making smaller projection
-    data_tmp <-  mod_list_all[[i]]$data_list
+    data_tmp <-  mod_fe$data_list
     data_tmp$projyr <- 2020
     nyrs <- data_tmp$projyr-data_tmp$styr +1
     
     # Update rec devs
-    inits_tmp <- within(mod_list_all[[i]]$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4))
+    inits_tmp <- within(mod_fe$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4))
     inits_tmp$rec_dev <- inits_tmp$rec_dev[,1:nyrs]
     
     # Fit model
-    mod_list_re[[i]] <- try( Rceattle::fit_mod(
+    mod_re <- try( Rceattle::fit_mod(
       data_list = data_tmp,
       inits = inits_tmp, # Start from ms mod
       file = NULL, # Don't save
       debug = FALSE, # Estimate
       random_rec = TRUE, # Random recruitment
       msmMode = data_tmp$msmMode,
-      silent = FALSE, phase = NULL, getHessian = FALSE,
+      silent = TRUE, phase = NULL, getHessian = TRUE,
       niter = 3),
       silent = FALSE)
+    
+    
+    if(!is.null(mod_re)){
+      if(class(mod_re) != "try-error"){
+        save(mod_re, file = paste0("Models/Random_effects_models/18_5_1_re_Mod",i,"_",Sys.Date(),".Rdata"))
+      }
+    }
   }
 }
 
 # Check which ones didnt converge
-inits_M1_df$Converged = sapply(mod_list_re, function(x) class(x) != "try-error" & !is.null(x))
+# inits_M1_df$Converged = sapply(mod_list_re, function(x) class(x) != "try-error" & !is.null(x))
 
-save(mod_list_re, file = paste0("Models/18_5_1_re_",Sys.Date(),".Rdata"))
+

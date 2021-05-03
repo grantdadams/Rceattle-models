@@ -127,46 +127,56 @@ mydata_list <- list(
   mydata_survey_no_hal_srv, # 14 - Multi-species no hal 150% M1 from #3 
   mydata_survey, # 15 - Multi-species survey n-at-age 150% M1 from #4 
   
+  # Medium time series 1993-2018 - Estimate M1
+  mydata_survey_no_hal_srv, # 16 - Multi-species no hal 150% M1 from #3 
+  mydata_survey, # 17 - Multi-species survey n-at-age 150% M1 from #4 
+  
   # Short time series 1996-2018
-  mydata_coastwide_short_no_hal, # 16 - single-species SAFE M 
-  mydata_coastwide_short_no_hal, # 17 - Multi-species no hal M1 from #3 
-  mydata_coastwide_short, # 18 - Multi-species M1 from #4 - coastwide short
-  mydata_aaf_short, # 19 - Multi-species M1 from #5 - aaf short
+  mydata_coastwide_short_no_hal, # 18 - single-species SAFE M 
+  mydata_coastwide_short_no_hal, # 19 - Multi-species no hal M1 from #3 
+  mydata_coastwide_short, # 20 - Multi-species M1 from #4 - coastwide short
+  mydata_aaf_short, # 21 - Multi-species M1 from #5 - aaf short
   
   # Short time series 1996-2018 - 50% M1 Sensitivity
-  mydata_coastwide_short_no_hal, # 20 - Multi-species no hal 50% M1 from #3 
-  mydata_coastwide_short, # 21 - Multi-species 50% M1 from #4 - coastwide short
-  mydata_aaf_short, # 22 - Multi-species 50% M1 from #5 - aaf short
+  mydata_coastwide_short_no_hal, # 22 - Multi-species no hal 50% M1 from #3 
+  mydata_coastwide_short, # 23 - Multi-species 50% M1 from #4 - coastwide short
+  mydata_aaf_short, # 24 - Multi-species 50% M1 from #5 - aaf short
   
   # Short time series 1996-2018 - 150% M1 Sensitivity
-  mydata_coastwide_short_no_hal, # 23 - Multi-species no hal 150% M1 from #3 
-  mydata_coastwide_short, # 24 - Multi-species 150% M1 from #4 - coastwide short
-  mydata_aaf_short # 25 - Multi-species 150% M1 from #5 - aaf short
+  mydata_coastwide_short_no_hal, # 25 - Multi-species no hal 150% M1 from #3 
+  mydata_coastwide_short, # 26 - Multi-species 150% M1 from #4 - coastwide short
+  mydata_aaf_short, # 27 - Multi-species 150% M1 from #5 - aaf short
+  
+  # Short time series 1996-2018 - Estimate M1
+  mydata_coastwide_short_no_hal, # 28 - Multi-species no hal M1 from #3 
+  mydata_coastwide_short, # 29 - Multi-species M1 from #4 - coastwide short
+  mydata_aaf_short # 30 - Multi-species M1 from #5 - aaf short
 )
 
 
 # Set up inits vectors
 inits_M1_df <- data.frame(
-  Model = 1:25,
+  Model = 1:30,
   MsmMode = c(0, rep(1,7), # Long
-              0, rep(1,2), rep(1,2), rep(1,2), # Medium
-              0, rep(1,3), rep(1,3), rep(1,3)), # Short 
-  EstM1 = c(0, rep(1,7), rep(0, 17)),
+              0, rep(1,2), rep(1,2), rep(1,2), rep(1,2), # Medium
+              0, rep(1,3), rep(1,3), rep(1,3), rep(1,3)), # Short 
+  EstM1 = c(0, rep(1,7), rep(0, 7), rep(1, 2), rep(0, 10), rep(1, 3)),
   InitModel = c(NA, rep(1,7), # Long
-                NA, rep(9,2), rep(9,2),rep(9,2), # Medium
-                NA, rep(16,3), rep(16,3),rep(16,3)), # Short 
+                NA, rep(9,2), rep(9,2),rep(9,2),rep(9,2), # Medium
+                NA, rep(18,3), rep(18,3),rep(18,3),rep(18,3)), # Short 
   M1_fixed_Model = c(rep(NA, 8), # Long
-                     NA, 3:4,3:4,3:4, # Medium
-                     NA, 3:5,3:5,3:5), # Short 
+                     NA, 3:4,3:4,3:4,rep(NA, 2), # Medium
+                     NA, 3:5,3:5,3:5,rep(NA, 3)), # Short 
   M_mult = c(rep(NA, 8), # Long
-             NA, rep(1,2), rep(0.5,2), rep(1.5,2), # Medium
-             NA, rep(1,3), rep(0.5,3), rep(1.5,3)) # Short
+             NA, rep(1,2), rep(0.5,2), rep(1.5,2),rep(NA, 2), # Medium
+             NA, rep(1,3), rep(0.5,3), rep(1.5,3),rep(NA, 3)) # Short
 ) 
 
 
 
 # Set up M1 estimation switches
 for(i in 1:length(mydata_list)){
+  mydata_list[[i]]$projyr = 2020
   mydata_list[[i]]$est_M1 = rep(0,4)
   if(inits_M1_df$EstM1[i] == 1){
     mydata_list[[i]]$est_M1 = c(1,2,1,0)
@@ -193,22 +203,29 @@ for(i in 1:length(mydata_list)){
   }
 }
 
-# Reweight the single species models
+mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
+
+# Reweight the single species Cod model
 for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 0){
-    data <- mod_list_all[[i]]$data_list
-    data$fleet_control$Comp_weights <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_macallister
+    
+    data <- mydata_list[[i]]
+    subs <- which(data$fleet_control$Species == 3) # Species 3 is cod
+    data$fleet_control$Comp_weights[subs] <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_mcallister[subs]
+    
+    inits = mod_list_all[[i]]$estimated_params
+    inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
     
     # Refit
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = data,
-                                           inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+                                           inits = inits, # Initial parameters = 0
                                            file = NULL, # Don't save
                                            debug = 0, # Estimate
                                            random_rec = FALSE, # No random recruitment
                                            msmMode = 0, # Single species mode
                                            silent = TRUE,
                                            recompile = FALSE,
-                                           phase = NULL)
+                                           phase = "default")
   }
 }
 
@@ -243,135 +260,80 @@ plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.
 
 
 ################################################
-# Model 2 - Add multi-species
+# Model 2 - Run multi-species
 ################################################
-ms_mod_list <- list()
-
-# Update M1 so it is smaller
-for(i in 1:length(mydata_list_ms)){
-  
-  # Old version
-  # mydata_list_ms[[i]]$M1_base[1,3] <- .143
-  # mydata_list_ms[[i]]$M1_base[1,4:12] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[2,3] <- 0.1
-  # mydata_list_ms[[i]]$M1_base[3,3] <- 0.01
-  # mydata_list_ms[[i]]$M1_base[4,3] <- 0.01
-  
-  # From profiles - Grid search would be better
-  mydata_list_ms[[i]]$M1_base[1,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.3394736 # Pollock
-  mydata_list_ms[[i]]$M1_base[2,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.207894 # Atf M
-  mydata_list_ms[[i]]$M1_base[3,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.28684 # Atf F
-  mydata_list_ms[[i]]$M1_base[4,3:ncol(mydata_list_ms[[i]]$M1_base)] <- 0.444736 # Cod
-}
-
-
-# Run models
-for(i in 1:length(mydata_list_ms)){
-  
-  
-  # Long time series models (1977-2018)
-  if(i >= 1 & i < 8){
-    # Initialize from ss weighted
-    inits <- ss_run_list_weighted[[1]]$estimated_params
+# - Run models
+for(i in 1:length(mydata_list)){
+  if(inits_M1_df$MsmMode[i] == 1){
     
-    # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
+    init_model <- inits_M1_df$InitModel[i]
+    M1_model <- inits_M1_df$M1_fixed_Model[i]
     
-    # Initialize from previous MS mod
-    if(i > 2){
-      inits <- ms_mod_list[[i-1]]$estimated_params
+    # Update composition weights for Cod of data set from Init Model
+    data <- mydata_list[[i]]
+    subs <- which(data$fleet_control$Species == 3)
+    data$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
+    
+    inits = mod_list_all[[init_model]]$estimated_params
+    inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
+    
+    # Estimate M1 set up
+    if(inits_M1_df$EstM1[i] == 1){
+      data$est_M1 <- c(1,2,1,0) 
     }
-  }
-  
-  
-  # Medium time series models (1993-2018)
-  if(i >= 8 & i < 10){
-    # Initialize from ss weighted
-    inits <- ss_run_list_weighted[[2]]$estimated_params
     
-    # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
-    
-    # Initialize from previous MS mod
-    if(i > 8){
-      # inits <- ms_mod_list[[i-1]]$estimated_params
+    # Fix M1 set up
+    if(inits_M1_df$EstM1[i] == 0){
+      data$est_M1 <- c(0,0,0,0) 
+      inits$ln_M1 <- log(exp(mod_list_all[[M1_model]]$estimated_params$ln_M1) * inits_M1_df$M_mult[i]) # Fix to previous estimates and multiply by 0.5, 1, or 1.5 for sensitivity
     }
-  }
-  
-  # Short time series models (1996-2018)
-  if(i >= 10){
-    # Initialize from ss weighted
-    inits <- ss_run_list_weighted[[3]]$estimated_params
     
-    # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[3]]$data_list$fleet_control$Est_weights_macallister
     
-    # Initialize from previous MS mod
-    # if(i > 10){
-    #   inits <- ms_mod_list[[i-1]]$estimated_params
-    # }
-  }
-  
-  # Fit model
-  ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-    data_list = mydata_list_ms[[i]],
-    inits = inits, # Initial parameters = 0
-    file = NULL, # Don't save
-    debug = 0, # Estimate
-    random_rec = FALSE, # No random recruitment
-    msmMode = 1, # Multi species mode
-    silent = TRUE, phase = NULL,
-    niter = 3),
-    silent = TRUE)
-  
-  
-  # Phase in predation if doesnt converge
-  if( class(ms_mod_list[[i]]) == "try-error" ){
-    
-    fday_vec <- seq(0.1,1, by = 0.1)
-    
-    for(j in 1:length(fday_vec)){
-      my_data_tmp <- mydata_list_ms[[i]]
-      my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
-      
-      if(j > 1){
-        inits <- ms_mod_list[[i]]$estimated_params
-      }
-      
-      # Re-estimate
-      ms_mod_list[[i]] <- Rceattle::fit_mod(
-        data_list = my_data_tmp,
-        inits = inits, # Initial parameters = 0
-        file = NULL, # Don't save
-        debug = 0, # Estimate
-        random_rec = FALSE, # No random recruitment
-        msmMode = 1, # Multi species mode
-        silent = TRUE, phase = NULL,
-        niter = 3)
-    }
-  }
-  
-  
-  # If Hessian cant invert
-  if( is.null(ms_mod_list[[i]]$opt$objective) ){
-    ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-      data_list = mydata_list_ms[[i]],
-      inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+    # Fit model
+    mod_list_all[[i]] <- try( Rceattle::fit_mod(
+      data_list = data,
+      inits = inits, # Initial parameters = 0
       file = NULL, # Don't save
       debug = 0, # Estimate
       random_rec = FALSE, # No random recruitment
       msmMode = 1, # Multi species mode
-      silent = TRUE, phase = "default",
+      silent = TRUE, phase = NULL,
       niter = 3),
       silent = TRUE)
-  }
-  
-  # Try and phase if likelihood is discontinous
-  if(!is.null(ms_mod_list[[i]]$opt$objective)){
-    if( abs(ms_mod_list[[i]]$opt$objective -  ms_mod_list[[i]]$quantities$jnll) > 1 ){
-      ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-        data_list = mydata_list_ms[[i]],
-        inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
+    
+    
+    # Phase in predation if doesnt converge
+    if( class(mod_list_all[[i]]) == "try-error" ){
+      
+      fday_vec <- seq(0.5,1, by = 0.1)
+      
+      for(j in 1:length(fday_vec)){
+        my_data_tmp <- data
+        my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+        
+        if(j > 1){
+          inits <- mod_list_all[[i]]$estimated_params
+        }
+        
+        # Re-estimate
+        mod_list_all[[i]] <- Rceattle::fit_mod(
+          data_list = my_data_tmp,
+          inits = inits, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = NULL,
+          niter = 3)
+      }
+    }
+    
+    
+    # If Hessian cant invert or is discontinuous - PHASE
+    if( is.null(mod_list_all[[i]]$opt$objective)){
+      mod_list_all[[i]] <- try( Rceattle::fit_mod(
+        data_list = data,
+        inits = inits, # Initial parameters = 0
         file = NULL, # Don't save
         debug = 0, # Estimate
         random_rec = FALSE, # No random recruitment
@@ -380,30 +342,150 @@ for(i in 1:length(mydata_list_ms)){
         niter = 3),
         silent = TRUE)
     }
+    
+    # Discontinuous ll
+    if(!is.null(mod_list_all[[i]]$opt$objective)){
+      if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+        mod_list_all[[i]] <- try( Rceattle::fit_mod(
+          data_list = data,
+          inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = "default",
+          niter = 3),
+          silent = TRUE)
+      }
+    } 
   }
 }
 
 
 # Check convergence
-sapply(ms_mod_list, function(x) x$opt$objective) 
-round(sapply(ms_mod_list, function(x) x$quantities$jnll - x$opt$objective), 3)
-sapply(ms_mod_list, function(x) x[1])
-
-# Run models again that have divergent likelihoods
-for(i in c(11)){
-  # Fit model
-  ms_mod_list[[i]] <- try( Rceattle::fit_mod(
-    data_list = ms_mod_list[[i]]$data_list,
-    inits = ms_mod_list[[i]]$estimated_params, # Initial parameters = 0
-    file = NULL, # Don't save
-    debug = 0, # Estimate
-    random_rec = FALSE, # No random recruitment
-    msmMode = 1, # Multi species mode
-    silent = TRUE, phase = NULL,
-    niter = 3),
-    silent = TRUE)
+inits_M1_df$Objective <- sapply(mod_list_all, function(x) x$opt$objective)
+inits_M1_df$Divergent_jnll <- NA
+for(i in 1:length(mod_list_all)){
+  if(!is.null(mod_list_all[[i]]$opt$objective)){
+    inits_M1_df$Divergent_jnll[i] <- round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3)
+  }
 }
-ms_mod_list_save <- ms_mod_list
+
+inits_M1_df$InitModel2 <- NA
+inits_M1_df$InitModel2[30] <- 29 # Medium time series - 150% M1
+
+################################################
+# Step 3 - Run unconverged models with new inits
+################################################
+for(i in 1:length(mydata_list)){
+  if(!is.na(inits_M1_df$InitModel2[i])){
+    
+    init_model <- inits_M1_df$InitModel2[i]
+    M1_model <- inits_M1_df$M1_fixed_Model[i]
+    
+    # Update composition weights for Cod of data set from Init Model
+    data <- mydata_list[[i]]
+    subs <- which(data$fleet_control$Species == 3)
+    data$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
+    
+    inits = mod_list_all[[init_model]]$estimated_params
+    inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
+    
+    # Estimate M1 set up
+    if(inits_M1_df$EstM1[i] == 1){
+      data$est_M1 <- c(1,2,1,0) 
+    }
+    
+    # Fix M1 set up
+    if(inits_M1_df$EstM1[i] == 0){
+      data$est_M1 <- c(0,0,0,0) 
+      inits$ln_M1 <- log(exp(mod_list_all[[M1_model]]$estimated_params$ln_M1) * inits_M1_df$M_mult[i]) # Fix to previous estimates and multiply by 0.5, 1, or 1.5 for sensitivity
+    }
+    
+    
+    # Fit model
+    mod_list_all[[i]] <- try( Rceattle::fit_mod(
+      data_list = data,
+      inits = inits, # Initial parameters = 0
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = FALSE, # No random recruitment
+      msmMode = 1, # Multi species mode
+      silent = TRUE, phase = NULL,
+      niter = 3),
+      silent = TRUE)
+    
+    
+    # Phase in predation if doesnt converge
+    if( class(mod_list_all[[i]]) == "try-error" ){
+      
+      fday_vec <- seq(0.5,1, by = 0.1)
+      
+      for(j in 1:length(fday_vec)){
+        my_data_tmp <- data
+        my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+        
+        if(j > 1){
+          inits <- mod_list_all[[i]]$estimated_params
+        }
+        
+        # Re-estimate
+        mod_list_all[[i]] <- Rceattle::fit_mod(
+          data_list = my_data_tmp,
+          inits = inits, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = NULL,
+          niter = 3)
+      }
+    }
+    
+    
+    # If Hessian cant invert or is discontinuous - PHASE
+    if( is.null(mod_list_all[[i]]$opt$objective)){
+      mod_list_all[[i]] <- try( Rceattle::fit_mod(
+        data_list = data,
+        inits = inits, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = "default",
+        niter = 3),
+        silent = TRUE)
+    }
+    
+    # Discontinuous ll
+    if(!is.null(mod_list_all[[i]]$opt$objective)){
+      if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+        mod_list_all[[i]] <- try( Rceattle::fit_mod(
+          data_list = data,
+          inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = "default",
+          niter = 3),
+          silent = TRUE)
+      }
+    } 
+  }
+}
+
+
+# Check convergence again
+inits_M1_df$Objective <- sapply(mod_list_all, function(x) x$opt$objective)
+inits_M1_df$Divergent_jnll <- NA
+for(i in 1:length(mod_list_all)){
+  if(!is.null(mod_list_all[[i]]$opt$objective)){
+    inits_M1_df$Divergent_jnll[i] <- round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3)
+  }
+}
+inits_M1_df[,-c("Divergent_jnl")]
+mod_list_all_save <- mod_list_all
 
 
 # Save

@@ -97,6 +97,7 @@ for(i in 1:length(mydata_list_1996)){
 mydata_list <- c(mydata_list_long, mydata_list_1993, mydata_list_1996)
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$est_M1 = rep(0,4)
+  mydata_list[[i]]$estDynamics = c(1,1,0,1)
 }
 
 
@@ -120,11 +121,14 @@ ss_run_list_weighted <- list()
 # Reweight the models
 for(i in 1:3){
   data <- ss_run_list[[i]]$data_list
-  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_macallister
+  data$fleet_control$Comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_mcallister
+  
+  inits <- ss_run_list[[i]]$estimated_params
+  inits$comp_weights <- ss_run_list[[i]]$data_list$fleet_control$Est_weights_mcallister
   
   # Refit
   ss_run_list_weighted[[i]] <- Rceattle::fit_mod(data_list = data,
-                                                 inits = ss_run_list[[i]]$estimated_params, # Initial parameters = 0
+                                                 inits = inits, # Initial parameters = 0
                                                  file = NULL, # Don't save
                                                  debug = 0, # Estimate
                                                  random_rec = FALSE, # No random recruitment
@@ -191,7 +195,7 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[1]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_macallister
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[1]]$data_list$fleet_control$Est_weights_mcallister
     
     # Initialize from previous MS mod
     if(i > 2){
@@ -206,7 +210,7 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[2]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_mcallister
     
     # Initialize from previous MS mod
     if(i > 8){
@@ -220,7 +224,7 @@ for(i in 1:length(mydata_list_ms)){
     inits <- ss_run_list_weighted[[3]]$estimated_params
     
     # Comp weights
-    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_macallister
+    mydata_list_ms[[i]]$fleet_control$Comp_weights <- ss_run_list[[2]]$data_list$fleet_control$Est_weights_mcallister
     
     # Initialize from previous MS mod
     if(i > 10){
