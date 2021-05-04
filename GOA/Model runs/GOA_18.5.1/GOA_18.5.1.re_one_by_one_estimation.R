@@ -19,7 +19,7 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 ################################################
 # Estimate 
 ################################################
-for(i in 1:nrow(inits_M1_df)){
+for(i in 1:8){
   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
     
     
@@ -33,7 +33,7 @@ for(i in 1:nrow(inits_M1_df)){
     nyrs <- data_tmp$projyr-data_tmp$styr +1
     
     # Update rec devs
-    inits_tmp <- within(mod_fe$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4))
+    inits_tmp <- within(mod_fe$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4, ln_srv_q_dev_re, ln_sel_slp_dev_re, sel_inf_dev_re))
     inits_tmp$rec_dev <- inits_tmp$rec_dev[,1:nyrs]
     
     # Fit model
@@ -48,12 +48,16 @@ for(i in 1:nrow(inits_M1_df)){
       niter = 3),
       silent = FALSE)
     
+
+    
     
     if(!is.null(mod_re)){
       if(class(mod_re) != "try-error"){
         save(mod_re, file = paste0("Models/Random_effects_models/18_5_1_re_Mod",i,"_",Sys.Date(),".Rdata"))
       }
     }
+    gc()
+    rm(mod_re)
   }
 }
 

@@ -22,7 +22,7 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 # for(i in 1:nrow(inits_M1_df)){
 #   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
 
-i = 2
+i = 3
     
     
     load("Models/18_5_1_2021-04-23.RData")
@@ -37,7 +37,6 @@ i = 2
     # Update rec devs
     inits_tmp <- within(mod_fe$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4, ln_srv_q_dev_re, ln_sel_slp_dev_re, sel_inf_dev_re))
     inits_tmp$rec_dev <- inits_tmp$rec_dev[,1:nyrs]
-    FreeADFun(mod_fe$obj)
     
     # Fit model
     mod_re <-  Rceattle::fit_mod(
