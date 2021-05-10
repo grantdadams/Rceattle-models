@@ -19,33 +19,35 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 ################################################
 # Estimate 
 ################################################
-for(i in 1:8){
+for(i in 3){
   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
     
     
-    load("Models/18_5_1_2021-04-23.RData")
+    load("Models/18_5_1_2021-05-07.RData")
     mod_fe = mod_list_all[[i]]
     rm(mod_list_all)
     
     # Update size of data by making smaller projection
     data_tmp <-  mod_fe$data_list
-    data_tmp$projyr <- 2020
-    nyrs <- data_tmp$projyr-data_tmp$styr +1
     
     # Update rec devs
-    inits_tmp <- within(mod_fe$estimated_params, rm(logH_1, logH_1a, logH_1b, logH_2, logH_3, H_4, ln_srv_q_dev_re, ln_sel_slp_dev_re, sel_inf_dev_re))
-    inits_tmp$rec_dev <- inits_tmp$rec_dev[,1:nyrs]
+    inits_tmp <- mod_fe$estimated_params
+    inits_tmp$srv_q_pow <- NULL
     
     # Fit model
-    mod_re <- try( Rceattle::fit_mod(
+    mod_re <- try( fit_mod(
+      cpp_dir = "~/GitHub/Rceattle/inst/executables",
       data_list = data_tmp,
       inits = inits_tmp, # Start from ms mod
       file = NULL, # Don't save
-      debug = FALSE, # Estimate
+      debug = 0, # Estimate
       random_rec = TRUE, # Random recruitment
       msmMode = data_tmp$msmMode,
-      silent = TRUE, phase = NULL, getHessian = TRUE,
-      niter = 3),
+      silent = TRUE, 
+      phase = NULL, 
+      getHessian = TRUE,
+      niter = 3,
+      recompile = FALSE),
       silent = FALSE)
     
 
@@ -63,5 +65,13 @@ for(i in 1:8){
 
 # Check which ones didnt converge
 # inits_M1_df$Converged = sapply(mod_list_re, function(x) class(x) != "try-error" & !is.null(x))
+round(mod_fe$quantities$jnll_comp, 3)[,1:10]
+round(mod_re$quantities$jnll_comp, 3)[,1:10]
+
+check <- c()
+for(i in 1:length(inits_tmp)){
+check[i] = sum(mod_fe$estimated_params[[i]] != mod_re$estimated_params[[i]], na.rm = TRUE)
+}
 
 
+sum(mod_fe$obj$par != mod_re$obj$par, na.rm = TRUE)
