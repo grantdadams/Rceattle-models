@@ -123,13 +123,13 @@ mydata_list <- list(
   mydata_coastwide_short_no_hal, # 12 - single-species SAFE M 
   mydata_coastwide_short_no_hal, # 13 - Multi-species no hal - Est M1
   mydata_coastwide_short, # 14 - Multi-species- Est M1 - coastwide short
-  mydata_aaf_short, # 15 - Multi-species- Est M1 - aaf short
+  mydata_aaf_short # 15 - Multi-species- Est M1 - aaf short
 )
 
 
 # Set up inits vectors
 inits_M1_df <- data.frame(
-  Model = 1:30,
+  Model = 1:15,
   MsmMode = c(0, rep(1,7), # Long
               0, rep(1,2), # Medium
               0, rep(1,3)), # Short 
@@ -138,7 +138,7 @@ inits_M1_df <- data.frame(
             0, rep(1, 3)), # Short
   InitModel = c(NA, rep(1,7), # Long
                 NA, rep(9,2), # Medium
-                NA, rep(18,3)) # Short
+                NA, rep(12,3)) # Short
 ) 
 
 

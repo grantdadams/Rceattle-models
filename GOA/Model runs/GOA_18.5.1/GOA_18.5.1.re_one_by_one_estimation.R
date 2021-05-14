@@ -5,13 +5,18 @@ setwd("Model runs/GOA_18.5.1")
 ################################################
 # Set-up specifications
 ################################################
+# Set up inits vectors
 inits_M1_df <- data.frame(
-  Model = 1:30,
-  Time = c(rep("Long", 8), rep("Medium", 9), rep("Short", 13)),
+  Model = 1:15,
   MsmMode = c(0, rep(1,7), # Long
-              0, rep(1,2), rep(1,2), rep(1,2), rep(1,2), # Medium
-              0, rep(1,3), rep(1,3), rep(1,3), rep(1,3)), # Short 
-  EstM1 = c(0, rep(1,7), rep(0, 7), rep(1, 2), rep(0, 10), rep(1, 3))
+              0, rep(1,2), # Medium
+              0, rep(1,3)), # Short 
+  EstM1 = c(0, rep(1,7), # Long
+            0, rep(1, 2), # Medium
+            0, rep(1, 3)), # Short
+  InitModel = c(NA, rep(1,7), # Long
+                NA, rep(9,2), # Medium
+                NA, rep(12,3)) # Short
 ) 
 inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-species")
 
@@ -19,11 +24,11 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 ################################################
 # Estimate 
 ################################################
-for(i in 3){
+for(i in 1:nrow(inits_M1_df)){
   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
     
     
-    load("Models/18_5_1_2021-05-07.RData")
+    load("Models/18_5_1_2021-05-13.RData")
     mod_fe = mod_list_all[[i]]
     rm(mod_list_all)
     
@@ -32,22 +37,20 @@ for(i in 3){
     
     # Update rec devs
     inits_tmp <- mod_fe$estimated_params
-    inits_tmp$srv_q_pow <- NULL
     
     # Fit model
     mod_re <- try( fit_mod(
-      cpp_dir = "~/GitHub/Rceattle/inst/executables",
       data_list = data_tmp,
       inits = inits_tmp, # Start from ms mod
       file = NULL, # Don't save
       debug = 0, # Estimate
       random_rec = TRUE, # Random recruitment
       msmMode = data_tmp$msmMode,
-      silent = TRUE, 
+      silent = FALSE, 
       phase = NULL, 
-      getHessian = TRUE,
+      getHessian = FALSE,
       niter = 3,
-      recompile = FALSE),
+      recompile = TRUE),
       silent = FALSE)
     
 

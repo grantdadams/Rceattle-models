@@ -11,6 +11,9 @@ data_tmp <-  mod_fe$data_list
 # Update rec devs
 inits_tmp <- mod_fe$estimated_params
 inits_tmp$srv_q_pow <- NULL
+inits_tmp$log_gam_a <- NULL
+inits_tmp$log_gam_b <- NULL
+inits_tmp$log_phi <- NULL
 
 
 
@@ -49,7 +52,7 @@ random_rec = TRUE # Random recruitment
 msmMode = data_tmp$msmMode
 silent = TRUE 
 phase = NULL 
-getHessian = TRUE
+getHessian = FALSE
 niter = 3
 silent = FALSE
 
@@ -203,9 +206,9 @@ if(!is.null(phase)){
         ln_sigma_sel = 4,
         ln_sigma_srv_index = 2,
         ln_sigma_fsh_catch = 2,
-        log_gam_a = 4,
-        log_gam_b = 4,
-        log_phi = 4,
+        # log_gam_a = 4,
+        # log_gam_b = 4,
+        # log_phi = 4,
         comp_weights = 4
       )
     }
@@ -314,6 +317,24 @@ if(!is.null(phase) & debug == FALSE ){
   step = step + 1
 }
 
+check <- c()
+for(yr in 1:42){
+  map_tmp <- map
+  map_tmp[[2]]$rec_dev[,yr:43] <- NA
+  map_tmp[[1]]$rec_dev <- as.factor(map_tmp[[2]]$rec_dev)
+  
+  # STEP 9 - Fit final model
+  obj = TMB::MakeADFun(
+    data_list_reorganized,
+    parameters = start_par,
+    DLL = TMBfilename,
+    map = map_tmp[[1]],
+    random = random_vars,
+    silent = silent
+  )
+  
+  check[yr] <- obj$fn()
+}
 
 # STEP 9 - Fit final model
 obj = TMB::MakeADFun(
@@ -347,6 +368,6 @@ opt <- nlminb(obj$par, obj$fn, obj$gr)
 #   )
 # }
 
-quantities <- obj$report(obj$env$last.par.best)
-quantities
+# quantities <- obj$report(obj$env$last.par.best)
+# quantities
 
