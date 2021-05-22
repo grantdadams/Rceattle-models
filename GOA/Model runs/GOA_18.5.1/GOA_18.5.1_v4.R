@@ -234,63 +234,23 @@ plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.
 # - Run models
 for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 1){
-    
-    init_model <- inits_M1_df$InitModel[i]
-    
-    # Update composition weights for Cod of data set from Init Model
-    data <- mydata_list[[i]]
-    subs <- which(data$fleet_control$Species == 3)
-    data$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
-    
-    inits = mod_list_all[[init_model]]$estimated_params
-    inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
-    
-    # Estimate M1 set up
-    data$est_M1 <- c(1,2,1,0) 
-    
-    
-    # Fit model
-    mod_list_all[[i]] <- try( Rceattle::fit_mod(
-      data_list = data,
-      inits = inits, # Initial parameters = 0
-      file = NULL, # Don't save
-      debug = 0, # Estimate
-      random_rec = FALSE, # No random recruitment
-      msmMode = 1, # Multi species mode
-      silent = TRUE, phase = NULL,
-      niter = 3),
-      silent = TRUE)
-    
-    
-    # Phase in predation if doesnt converge
-    if( class(mod_list_all[[i]]) == "try-error" ){
+    if(is.na(inits_M1_df$Divergent_jnll[i])){
       
-      fday_vec <- seq(0.5,1, by = 0.1)
+      init_model <- inits_M1_df$InitModel[i]
       
-      for(j in 1:length(fday_vec)){
-        my_data_tmp <- data
-        my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
-        
-        if(j > 1){
-          inits <- mod_list_all[[i]]$estimated_params
-        }
-        
-        # Re-estimate
-        mod_list_all[[i]] <- Rceattle::fit_mod(
-          data_list = my_data_tmp,
-          inits = inits, # Initial parameters = 0
-          file = NULL, # Don't save
-          debug = 0, # Estimate
-          random_rec = FALSE, # No random recruitment
-          msmMode = 1, # Multi species mode
-          silent = TRUE, phase = NULL,
-          niter = 3)
-      }
-    }
-    
-    
-    # If Hessian cant invert or is discontinuous - PHASE
-    if( is.null(mod_list_all[[i]]$opt$objective)){
+      # Update composition weights for Cod of data set from Init Model
+      data <- mydata_list[[i]]
+      subs <- which(data$fleet_control$Species == 3)
+      data$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
+      
+      inits = mod_list_all[[init_model]]$estimated_params
+      inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
+      
+      # Estimate M1 set up
+      data$est_M1 <- c(1,2,1,0) 
+      
+      
+      # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = data,
         inits = inits, # Initial parameters = 0
@@ -298,26 +258,79 @@ for(i in 1:length(mydata_list)){
         debug = 0, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
-        silent = TRUE, phase = "default",
+        silent = TRUE, phase = NULL,
         niter = 3),
         silent = TRUE)
-    }
-    
-    # Discontinuous ll
-    if(!is.null(mod_list_all[[i]]$opt$objective)){
-      if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+      
+      mod_list_all[[i]] <- try( Rceattle::fit_mod(
+        data_list = data,
+        inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+        file = NULL, # Don't save
+        debug = 0, # Estimate
+        random_rec = FALSE, # No random recruitment
+        msmMode = 1, # Multi species mode
+        silent = TRUE, phase = NULL,
+        niter = 5),
+        silent = TRUE)
+      
+      
+      # Phase in predation if doesnt converge
+      if( class(mod_list_all[[i]]) == "try-error" ){
+        
+        fday_vec <- seq(0.5,1, by = 0.1)
+        
+        for(j in 1:length(fday_vec)){
+          my_data_tmp <- data
+          my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+          
+          if(j > 1){
+            inits <- mod_list_all[[i]]$estimated_params
+          }
+          
+          # Re-estimate
+          mod_list_all[[i]] <- Rceattle::fit_mod(
+            data_list = my_data_tmp,
+            inits = inits, # Initial parameters = 0
+            file = NULL, # Don't save
+            debug = 0, # Estimate
+            random_rec = FALSE, # No random recruitment
+            msmMode = 1, # Multi species mode
+            silent = TRUE, phase = NULL,
+            niter = 5)
+        }
+      }
+      
+      
+      # If Hessian cant invert or is discontinuous - PHASE
+      if( is.null(mod_list_all[[i]]$opt$objective)){
         mod_list_all[[i]] <- try( Rceattle::fit_mod(
           data_list = data,
-          inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+          inits = inits, # Initial parameters = 0
           file = NULL, # Don't save
           debug = 0, # Estimate
           random_rec = FALSE, # No random recruitment
           msmMode = 1, # Multi species mode
           silent = TRUE, phase = "default",
-          niter = 3),
+          niter = 5),
           silent = TRUE)
       }
-    } 
+      
+      # Discontinuous ll
+      if(!is.null(mod_list_all[[i]]$opt$objective)){
+        if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+          mod_list_all[[i]] <- try( Rceattle::fit_mod(
+            data_list = data,
+            inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+            file = NULL, # Don't save
+            debug = 0, # Estimate
+            random_rec = FALSE, # No random recruitment
+            msmMode = 1, # Multi species mode
+            silent = TRUE, phase = "default",
+            niter = 5),
+            silent = TRUE)
+        }
+      } 
+    }
   }
 }
 
@@ -335,4 +348,4 @@ mod_list_all_save <- mod_list_all
 
 
 # Save
-save(mod_list_all, file = paste0("Models/18_5_1_", Sys.Date(),".RData"))
+save(mod_list_all, file = paste0("Models/18_5_1_Niter5_", Sys.Date(),".RData"))

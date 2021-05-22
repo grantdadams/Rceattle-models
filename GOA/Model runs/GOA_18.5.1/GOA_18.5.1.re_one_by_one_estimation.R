@@ -28,7 +28,7 @@ for(i in 1:nrow(inits_M1_df)){
   if(inits_M1_df$MsmMode[i] == 0 | inits_M1_df$EstM1[i] == 1){
     
     
-    load("Models/18_5_1_2021-05-13.RData")
+    load("Models/18_5_1_Niter5_2021-05-21.RData")
     mod_fe = mod_list_all[[i]]
     rm(mod_list_all)
     
@@ -46,11 +46,11 @@ for(i in 1:nrow(inits_M1_df)){
       debug = 0, # Estimate
       random_rec = TRUE, # Random recruitment
       msmMode = data_tmp$msmMode,
-      silent = FALSE, 
+      silent = TRUE, 
       phase = NULL, 
       getHessian = FALSE,
-      niter = 3,
-      recompile = TRUE),
+      niter = 5,
+      recompile = FALSE),
       silent = FALSE)
     
 
@@ -58,23 +58,23 @@ for(i in 1:nrow(inits_M1_df)){
     
     if(!is.null(mod_re)){
       if(class(mod_re) != "try-error"){
-        save(mod_re, file = paste0("Models/Random_effects_models/18_5_1_re_Mod",i,"_",Sys.Date(),".Rdata"))
+        save(mod_re, file = paste0("Models/Random_effects_models_5iter/18_5_1_re_5iter_Mod_",i,"_",Sys.Date(),".Rdata"))
       }
     }
     gc()
     rm(mod_re)
   }
 }
-
-# Check which ones didnt converge
-# inits_M1_df$Converged = sapply(mod_list_re, function(x) class(x) != "try-error" & !is.null(x))
-round(mod_fe$quantities$jnll_comp, 3)[,1:10]
-round(mod_re$quantities$jnll_comp, 3)[,1:10]
-
-check <- c()
-for(i in 1:length(inits_tmp)){
-check[i] = sum(mod_fe$estimated_params[[i]] != mod_re$estimated_params[[i]], na.rm = TRUE)
-}
-
-
-sum(mod_fe$obj$par != mod_re$obj$par, na.rm = TRUE)
+# 
+# # Check which ones didnt converge
+# # inits_M1_df$Converged = sapply(mod_list_re, function(x) class(x) != "try-error" & !is.null(x))
+# round(mod_fe$quantities$jnll_comp, 3)[,1:10]
+# round(mod_re$quantities$jnll_comp, 3)[,1:10]
+# 
+# check <- c()
+# for(i in 1:length(inits_tmp)){
+# check[i] = sum(mod_fe$estimated_params[[i]] != mod_re$estimated_params[[i]], na.rm = TRUE)
+# }
+# 
+# 
+# sum(mod_fe$obj$par != mod_re$obj$par, na.rm = TRUE)
