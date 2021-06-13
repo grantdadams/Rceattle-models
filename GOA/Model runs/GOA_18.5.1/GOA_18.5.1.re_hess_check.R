@@ -15,7 +15,6 @@ inits_tmp <- mod_fe$estimated_params
 
 
 TMBfilename = "ceattle_v01_07"
-cpp_directory = "~/GitHub/Rceattle/inst/executables"
 data_list = NULL
 inits = NULL
 map = NULL
@@ -47,13 +46,10 @@ file = NULL # Don't save
 debug = FALSE # Estimate
 random_rec = TRUE # Random recruitment
 msmMode = data_tmp$msmMode
-silent = TRUE 
 phase = NULL 
 getHessian = FALSE
 niter = 3
 silent = FALSE
-
-
 
 
 start_time <- Sys.time()
@@ -145,7 +141,7 @@ message("Step 1: Parameter build complete")
 # STEP 2 - BUILD MAP
 if (is.null(map)) {
   map <-
-    suppressWarnings(build_map(data_list, params, debug = FALSE, random_rec = random_rec))
+    suppressWarnings(build_map(data_list, params, debug = debug > 1, random_rec = random_rec))
 } else{
   map <- map
 }
@@ -221,51 +217,7 @@ if(!is.null(phase)){
 
 # STEP 5 - Compile CEATTLE is providing cpp file
 # - Get cpp file if not provided
-if(is.null(TMBfilename) | is.null(cpp_directory)){
-  cpp_directory <- system.file("executables",package="Rceattle")
-  TMBfilename <- "ceattle_v01_07"
-} else{
-  cpp_directory <- cpp_directory
-  TMBfilename <- TMBfilename
-}
-cpp_file <- paste0(cpp_directory, "/", TMBfilename)
-
-# - Remove compiled files if not compatible with system
-version_files <-
-  list.files(path = cpp_directory, pattern = TMBfilename)
-if (Sys.info()[1] == "Windows" &
-    paste0(TMBfilename, ".so") %in% version_files) {
-  suppressWarnings(try(dyn.unload(TMB::dynlib(paste0(cpp_file))), silent = TRUE))
-  suppressWarnings(file.remove(paste0(cpp_file, ".so")))
-  suppressWarnings(file.remove(paste0(cpp_file, ".o")))
-}
-if (Sys.info()[1] != "Windows" &
-    paste0(TMBfilename, ".dll") %in% version_files) {
-  suppressMessages(suppressWarnings(try(dyn.unload(TMB::dynlib(paste0(cpp_file))), silent = TRUE)))
-  suppressWarnings(file.remove(paste0(cpp_file, ".dll")))
-  suppressWarnings(file.remove(paste0(cpp_file, ".o")))
-}
-if (Sys.info()[1] != "Windows" &
-    paste0(TMBfilename, ".so") %!in% version_files) {
-  suppressWarnings(try(dyn.unload(TMB::dynlib(paste0(cpp_file))), silent = TRUE))
-  suppressWarnings(file.remove(paste0(cpp_file, ".dll")))
-  suppressWarnings(file.remove(paste0(cpp_file, ".o")))
-}
-if(recompile){
-  suppressMessages(suppressWarnings(try(dyn.unload(TMB::dynlib(paste0(cpp_file))), silent = TRUE)))
-  suppressWarnings(file.remove(paste0(cpp_file, ".dll")))
-  suppressWarnings(file.remove(paste0(cpp_file, ".so")))
-  suppressWarnings(file.remove(paste0(cpp_file, ".o")))
-}
-
-old_wd <- getwd()
-setwd(cpp_directory)
-TMB::compile(paste0(TMBfilename, ".cpp"), CPPFLAGS="-Wno-ignored-attributes")
-dyn.load(TMB::dynlib(paste0(TMBfilename)), silent = TRUE)
-# TMB::config(tape.parallel = 2, trace.optimize = 2, optimize.parallel = 2,
-#             DLL = TMBfilename)
-setwd(old_wd)
-
+TMBfilename <- "ceattle_v01_07"
 
 message("Step 4: Compile CEATTLE complete")
 
@@ -273,6 +225,7 @@ message("Step 4: Compile CEATTLE complete")
 # STEP 6 - Reorganize data and build model object
 Rceattle:::data_check(data_list)
 data_list_reorganized <- Rceattle::rearrange_dat(data_list)
+data_list_reorganized = c(list(model = "ceattle_v01_07"),data_list_reorganized)
 
 # - Update comp weights from data
 if(!is.null(data_list$fleet_control$Comp_weights)){
@@ -294,7 +247,7 @@ for(i in 1:length(map[[1]])){
 # STEP 8 - Fit model object
 step = 5
 # If phased
-if(!is.null(phase) & debug == FALSE ){
+if(!is.null(phase) & debug == 0 ){
   message(paste0("Step ", step,": Phasing begin"))
   phase_pars <- Rceattle::TMBphase(
     data = data_list_reorganized,
@@ -315,13 +268,24 @@ if(!is.null(phase) & debug == FALSE ){
 }
 
 
+# STEP 9 - Fit final model
+obj = TMB::MakeADFun(
+  data_list_reorganized,
+  parameters = start_par,
+  DLL = TMBfilename,
+  map = map[[1]],
+  random = random_vars,
+  silent = silent
+)
+
+
 library(coop)
 library(TMB)
 
 
 check_fn <- c()
 check_he <- c()
-for(yr in 1:42){
+for(yr in 2:42){
   map_tmp <- map
   map_tmp[[2]]$rec_dev[,yr:43] <- NA
   map_tmp[[1]]$rec_dev <- as.factor(map_tmp[[2]]$rec_dev)
@@ -341,7 +305,7 @@ for(yr in 1:42){
   he <- sdreport(obj, getJointPrecision = TRUE)
   hess <- he$jointPrecision
   hess <- hess[which(rownames(hess) %in% c("init_dev", "rec_dev")), which(colnames(hess) %in% c("init_dev", "rec_dev"))]
-  check_he[yr] <- sparsity(he)
+  check_he[yr] <- sparsity(as.matrix(hess))
 }
 
 # # STEP 9 - Fit final model
