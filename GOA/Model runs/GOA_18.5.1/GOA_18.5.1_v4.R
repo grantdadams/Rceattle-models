@@ -236,6 +236,7 @@ plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.
 # Model 2 - Run multi-species
 ################################################
 # - Run models
+inits_M1_df$Divergent_jnll <- NA
 for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
