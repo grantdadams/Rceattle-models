@@ -53,11 +53,37 @@ for(i in 1:nrow(inits_M1_df)){
       silent = TRUE, 
       phase = NULL, 
       getHessian = FALSE,
-      niter = 5,
+      niter = 3,
       recompile = FALSE),
       silent = FALSE)
     
 
+    
+    
+    if(!is.null(mod_re)){
+      if(class(mod_re) != "try-error"){
+        save(mod_re, file = paste0("Models/Random_effects_models_3iter/18_5_1_re_3iter_Mod_",i,"_",Sys.Date(),".Rdata"))
+      }
+    }
+    gc()
+    
+    
+    # Fit model
+    mod_re <- try( fit_mod(
+      data_list = data_tmp,
+      inits = mod_re$estimated_params, # Start from ms mod
+      file = NULL, # Don't save
+      debug = 0, # Estimate
+      random_rec = TRUE, # Random recruitment
+      msmMode = data_tmp$msmMode,
+      silent = TRUE, 
+      phase = NULL, 
+      getHessian = FALSE,
+      niter = 5,
+      recompile = FALSE),
+      silent = FALSE)
+    
+    
     
     
     if(!is.null(mod_re)){
