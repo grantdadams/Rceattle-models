@@ -21,6 +21,7 @@ inits_M1_df <- data.frame(
 inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-species")
 
 
+
 ################################################
 # Estimate 
 ################################################
@@ -34,6 +35,9 @@ for(i in 1:nrow(inits_M1_df)){
     
     # Update size of data by making smaller projection
     data_tmp <-  mod_fe$data_list
+    if(i == 11){
+      data_tmp$estDynamics <- c(0,0,0,2)
+    }
     
     # Update rec devs
     inits_tmp <- mod_fe$estimated_params

@@ -11,21 +11,11 @@ for(i in 1:length(re_mods)){
   load(paste0("Models/Random_effects_models/", re_mods[i]))
   mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 14,15)))
   mod_list_all[[mod_no]] <- mod_re
-  
-  
-  mod_list_all[[mod_no]]  <- try( fit_mod(
-    data_list = mod_list_all[[mod_no]]$data_list,
-    inits = mod_list_all[[mod_no]]$estimated_params, # Start from ms mod
-    file = NULL, # Don't save
-    debug = 2, # Estimate
-    random_rec = TRUE, # Random recruitment
-    msmMode = mod_list_all[[mod_no]]$data_list$msmMode,
-    silent = TRUE, 
-    phase = NULL, 
-    getHessian = FALSE,
-    niter = 5,
-    recompile = FALSE),
-    silent = FALSE)
+}
+
+mod_names = list()
+for(i in 1:length(mod_list_all)){
+  mod_names[[i]] <-names(mod_list_all[[i]]$quantities)
 }
 
 
@@ -39,6 +29,7 @@ for(i in 1:length(re_mods)){
 #   •	Model 9: a model that does not include predation (model 9) to represent a base single-species model 
 # •	Model 10: a mutlispecies model that did not include halibut predation (model 10). 
 # •	Model 11: a mutlispecies model with relative abundance-at-age of Pacific halibut in area 3 multiplied by an estimated parameter to allow the model to estimate the relative contribution of Pacific halibut predation to describing the dynamics of pollock, Pacific cod, and arrowtooth flounder. 
+
 # The four short term models for 1996 to 2018 were: 
 #   •	Model 12: a model that does not include predation (model 9) to represent a base single-species model 
 # •	Model 13: a mutlispecies model that did not include halibut predation (model 10). 
@@ -141,9 +132,9 @@ plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_nam
 plot_logindex(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
 
 
-######################### 
+#######################################################
 # Likelihood components
-#########################
+#######################################################
 nll_all <- data.frame(nll = sapply(mod_list_all, function(x) x$quantities$jnll),
                          k = sapply(mod_list_all, function(x) length(x$obj$env$last.par)),
                          aic = sapply(mod_list_all, function(x) x$opt$AIC))
@@ -216,41 +207,63 @@ jnll_summary <- rbind(jnll_summary[-pop_pen, ], jnll_summary_pop_pen)
 write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_delta_nll_components.csv")
 
 
-# Difference in biomass
+
+#######################################################
+# Biomass comparison
+#######################################################
+# - Long
 ssb_diff_long <- lapply(mod_list_all[2:8], function(x) x$quantities$biomassSSB / mod_list_all[[1]]$quantities$biomassSSB)
 biom_diff_long <- lapply(mod_list_all[2:8], function(x) x$quantities$biomass / mod_list_all[[1]]$quantities$biomass)
 R_diff_long <- lapply(mod_list_all[2:8], function(x) x$quantities$R / mod_list_all[[1]]$quantities$R)
 
-# All long ms models
+# -- All long ms models
 mean(sapply(ssb_diff_long[1:7], function(x) mean(x[1,])))
 mean(sapply(biom_diff_long[1:7], function(x) mean(x[1,])))
 mean(sapply(R_diff_long[1:7], function(x) mean(x[1,])))
 
-# No halibut Model 2
+# -- No halibut Model 2
 mean(ssb_diff_long[[1]][1,])
 mean(biom_diff_long[[1]][1,])
 
-# Halibut Models 3-8
+# -- Halibut Models 3-8
 mean(sapply(ssb_diff_long[2:7], function(x) mean(x[1,])))
 mean(sapply(biom_diff_long[2:7], function(x) mean(x[1,])))
 
-# Short models
-ssb_diff_short <- lapply(mod_list_all[10:15], function(x) x$quantities$biomassSSB / mod_list_all[[9]]$quantities$biomassSSB)
-biom_diff_short <- lapply(mod_list_all[10:15], function(x) x$quantities$biomass / mod_list_all[[9]]$quantities$biomass)
-R_diff_short <- lapply(mod_list_all[10:15], function(x) x$quantities$R / mod_list_all[[9]]$quantities$R)
 
-# Halibut
-mean(sapply(ssb_diff_short[1:4], function(x) mean(x[1,])))
-mean(sapply(biom_diff_short[1:4], function(x) mean(x[1,])))
-mean(sapply(R_diff_short[1:4], function(x) mean(x[1,])))
+# - Medium models
+ssb_diff_medium <- lapply(mod_list_all[10:11], function(x) x$quantities$biomassSSB / mod_list_all[[9]]$quantities$biomassSSB)
+biom_diff_medium <- lapply(mod_list_all[10:11], function(x) x$quantities$biomass / mod_list_all[[9]]$quantities$biomass)
+R_diff_medium <- lapply(mod_list_all[10:11], function(x) x$quantities$R / mod_list_all[[9]]$quantities$R)
 
-# No halibut
+# -- All medium models
+mean(sapply(ssb_diff_medium[1:2], function(x) mean(x[1,])))
+mean(sapply(biom_diff_medium[1:2], function(x) mean(x[1,])))
+mean(sapply(R_diff_medium[1:2], function(x) mean(x[1,])))
+
+# -- No halibut
+mean(ssb_diff_medium[[1]][1,])
+mean(biom_diff_medium[[1]][1,])
+
+
+# - Short models
+ssb_diff_short <- lapply(mod_list_all[13:15], function(x) x$quantities$biomassSSB / mod_list_all[[12]]$quantities$biomassSSB)
+biom_diff_short <- lapply(mod_list_all[13:15], function(x) x$quantities$biomass / mod_list_all[[12]]$quantities$biomass)
+R_diff_short <- lapply(mod_list_all[13:15], function(x) x$quantities$R / mod_list_all[[12]]$quantities$R)
+
+# -- All short models
+mean(sapply(ssb_diff_short[1:3], function(x) mean(x[1,])))
+mean(sapply(biom_diff_short[1:3], function(x) mean(x[1,])))
+mean(sapply(R_diff_short[1:3], function(x) mean(x[1,])))
+
+# -- No halibut
 mean(ssb_diff_short[[1]][1,])
 mean(biom_diff_short[[1]][1,])
-sapply(ssb_diff_short[2:4], function(x) mean(x[1,]))
-sapply(biom_diff_short[2:4], function(x) mean(x[1,]))
 
+exp(mod_list_all[[11]]$estimated_params$ln_pop_scalar)
 
+#######################################################
+# Predation time-series
+#######################################################
 # Time series of total natural mortality
 # Pollock
 zmax <- sapply(mod_list_all[1:3], function(x) max(x$quantities$M[1,1,1:10,1:42]))

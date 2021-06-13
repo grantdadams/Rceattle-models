@@ -153,6 +153,10 @@ for(i in 1:length(mydata_list)){
 }
 
 
+# Set-up relative abundance at age
+mydata_list[[11]]$estDynamics <- c(0,0,0,2)
+
+
 ################################################
 # Single species
 ################################################
