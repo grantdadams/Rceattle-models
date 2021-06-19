@@ -5,7 +5,10 @@ library(readxl)
 
 # Load models
 setwd("Model runs/GOA_18.5.1")
-load("Models/18_5_1_Niter5_2021-05-21.RData")
+# load("Models/18_5_1_Niter5_2021-06-13.RData")
+# mod_list_all5 <- mod_list_all
+load("Models/18_5_1_2021-05-13.RData")
+
 re_mods <- list.files("Models/Random_effects_models")
 for(i in 1:length(re_mods)){
   load(paste0("Models/Random_effects_models/", re_mods[i]))
@@ -83,12 +86,16 @@ Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
 # Convert to age-3 biomass
 Mod_18_5_1_3plusBiomass <- mod_list_ss
 for(i in 1:length(Mod_18_5_1_3plusBiomass)){
-  Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:49] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:49])
+  Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:43] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:43])
 }
 
 plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.5.1/18.5.1. Bridging weighted March 2021", model_names = c(mod_names_ss, "2018 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
 
 
+
+######################### 
+# TIME-SERIES PLOTS
+#########################
 # - Long time series
 file_name <- "Figures/18.5.1/18.5.1_models_long"
 plot_biomass(mod_list_long, file = file_name, model_names = mod_names_long, right_adj = 0.2, line_col = line_col_long)
@@ -100,9 +107,6 @@ plot_catch(mod_list_long, file = file_name, model_names = mod_names_long, right_
 plot_b_eaten(mod_list_long, file = file_name, add_ci = FALSE, model_names = mod_names_long, right_adj = 0.17, line_col = line_col, lwd = 2)
 
 
-######################### 
-# TIME-SERIES PLOTS
-#########################
 # Medium time-series
 file_name <- "Figures/18.5.1/18.5.1_models_medium"
 plot_biomass(mod_list_medium, file = file_name, model_names = mod_names_medium, right_adj = 0.17, line_col = line_col_medium)
@@ -126,8 +130,9 @@ plot_catch(mod_list_short, file = file_name, model_names = mod_names_short, righ
 # All plots
 file_name <- "Figures/18.5.1/18.5.1_models_all"
 plot_biomass(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
-plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = line_col, lwd = 2)
 plot_b_eaten(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_b_eaten_prop(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = line_col, lwd = 2)
 plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
 plot_logindex(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
 
@@ -323,25 +328,44 @@ mod_list_all[[3]]$data_list$UobsWtAge[which(mod_list_all[[3]]$data_list$UobsWtAg
 # }
 
 
-
+#######################################################
+# Individual model
+#######################################################
 # Plot an individual model
-mod_list_tmp <- mod_list_all[c(1,3)]
-for(i in 1:length(mod_list_tmp)){
-  mod_list_tmp[[i]]$quantities$biomass[1,1:49] <- colSums(mod_list_tmp[[i]]$quantities$biomassByage[1,3:10,1:49])
-}
+ind = 3
+file_name <- paste0("Figures/18.5.1/Time-series plots/18.5.1_mod_",ind)
+plot_biomass(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], species = c(1:3), line_col = line_col[ind])
+plot_ssb(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], line_col = line_col[ind])
+plot_recruitment(mod_list_all[[ind]], file = file_name, add_ci = TRUE, model_names = mod_names_all[ind], line_col = line_col[ind])
+plot_b_eaten_prop(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], line_col = line_col[ind], species = 1:3)
 
-mod_list_tmp <- c(mod_list_tmp, list(Mod_18_SAFE))
-model_names_tmp = c(mod_names_all[c(1,3)], "2018 SAFE")
 
-file_name <- "Figures/18.5.1/Time-series plots/18.5.1_mod_3"
-plot_biomass(mod_list_tmp, file = file_name, model_names = model_names_tmp, species = c(1:4))
-plot_ssb(mod_list_tmp, file = file_name, model_names = model_names_tmp)
-plot_recruitment(mod_list_tmp, file = file_name, add_ci = TRUE, model_names = model_names_tmp)
-plot_b_eaten_prop(mod_list_tmp[[2]], file = file_name, model_names = model_names_tmp[2])
 for(sp in 1:3){
-  plot_mortality(Rceattle = mod_list_tmp[[2]],
+  plot_mortality(Rceattle = mod_list_all[[ind]],
                  file = paste0(file_name,"_SPP", sp),
-                 incl_proj = FALSE,
+                 incl_proj = FALSE, zlim = c(0,max(sapply(mod_list_all[1:3], function(x) max(x$quantities$M[sp,,,])))),
                  contour = FALSE, spp = sp, maxage = 30, log = FALSE,
-                 title = paste0("Model ",mod_names_all[3]), height = ifelse(i < 9, 4, 6))
+                 title = paste0("Model ",mod_names_all[ind]), height = ifelse(i < 9, 4, 6))
 }
+
+
+
+#######################################################
+# Average M
+#######################################################
+nll_all$M_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[1,1,1:10,]))
+nll_all$M_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[2,1,1:21,]))
+nll_all$M_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[2,2,1:21,]))
+nll_all$M_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[3,1,1:12,]))
+
+nll_all$M2_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[1,1,1:10,]))
+nll_all$M2_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,1,1:21,]))
+nll_all$M2_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,2,1:21,]))
+nll_all$M2_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[3,1,1:12,]))
+
+nll_all$M1_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[1,1,1:10]))
+nll_all$M1_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[2,1,1:21]))
+nll_all$M1_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[2,2,1:21]))
+nll_all$M1_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[3,1,1:12]))
+
+write.csv(nll_all, "Figures/18.5.1/18.5.1.all_model_aic_nll.csv")

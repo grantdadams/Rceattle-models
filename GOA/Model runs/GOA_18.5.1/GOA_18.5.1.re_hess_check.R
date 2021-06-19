@@ -285,7 +285,7 @@ library(TMB)
 
 check_fn <- c()
 check_he <- c()
-for(yr in 2:42){
+for(yr in 8:42){
   map_tmp <- map
   map_tmp[[2]]$rec_dev[,yr:43] <- NA
   map_tmp[[1]]$rec_dev <- as.factor(map_tmp[[2]]$rec_dev)
