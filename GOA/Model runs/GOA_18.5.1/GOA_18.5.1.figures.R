@@ -134,7 +134,7 @@ plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod
 plot_b_eaten(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
 plot_b_eaten_prop(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
 plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
-plot_logindex(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
+plot_logindex(mod_list_all[1:15], file = file_name, model_names = 1:15, right_adj = 0.11, line_col = line_col)
 
 
 #######################################################
