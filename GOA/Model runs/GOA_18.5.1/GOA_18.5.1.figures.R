@@ -129,11 +129,11 @@ plot_catch(mod_list_short, file = file_name, model_names = mod_names_short, righ
 
 # All plots
 file_name <- "Figures/18.5.1/18.5.1_models_all"
-plot_biomass(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
-plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = line_col, lwd = 2)
-plot_b_eaten(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
-plot_b_eaten_prop(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = line_col, lwd = 2)
-plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.17, line_col = line_col, lwd = 2)
+plot_biomass(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
+plot_ssb(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
+plot_b_eaten(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
+plot_b_eaten_prop(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
+plot_recruitment(mod_list_all[1:15], file = file_name, add_ci = FALSE, model_names = mod_names_all, right_adj = 0.2, line_col = line_col, lwd = 2)
 plot_logindex(mod_list_all[1:15], file = file_name, model_names = mod_names_all, right_adj = 0, line_col = line_col)
 
 
@@ -358,10 +358,10 @@ nll_all$M_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[2,1,
 nll_all$M_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[2,2,1:21,]))
 nll_all$M_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M[3,1,1:12,]))
 
-nll_all$M2_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[1,1,1:10,]))
-nll_all$M2_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,1,1:21,]))
-nll_all$M2_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,2,1:21,]))
-nll_all$M2_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[3,1,1:12,]))
+nll_all$M2_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[1,1,1:3,]))
+nll_all$M2_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,1,1:3,]))
+nll_all$M2_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[2,2,1:3,]))
+nll_all$M2_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M2[3,1,1:3,]))
 
 nll_all$M1_pollock = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[1,1,1:10]))
 nll_all$M1_atff = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[2,1,1:21]))
