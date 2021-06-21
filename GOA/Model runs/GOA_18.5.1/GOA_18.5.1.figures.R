@@ -53,7 +53,7 @@ mod_list_short <- mod_list_all[12:15]
 mod_list_ss <- mod_list_all[c(1,9,12)]
 
 
-mod_names_all <- c(mod_names_long , mod_names_short)
+mod_names_all <- c(mod_names_long, mod_names_medium, mod_names_short)
 line_col <- oce::oce.colorsViridis(16)[1:15] 
 line_col_long <- line_col[1:8]
 line_col_medium <- line_col[9:11]
