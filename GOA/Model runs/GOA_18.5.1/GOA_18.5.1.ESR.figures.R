@@ -36,4 +36,16 @@ file_name <- "Figures/18.5.1/Model_avg/18.5.1_model_avg"
 plot_b_eaten(mod_avg, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = TRUE)
 plot_b_eaten_prop(mod_avg, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = FALSE)
 plot_m_at_age(Rceattle = mod_avg, age = 1, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = TRUE)
-plot_m2_at_age_prop(Rceattle = mod_avg, age = 1, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = FALSE)
+plot_m2_at_age_prop(Rceattle = mod_avg, age = 1, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0.23, line_col = 1, lwd = 2, species = 1:3, incl_mean = FALSE)
+
+
+round(mean(mod_avg$quantities$M[1,1,1,]),3)
+round(mean(mod_avg$quantities$M[2,1,1,]),3)
+round(mean(mod_avg$quantities$M[2,2,1,]),3)
+round(mean(mod_avg$quantities$M[3,1,1,]),3)
+
+
+round(mean(mod_avg$quantities$B_eaten[1,1,1,]),0)
+round(mean(mod_avg$quantities$B_eaten[2,1,1,]),0)
+round(mean(mod_avg$quantities$B_eaten[2,2,1,]),0)
+round(mean(mod_avg$quantities$B_eaten[3,1,1,]),0)
