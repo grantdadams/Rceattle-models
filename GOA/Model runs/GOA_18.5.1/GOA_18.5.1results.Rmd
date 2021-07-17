@@ -1,0 +1,62 @@
+---
+title: "GOA CEATTLE Results"
+author: "Grant Adams"
+date: "7/3/2021"
+output: word_document
+---
+```{r, echo = FALSE}
+library(Rceattle)
+library(wesanderson)
+library(ggplot2)
+library(readxl)
+
+# Load models
+setwd("Model runs/GOA_18.5.1")
+load("Models/18_5_1_Niter3_2021-06-14.RData")
+
+re_mods <- list.files("Models/Random_effects_models")
+for(i in 1:length(re_mods)){
+  load(paste0("Models/Random_effects_models/", re_mods[i]))
+  mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 14,15)))
+  mod_list_all[[mod_no]] <- mod_re
+}
+
+
+
+mod_names_long <- c("1. SS long", "2. MS-No Halibut long", "3. MS-Coast long avg", "4. MS-Coast long low", "5. MS-Coast long high", "6. MS-AAF long avg", "7. MS-AAF long low", "8. MS-AAF long high")
+mod_names_medium <- c("9. SS med", "10. MS-No Halibut med", "11. MS-Survey med")
+mod_names_short <- c("12. SS short", "13. MS-No Halibut short", "14. MS-Coast short", "15. MS-AAF short")
+mod_names_ss <- c(mod_names_long[1], mod_names_medium[1], mod_names_short[1])
+
+
+ms_mod_list <- mod_list_all[c(2:8, 10:15)]
+mod_list_long <- mod_list_all[1:8]
+mod_list_medium <- mod_list_all[9:11]
+mod_list_short <- mod_list_all[12:15]
+mod_list_ss <- mod_list_all[c(1,9,12)]
+mod_list_ms <- mod_list_all[c(2:8,10:11,13:15)]
+mod_list_ms_hal <- mod_list_all[c(3:8,11,14:15)]
+mod_list_ms_no_hal <- mod_list_all[c(2,10,13)]
+
+
+mod_names_all <- c(mod_names_long, mod_names_medium, mod_names_short)
+
+````
+*3.1. Fit to data*
+	Three single species and 12 multi-species age-structured models were fit to fishery and survey data from walleye pollock, arrowtooth flounder, Pacific cod, and Pacific halibut data in the GOA. Annual recruitment deviates were treated as random effects except for models 2-8 where estimation ran into memory limits (memory limits were encountered on PCs with 32, 64, 128, and 256 GB of ram). Models that excluded predation mortality (single-species models) provided the best fit to the data for both long (model 1) and short (model 12) time-series of data (Table 5). However, the model that included predation mortality and included Pacific halibut as relative numbers-at-age (model 11) provided the best fit to the data for the medium time-series (Table 5), owing to improved fit of the age/length composition data (Table 6). For the long time-series models (Models 1-8), single-species models provided the best fit overall to both index and composition data (Table 6). However, for short-time series models (Models 9-13), some models that included predation provided the best fit to index (Model 10) and composition data (Model 12). 
+
+*3.2. Time series of derived quantities with predation*
+The inclusion of predation and estimation of residual natural mortality led to relatively large differences in estimates of biomass, spawning stock biomass, and recruitment for walleye pollock compared to single-species models (Figures 2-4). Estimates of biomass, spawning stock biomass, and recruitment of Pacific cod were less sensitive to the inclusion of predation than both walleye pollock and arrowtooth flounder. Across all models that included predation, biomass of pollock was estimated to be on average 2.82, 2.45, and 2.52 times greater than estimates from single species models across all years for long term models fit to data from 1977 to 2018 (Models 2-8), medium term models fit to data from 1993 to 2018 (Models 10-11), and short term models fit to data from 1996 to 2018 (Models 13-15), respectively. Similarly, spawning stock biomass of walleye pollock was estimated to be 2.47, 1.80, and 1.98 times greater across all years and models when predation was included in long-, medium-, and short-term models (Figures 3 & 4). When Pacific halibut was excluded from multi-species models (Models 2, 10, & 13) biomass consumed by species included in the model was relatively lower (Figure 5) leading to slightly lower estimates of biomass, spawning stock biomass, and recruitment. On average 169,626 mt of age-1 pollock, 6,367 mt of age-1 arrowtooth flounder, 2,878 mt of age-1 Pacific cod was consumed annually by species included in the multispecies models (Figure 5). However, arrowtooth flounder was the primary consumer of walleye pollock and arrowtooth flounder biomass across all models (Figure 6). Compare average M at age?
+
+*3.3. Comparison of alternative time series length*
+Long, medium, and short term single species models provided similar estimates of biomass, spawning stock biomass, and recruitment for all species in the model (Figures 2-4) and similar estimates of biomass to the single species SAFE models (Supplementary Figure 1). However, while long, medium, and short term multi-species models fit with different Pacific halibut numbers at age between had similar trends in population quantities within time periods, long-term models generally differed slightly from short and medium term models. For example, recent estimates of  biomass and spawning stock biomass of walleye pollock and arrowtooth flounder were estimated to be greater and lower, respectively, from long time-term multispecies models. While we estimated that arrowtooth consumed the most biomass of walleye pollock across models,  the short-term models (Models 13-15) estimated that arrowtooth flounder consumed more biomass of walleye pollock than the long and medium term models (Figure 6). Arrowtooth flounder cannibalism was also slightly different across long, medium, and short term (Figure 6). Similarly, total natural mortality (M1 + M2) was estimated to be lower in long timer-series models (Figure 7) than short time-series models for walleye pollock (Figure 7). 
+
+*3.4. Comparison of alternative halibut distributions*
+	For the long time-series models, estimates of biomass, spawning stock biomass, and recruitment were robust to assumptions regarding historical Pacific halibut distribution in the GOA pre-1993. 15%, 50%, or 85% of the average adult halibut in area 3 between 1993 and 2018 was assumed for pre-1993 abundance in area 3 led to little difference in derived quantities (Figures 2-4). Similarly, using the numbers-at-age from the Pacific halibut areas-as-fleets and coast-wide models provided very similar trends in derived quantities for short time-series (Models 14 & 15) and long time-series models (Models 3-8).
+
+*3.5. Comparison of fixed vs relative halibut abundance*
+	To evaluate alternate inputs of fixed predators in the model we developed models that used both relative and fixed numbers-at-age for Pacific halibut. The scaling parameter for model 13 when Pacific halibut was incorporated as relative numbers-at-age of in area 3 from the IPHC fisheries independent set-line survey was estimated to be 1.53e-4 (s.e. = 0.20). The low estimate of this scaling parameter indicates that low Pacific halibut predation provided a better fit to the data.  Biomass, spawning stock biomass, and recruitment of all species were similar between multi-species models that excluded Pacific halibut predation (Model 10) and multi-species models that included relative halibut numbers-at-age (Model 13; Figures 2-4). Similarly, time series of predation mortality for walleye pollock from models 10 and 13 were very similar (Figure 7).
+
+*3.6. Biomass consumed*
+	Across multi-species models we estimated that on average 781,014 mt of pollock, 1,106 mt of arrowtooth flounder, and 6,971 mt of Pacific cod was consumed annually by predators included in the model (Figure 5). Annual trends in biomass consumed as prey varied by species owing to both trends in prey and predator abundance. Biomass consumed of pollock consumed as prey peaked in 2014 coinciding with a peak in recruitment (Figure 4-5). Similarly, peaks in biomass consumed as prey of arrowtooth flounder and Pacific cod coincided with elevated recruitment of both species owing to the fact that younger individuals had higher abundance and younger individuals are more vulnerable to predation (Figure 7). Arrowtooth flounder was the primary consumer of prey biomass in the model across all species (Figure 6), followed by Pacific halibut.
+

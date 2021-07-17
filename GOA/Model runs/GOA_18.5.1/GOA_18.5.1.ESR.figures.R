@@ -44,8 +44,33 @@ round(mean(mod_avg$quantities$M[2,1,1,]),3)
 round(mean(mod_avg$quantities$M[2,2,1,]),3)
 round(mean(mod_avg$quantities$M[3,1,1,]),3)
 
-
+# Age - 1
 round(mean(mod_avg$quantities$B_eaten[1,1,1,]),0)
 round(mean(mod_avg$quantities$B_eaten[2,1,1,]),0)
 round(mean(mod_avg$quantities$B_eaten[2,2,1,]),0)
 round(mean(mod_avg$quantities$B_eaten[3,1,1,]),0)
+
+
+c(round(mean(rowSums(mod_avg$quantities$B_eaten[1,1,,])),0),
+  round(mean(rowSums(mod_avg$quantities$B_eaten[2,1,,])),0),
+  round(mean(rowSums(mod_avg$quantities$B_eaten[2,2,,])),0),
+  round(mean(rowSums(mod_avg$quantities$B_eaten[3,1,,])),0))
+
+
+table1 <- data.frame(
+  Year = mod_avg$data_list$styr:mod_avg$data_list$projyr,
+  PollockM2 = round((mod_avg$quantities$M2[1,1,1,]),3),
+                     PollockZ = round((mod_avg$quantities$Zed[1,1,1,]),3),
+                     ATFFM2 = round((mod_avg$quantities$M2[2,1,1,]),3),
+                     ATFFZ = round((mod_avg$quantities$Zed[2,1,1,]),3),
+                     AFTMM2 = round((mod_avg$quantities$M2[2,2,1,]),3),
+                     AFTMZ = round((mod_avg$quantities$Zed[2,2,1,]),3),
+                     CODM2 = round((mod_avg$quantities$M2[3,1,1,]),3),
+                     CODZ = round((mod_avg$quantities$Zed[3,1,1,]),3))
+write.csv(table1, file = paste0(file_name, "age-1_zed"))
+
+# M1
+c(round(mean((mod_avg$quantities$M1[1,1,1])),3),
+  round(mean((mod_avg$quantities$M1[2,1,1])),3),
+  round(mean((mod_avg$quantities$M1[2,2,1])),3),
+  round(mean((mod_avg$quantities$M1[3,1,1])),3))

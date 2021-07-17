@@ -5,20 +5,13 @@ library(readxl)
 
 # Load models
 setwd("Model runs/GOA_18.5.1")
-# load("Models/18_5_1_Niter5_2021-06-13.RData")
-# mod_list_all5 <- mod_list_all
-load("Models/18_5_1_2021-05-13.RData")
+load("Models/18_5_1_Niter3_2021-06-14.RData")
 
 re_mods <- list.files("Models/Random_effects_models")
 for(i in 1:length(re_mods)){
   load(paste0("Models/Random_effects_models/", re_mods[i]))
   mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 14,15)))
   mod_list_all[[mod_no]] <- mod_re
-}
-
-mod_names = list()
-for(i in 1:length(mod_list_all)){
-  mod_names[[i]] <-names(mod_list_all[[i]]$quantities)
 }
 
 
@@ -86,7 +79,7 @@ Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
 # Convert to age-3 biomass
 Mod_18_5_1_3plusBiomass <- mod_list_ss
 for(i in 1:length(Mod_18_5_1_3plusBiomass)){
-  Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:43] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:43])
+  Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,])
 }
 
 plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.5.1/18.5.1. Bridging weighted March 2021", model_names = c(mod_names_ss, "2018 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
@@ -148,11 +141,11 @@ nll_all$daic[1:8] <- nll_all$aic[1:8] - min(nll_all$aic[1:8]) # Long
 nll_all$daic[9:11] <- nll_all$aic[9:11] - min(nll_all$aic[9:11]) # Med
 nll_all$daic[12:15] <- nll_all$aic[12:15] - min(nll_all$aic[12:15]) # Short
 nll_all <- round(nll_all)
-write.csv(nll_all, "Figures/18.5.1/18.5.1.all_model_aic_nll.csv")
+write.csv(nll_all, "Figures/18.5.1/18.5.1.all_model_aic_jnll.csv")
 
 
-# Table of likelihood components
-jnll_summary <- data.frame(matrix(NA, nrow = nrow(mod_list_all[[1]]$quantities$jnll_comp), ncol = (length(mod_list_all[1:15])+1)))
+# Table of likelihood component summary
+jnll_summary <- data.frame(matrix(NA, nrow = nrow(mod_list_all[[1]]$quantities$jnll_comp), ncol = (length(mod_list_all[1:15])+2)))
 jnll_summary[,1] = rownames(mod_list_all[[1]]$quantities$jnll_comp)
 
 for(i in 1:length(mod_list_all[1:15])){
@@ -162,13 +155,14 @@ for(i in 1:length(mod_list_all[1:15])){
   jnll_summary[,i+1] <- as.numeric(jnll_summary[,i+1])
 }
 jnll_summary[16,] <- c("Rec", jnll_summary[12,2:16] + jnll_summary[13,2:16])
+jnll_summary[17,] <- c("Sel pen", jnll_summary[5,2:16] + jnll_summary[6,2:16] + jnll_summary[7,2:16] + jnll_summary[8,2:16])
 jnll_summary <- rbind(jnll_summary, c("jnll", sapply(mod_list_all[1:15], function(x) x$quantities$jnll)))
 jnll_summary <- rbind(jnll_summary, c("k", sapply(mod_list_all[1:15], function(x) x$opt$number_of_coefficients[1])))
 for(i in 1:length(mod_list_all[1:15])){
   jnll_summary[,i+1] <- as.numeric(jnll_summary[,i+1])
 }
 jnll_summary = jnll_summary[-which(rowSums(jnll_summary[,2:14]) == 0),]
-write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_jnll_summary.csv")
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_nll_components_summary.csv")
 
 
 # Different in likelihood components
@@ -178,11 +172,11 @@ for(i in 1:(nrow(jnll_summary)-1)){
   jnll_summary[i,13:16] <- jnll_summary[i,13:16] - min(jnll_summary[i,13:16])
 }
 jnll_summary <- rbind(jnll_summary, c("DAIC", nll_all$daic))
-write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_delta_jnll_summary.csv")
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_model_delta_nll_components_summary.csv")
 
 
 
-# Table of likelihood bits
+# Table of all likelihood bits
 jnll_summary <- data.frame(matrix(NA, nrow = length(mod_list_all[[1]]$quantities$jnll_comp), ncol = (length(mod_list_all[1:15])+3)))
 jnll_summary[,1] = rep(rownames(mod_list_all[[1]]$quantities$jnll_comp), ncol(mod_list_all[[1]]$quantities$jnll_comp))
 jnll_summary[,2] = paste0(rep(rownames(mod_list_all[[1]]$quantities$jnll_comp), ncol(mod_list_all[[1]]$quantities$jnll_comp)), "_$Sp/Srv/Fsh_", rep(1:ncol(mod_list_all[[1]]$quantities$jnll_comp), each = nrow(mod_list_all[[1]]$quantities$jnll_comp)))
@@ -196,7 +190,7 @@ for(i in 1:length(mod_list_all[1:15])){
 }
 jnll_summary <- jnll_summary[which(rowSums(jnll_summary[,4:16]) !=0),]
 colnames(jnll_summary) <- c("Likelihood component", "Likelihood component2", "Fleet_name", 1:length(mod_list_all[1:15]))
-write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_nll_components.csv")
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.individual_nll_components.csv")
 
 # Different in likelihood components
 for(i in 1:nrow(jnll_summary)){
@@ -209,7 +203,7 @@ jnll_summary <- jnll_summary[which(rowSums(jnll_summary[,4:16]) !=0),]
 pop_pen <- which(jnll_summary[,1] == "Recruitment deviates" | jnll_summary[,1] == "Initial abundance deviates")
 jnll_summary_pop_pen <- jnll_summary[pop_pen, ]
 jnll_summary <- rbind(jnll_summary[-pop_pen, ], jnll_summary_pop_pen)
-write.csv(jnll_summary, "Figures/18.5.1/18.5.1.all_delta_nll_components.csv")
+write.csv(jnll_summary, "Figures/18.5.1/18.5.1.delta_individual_nll_components.csv")
 
 
 
@@ -271,48 +265,39 @@ exp(mod_list_all[[11]]$estimated_params$ln_pop_scalar)
 #######################################################
 # Time series of total natural mortality
 # Pollock
-zmax <- sapply(mod_list_all[1:3], function(x) max(x$quantities$M[1,1,1:10,1:42]))
-# zmax2 <- sapply(mod_list_all[9:15], function(x) max(x$quantities$M[1,1,1:10,1:26]))
+zmax <- max(sapply(mod_list_all, function(x) max(x$quantities$M[1,1,1:10,])))
 
-for(i in 1:length(mod_list_all[1:3])){
+for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
                  file = paste0("Figures/18.5.1/M2 Plots/Pollock/18.5.1_mod_",i),
                  incl_proj = FALSE,
-                 zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
+                 zlim = c(0,zmax),
                  contour = FALSE, spp = 1, maxage = 10,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
   
 }
 
 # Cod
-zmax <- sapply(mod_list_all[1:3], function(x) max((x$quantities$M[3,1,1:12,1:42])))
-# zmax2 <- sapply(mod_list_all[9:15], function(x) max((x$quantities$M[2,1,1:12,1:26])))
+zmax <- max(sapply(mod_list_all, function(x) max((x$quantities$M[3,1,1:12,]))))
 
-zmin <- sapply(mod_list_all[1:3], function(x) min((x$quantities$M[3,1,1:12,1:42])))
-# zmin2 <- sapply(mod_list_all[9:15], function(x) min((x$quantities$M[2,1,1:12,1:26])))
-
-natage <- sapply(mod_list_all[1:3], function(x) max(x$quantities$NByage[3,1,12:12,1:42]))
-# natage2 <- sapply(mod_list_all[9:15], function(x) max(x$quantities$NByage[2,1,12:12,1:26]))
-
-for(i in 1:length(mod_list_all[1:3])){
+for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
                  file = paste0("Figures/18.5.1/M2 Plots/Cod/18.5.1_mod_",i),
                  incl_proj = FALSE,
-                 zlim = c(ifelse(i < 9, min(zmin), min(zmin2)),ifelse(i < 9, max(zmax), max(zmax2))),
+                 zlim = c(0, zmax),
                  contour = FALSE, spp = 3, maxage = 12, log = FALSE,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 2.3, 3))
   
 }
 
 # ATF
-zmax <- sapply(mod_list_all[1:3], function(x) max((x$quantities$M[2,,1:30,1:42])))
-# zmax2 <- sapply(mod_list_all[9:15], function(x) max((x$quantities$M[3,,1:30,1:26])))
+zmax <- max(sapply(mod_list_all, function(x) max((x$quantities$M[2,,1:30,]))))
 
-for(i in 1:length(mod_list_all[1:3])){
+for(i in 1:length(mod_list_all)){
   plot_mortality(Rceattle = mod_list_all[[i]],
                  file = paste0("Figures/18.5.1/M2 Plots/ATF/18.5.1_mod_",i),
                  incl_proj = FALSE,
-                 zlim = c(0,ifelse(i < 9, max(zmax), max(zmax2))),
+                 zlim = c(0,zmax),
                  contour = FALSE, spp = 2, maxage = 30, log = FALSE,
                  title = paste0("Model ",mod_names_all[i]), height = ifelse(i < 9, 4, 6))
   
@@ -369,3 +354,8 @@ nll_all$M1_atfm = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[2,
 nll_all$M1_cod = sapply(mod_list_all[1:15], function(x) mean(x$quantities$M1[3,1,1:12]))
 
 write.csv(nll_all, "Figures/18.5.1/18.5.1.all_model_aic_nll.csv")
+
+# B_eaten average
+c(mean(sapply(mod_list_all[c(2:8, 10:11, 13:15)], function(x) mean(colSums(x$quantities$B_eaten[1,1,1:10,1:length(x$data_list$styr:x$data_list$endyr)])))),
+  mean(sapply(mod_list_all[c(2:8,10:11, 13:15)], function(x) mean(colSums(x$quantities$B_eaten[2,,,1:length(x$data_list$styr:x$data_list$endyr)])))),
+  mean(sapply(mod_list_all[c(2:8,10:11, 13:15)], function(x) mean(colSums(x$quantities$B_eaten[3,1,,1:length(x$data_list$styr:x$data_list$endyr)])))))
