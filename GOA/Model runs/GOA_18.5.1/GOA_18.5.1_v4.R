@@ -267,6 +267,7 @@ for(i in 1:length(mydata_list)){
         niter = 3),
         silent = TRUE)
       
+      # Fit 5 iter
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = data,
         inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
