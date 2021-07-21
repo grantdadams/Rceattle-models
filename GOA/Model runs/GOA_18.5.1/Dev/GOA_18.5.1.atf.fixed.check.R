@@ -6,22 +6,18 @@ setwd("Model runs/GOA_18.5.1/")
 # Data
 ################################################
 # Read the data in
-mydata_atf_fixed <- Rceattle::read_data( file = "Data/GOA_18.5.1_arrowtooth_single_species_1961-2018.xlsx")
-# Fishery - Non-parametric
-# Survey 1 - Logistic, q = 1
+mydata_atf <- Rceattle::read_data( file = "Data/GOA_18.5.1_arrowtooth_single_species_1961-2018.xlsx")
+# Fishery - Non-parametric selectivity
+# Survey 1 (Bottom Trawl) - Logistic selectivity, q = 1
 
 
 #######################################
-# Mod 0 - Estimate
+# Mod 1 - Estimate using CEATTLE
 #######################################
-mydata_atf_est <- mydata_atf_fixed
-mydata_atf_est$estDynamics = 0
+mydata_atf_est <- mydata_atf
+mydata_atf_est$estDynamics = 0 # Estimate dynamics
 
-dat <- rearrange_dat(mydata_atf_est)
-dat$pop_wt_index
-dat$ssb_wt_index
-
-atf_base <- Rceattle::fit_mod(
+atf_ceattle <- Rceattle::fit_mod(
   # cpp_directory = "C:/Users/Grant Adams/Documents/GitHub/Rceattle/inst/executables",
   data_list = mydata_atf_est,
   inits = NULL, # Initial parameters = 0
@@ -33,34 +29,15 @@ atf_base <- Rceattle::fit_mod(
   recompile = FALSE,
   phase = "default")
 
-#######################################
-# Mod 1 - Fix selectivity
-#######################################
-mydata_fix_sel <- mydata_atf_est
-mydata_fix_sel$fleet_control$Selectivity = 0
-atf_fix_sel <- Rceattle::fit_mod(
-  data_list = mydata_fix_sel,
-  inits = NULL, # Initial parameters = 0
-  file = NULL, # Don't save
-  debug = FALSE, # Estimate
-  random_rec = FALSE, # No random recruitment
-  msmMode = 0, # Single species mode
-  silent = TRUE,
-  recompile = FALSE,
-  phase = "default")
 
+#########################################################
+# Mod 2 - Fix n-at-age and parameters to 2017 SAFE values
+#########################################################
+mydata_atf_fixed <- mydata_atf
+mydata_atf_fixed$estDynamics = 1 # Do not estimate
+mydata_atf_fixed$NByageFixed[,5:25] <- mydata_atf_fixed$NByageFixed[,5:25] / 1000 # Numbers at age in CEATTLE is in 1,000's
 
-
-#######################################
-# Mod 2 - Fix n-at-age and parameters - Check likelihoods
-#######################################
-mydata_atf_fixed <- mydata_atf_fixed
-mydata_atf_fixed$end = 2017
-mydata_atf_fixed$estDynamics = 1
-mydata_atf_fixed$NByageFixed[,5:25] <- mydata_atf_fixed$NByageFixed[,5:25] / 1000
-
-# Scale n-at-age to vals
-mydata_atf_fixed$msmMode = 0
+# Make a parameters object to fill in with SAFE model estimates
 inits <- build_params(mydata_atf_fixed)
 
 # Fishery selectivity - Non-parametric
@@ -89,72 +66,18 @@ inits$ln_sel_slp[1,2,2] <- log(0.499999956106) # Male
 inits$sel_inf[1,2,1] <- 3.25807092424 # Female
 inits$sel_inf[1,2,2] <- 4.48573166827 # Male
 
-
-library(Rceattle)
-atf_fixed <- Rceattle::fit_mod(data_list = mydata_atf_fixed,
+atf_fixed <- Rceattle::fit_mod(data_list = mydata_atf,
                                inits = NULL, # Initial parameters = 0
                                file = NULL, # Don't save
-                               debug = 1, # Estimate
+                               debug = 1, # Do not estimate
                                random_rec = FALSE, # No random recruitment
                                msmMode = 0, # Single species mode
                                silent = TRUE,
                                recompile = FALSE,
                                phase = "default")
 
-# # Check selectivity
-# # - Survey
-# round(atf_fixed$quantities$sel[1,,,1] - mydata_atf_fixed$emp_sel[3:4, 6:26],5)
-# # - Fishery
-# round(atf_fixed$quantities$sel[2,,,1] - mydata_atf_fixed$emp_sel[1:2, 6:26],6)
-# #  Selectivities are the same
-# 
-# 
-# round(atf_fixed$quantities$jnll_comp,4)[1:12,1:2]
-# 
-# safe_jnll <- read.csv( file = "Data/ATF Tests/2018_SAFE_nll_components.csv")
-# rownames(safe_jnll) <- safe_jnll[,1]
-# safe_jnll = safe_jnll[,-c(1, 4:9)]
-# round(safe_jnll,6)[1:12,1:2]
-# 
-# # Save bits
-# srv_biom <- atf_fixed$data_list$srv_biom
-# srv_biom$est <- atf_fixed$quantities$srv_bio_hat
-# 
-# # Look at index
-# library(readxl)
-# safe_2018_index <- as.data.frame(read_xlsx("Data/2018_safe_expected_survey.xlsx", sheet = 1))
-# srv_biom$SAFE <- NA
-# index_cols <- data.frame(Index = c(7,1,2,3,4,5,6), Col = c(2,3,4,5,6,7,8))
-# for(i in 1:nrow(index_cols)){
-#   sub <- which(srv_biom$Fleet_code == index_cols$Index[i])
-#   yrs <- srv_biom$Year[sub]
-#   bio_hat <- safe_2018_index[which(safe_2018_index$Year %in% yrs),index_cols$Col[i]]
-#   srv_biom$SAFE[sub] <- bio_hat
-# }
-# srv_biom
-# srv_biom$RE <- (srv_biom$est - srv_biom$SAFE)/srv_biom$SAFE
-# write.csv(srv_biom, file = "srv_biom.csv")
-# 
-# 
-# # Check selectivities
-# # Srv 1 is all good
-# 
-# comp_hat <- mydata_atf_fixed$comp_data[,1:8]
-# comp_hat <- cbind(comp_hat, atf_fixed$quantities$comp_hat)
-# 
-# age_hat <- mydata_atf_fixed$comp_data[,1:8]
-# age_hat <- cbind(age_hat, atf_fixed$quantities$age_hat)
-# 
-# write.csv(comp_hat, file = "comp_hat.csv")
-# write.csv(t(atf_fixed$quantities$NByage[1,1,,]), file = "n_hat.csv")
-# write.csv(t(atf_fixed$quantities$Zed[1,1,,]), file = "zed_hat.csv")
-# write.csv(age_hat, file = "c_hat.csv")
-# 
-
-
-
 ######################### 
-# SAFE Models
+# Mod 3 - SAFE Models
 #########################
 
 library(readxl)
@@ -162,25 +85,22 @@ safe2018biomass <- as.data.frame(read_xlsx("Data/ATF Tests/2018_SAFE_atf_estimat
 safe2018ssb <- as.data.frame(read_xlsx("Data/ATF Tests/2018_SAFE_atf_estimates.xlsx", sheet = 2))
 safe2018rec <- as.data.frame(read_xlsx("Data/ATF Tests/2018_SAFE_atf_estimates.xlsx", sheet = 3))
 
-atf_safe_list <- list()
-for(i in 1:1){
-  atf_safe_list[[i]] <- atf_base
-  atf_safe_list[[i]]$quantities$biomass[1,1:57] <- t(safe2018biomass[,i+1])
-  atf_safe_list[[i]]$quantities$biomassSSB[1,1:57] <- t(safe2018ssb[,i+1])
-  atf_safe_list[[i]]$quantities$R[1,1:57] <- t(safe2018rec[,i+1])
-}
+atf_safe <- atf_ceattle
+atf_safe$quantities$biomass[1,1:57] <- t(safe2018biomass[,2])
+atf_safe$quantities$biomassSSB[1,1:57] <- t(safe2018ssb[,2])
+atf_safe$quantities$R[1,1:57] <- t(safe2018rec[,2])
+
 
 ######################### 
 # Plots
 #########################
 # - SAFE vs SS
-file_name <- "Figures/18.5.1/18.5.1_SAFE_vs_ceattle_atf"
-mod_list <- c(list(atf_base, atf_fixed, atf_safe_list[[1]]))
-mod_names <- c( "CEATTLE est", "CEATTLE natage fixed", "2018 SAFE (mt)")
+mod_list <- c(list(atf_ceattle, atf_safe))
+mod_names <- c( "CEATTLE est", "2018 SAFE (mt)")
 for(i in 1:length(mod_list)){
   mod_list[[i]]$data_list$endyr = 2017
 }
 
 
-plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
-plot_ssb(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+plot_biomass(mod_list, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+plot_ssb(mod_list, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
