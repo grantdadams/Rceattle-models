@@ -26,7 +26,7 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 ################################################
 # Estimate 
 ################################################
-for(i in 1:nrow(inits_M1_df)){
+for(i in 15){
   load("Models/18_5_1_Niter3_2021-06-14.RData")
   mod_fe = mod_list_all[[i]]
   rm(mod_list_all)
@@ -38,7 +38,7 @@ for(i in 1:nrow(inits_M1_df)){
   }
   
   # Update rec devs
-  inits_tmp <- mod_fe$estimated_params
+  inits_tmp <- mod_re$estimated_params
   rm(mod_fe)
   
   # Fit model - 3 iterations

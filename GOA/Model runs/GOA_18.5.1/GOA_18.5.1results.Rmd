@@ -10,19 +10,147 @@ library(wesanderson)
 library(ggplot2)
 library(readxl)
 
+options(scipen=2)
+
 # Load models
-setwd("Model runs/GOA_18.5.1")
 load("Models/18_5_1_Niter3_2021-06-14.RData")
 
-re_mods <- list.files("Models/Random_effects_models")
+re_mods <- list.files("Models/Random_effects_models_3iter")
 for(i in 1:length(re_mods)){
-  load(paste0("Models/Random_effects_models/", re_mods[i]))
-  mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 14,15)))
+  load(paste0("Models/Random_effects_models_3iter/", re_mods[i]))
+  mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 21,22)))
   mod_list_all[[mod_no]] <- mod_re
 }
 
 
+#' Model average of derived quantities
+#'
+#' @param Rceattle list of Rceattle model objects
+#' @param weights vector of weights to be used for weighting models
+#'
+#' @return an Rceattle object with derived quantities weighted by the specified weights. The length of the derived quantities spans the years which overlap across all models.
+#' @export
+#'
+model_average <- function(Rceattle, weights = NULL){
 
+  # Convert single one into a list
+  if(class(Rceattle) == "Rceattle"){
+    stop("Only one model provided")
+  }
+  if(is.null(weights)){
+    weights = rep(1/length(Rceattle), length(Rceattle))
+  }
+  weights <- weights/sum(weights)
+
+  # Extract timespan of each model
+  years <- sapply(Rceattle, function(x) x$data_list$styr:x$data_list$projyr)
+  endyrs <- sapply(Rceattle, function(x) x$data_list$endyr)
+  styrs <- sapply(Rceattle, function(x) x$data_list$styr)
+  projyrs <- sapply(Rceattle, function(x) x$data_list$projyr)
+  nyrs <- sapply(years, length)
+
+  min_projyr <- min(projyrs, na.rm = TRUE) # Find coverage across all models
+  min_hindyr <- min(endyrs, na.rm = TRUE) # Find coverage across all models
+  max_styr <- max(styrs, na.rm = TRUE)
+
+  # Initialize model average object
+  mod_avg <- Rceattle[[which(nyrs == min(nyrs))[1]]] # Copy a model of the smallest length to fill in
+  mod_avg_rel_proj_yrs <- (max_styr - mod_avg$data_list$styr + 1) : (min_projyr - mod_avg$data_list$styr + 1) # Find years of overlap
+  mod_avg_rel_hind_yrs <- (max_styr - mod_avg$data_list$styr + 1) : (min_hindyr - mod_avg$data_list$styr + 1) # Find years of overlap
+  mod_avg$estimated_params <- mod_avg$initial_params <- mod_avg$opt <- mod_avg$run_time <- mod_avg$sdrep <- mod_avg$obj <- mod_avg$map <- mod_avg$bounds <- NULL
+
+  # -- Set all quantities to zero
+  for(i in 1:length(mod_avg$quantities)){
+    mod_avg$quantities[[i]] <- replace(mod_avg$quantities[[i]], values = rep(0, length(mod_avg$quantities[[i]])))
+  }
+
+
+  # Average out derived quantities (Note: dimensions may be different)
+  for(i in 1:length(Rceattle)){
+    sub_rel_proj_yrs <- (max_styr - Rceattle[[i]]$data_list$styr + 1) : (min_projyr - Rceattle[[i]]$data_list$styr + 1) # Find years of overlap
+    sub_rel_hind_yrs <- (max_styr - Rceattle[[i]]$data_list$styr + 1) : (min_hindyr - Rceattle[[i]]$data_list$styr + 1) # Find years of overlap
+
+    # Average quantities of interest
+    # // -- Biomass components
+    mod_avg$quantities$R[, mod_avg_rel_proj_yrs] <- mod_avg$quantities$R[, mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$R[, sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$mn_rec <- mod_avg$quantities$mn_rec + Rceattle[[i]]$quantities$mn_rec * weights[i]
+
+    mod_avg$quantities$NByage[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$NByage[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$NByage[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$AvgN[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$AvgN[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$AvgN[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$biomassByage[,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$biomassByage[,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$biomassByage[,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$biomassSSBByage[,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$biomassSSBByage[,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$biomassSSBByage[,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$biomass[, mod_avg_rel_proj_yrs] <- mod_avg$quantities$biomass[, mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$biomass[, sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$biomassSSB[, mod_avg_rel_proj_yrs] <- mod_avg$quantities$biomassSSB[, mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$biomassSSB[, sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$B_eaten[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$B_eaten[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$B_eaten[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$sel[,,,mod_avg_rel_hind_yrs] <- mod_avg$quantities$sel[,,,mod_avg_rel_hind_yrs] + Rceattle[[i]]$quantities$sel[,,,sub_rel_hind_yrs] * weights[i]
+
+    # // -- Reference points
+    mod_avg$quantities$NbyageSPR <- mod_avg$quantities$NbyageSPR + mod_avg$quantities$NbyageSPR * weights[i]
+    mod_avg$quantities$SB0 <- mod_avg$quantities$SB0 + Rceattle[[i]]$quantities$SB0 * weights[i]
+    mod_avg$quantities$SB35 <- mod_avg$quantities$SB35 + Rceattle[[i]]$quantities$SB35 * weights[i]
+    mod_avg$quantities$SB40 <- mod_avg$quantities$SB40 + Rceattle[[i]]$quantities$SB40 * weights[i]
+
+
+    # // -- Survey components
+    # mod_avg$quantities$srv_bio_hat );
+    # mod_avg$quantities$srv_log_sd_hat );
+
+
+    # // Fishery components
+    mod_avg$quantities$F[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$F[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$F[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$F_tot[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$F_tot[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$F_tot[,,,sub_rel_proj_yrs] * weights[i]
+    # mod_avg$quantities$fsh_bio_hat );
+    # mod_avg$quantities$fsh_log_sd_hat );
+    mod_avg$quantities$proj_FABC[,mod_avg_rel_proj_yrs] <- mod_avg$quantities$proj_FABC[,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$proj_FABC[,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$FSPR <- mod_avg$quantities$FSPR + Rceattle[[i]]$quantities$FSPR * weights[i]
+    mod_avg$quantities$F35_tot <- mod_avg$quantities$F35_tot + Rceattle[[i]]$quantities$F35_tot * weights[i]
+    mod_avg$quantities$F40_tot <- mod_avg$quantities$F40_tot + Rceattle[[i]]$quantities$F40_tot * weights[i]
+
+
+    # // 12.5. Age/length composition
+    # mod_avg$quantities$age_obs_hat );
+    # mod_avg$quantities$age_hat );
+    # mod_avg$quantities$comp_obs );
+    # mod_avg$quantities$comp_hat );
+    # mod_avg$quantities$true_age_comp_hat );
+    # mod_avg$quantities$n_hat );
+    # mod_avg$quantities$comp_n );
+
+    # # -- Ration components
+    # mod_avg$quantities$ConsumAge );
+    # mod_avg$quantities$LbyAge );
+    # mod_avg$quantities$mnWt_obs );
+    # mod_avg$quantities$fT );
+    # mod_avg$quantities$env_index_hat );
+    # mod_avg$quantities$ration2Age );
+
+
+    # Mortality components
+    # mod_avg$quantities$suma_suit );
+    # mod_avg$quantities$suit_main );
+    # mod_avg$quantities$suit_other );
+    # mod_avg$quantities$stom_div_bio2 );
+    # mod_avg$quantities$stomKir );
+    # mod_avg$quantities$stomKirWt );
+    # mod_avg$quantities$avail_food );
+    # mod_avg$quantities$othersuit );
+    # mod_avg$quantities$of_stomKir );
+    mod_avg$quantities$M1 <- mod_avg$quantities$M1 + Rceattle[[i]]$quantities$M1 * weights[i]
+    mod_avg$quantities$M2[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$M2[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$M2[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$M[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$M[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$M[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$Zed[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$Zed[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$Zed[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$S[,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$S[,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$S[,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$M2_prop[,,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$M2_prop[,,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$M2_prop[,,,,sub_rel_proj_yrs] * weights[i]
+    mod_avg$quantities$B_eaten_prop[,,,,mod_avg_rel_proj_yrs] <- mod_avg$quantities$B_eaten_prop[,,,,mod_avg_rel_proj_yrs] + Rceattle[[i]]$quantities$B_eaten_prop[,,,,sub_rel_proj_yrs] * weights[i]
+    # mod_avg$quantities$UobsAge_hat );
+    # mod_avg$quantities$UobsWtAge_hat );
+  }
+
+  return(mod_avg)
+}
+
+
+# Model names
 mod_names_long <- c("1. SS long", "2. MS-No Halibut long", "3. MS-Coast long avg", "4. MS-Coast long low", "5. MS-Coast long high", "6. MS-AAF long avg", "7. MS-AAF long low", "8. MS-AAF long high")
 mod_names_medium <- c("9. SS med", "10. MS-No Halibut med", "11. MS-Survey med")
 mod_names_short <- c("12. SS short", "13. MS-No Halibut short", "14. MS-Coast short", "15. MS-AAF short")
@@ -41,22 +169,54 @@ mod_list_ms_no_hal <- mod_list_all[c(2,10,13)]
 
 mod_names_all <- c(mod_names_long, mod_names_medium, mod_names_short)
 
-````
+# Model average
+mov_avg_ss <- model_average(mod_list_ss)
+mov_avg_ms_no_hal <- model_average(mod_list_ms_no_hal)
+mov_avg_ms_hal <- model_average(mod_list_all[c(3:8,14:15)], weights = c(1,1,1,1,1,1,3,3))
+mov_avg_ms_rel_hal <- mod_list_all[[11]]
+mod_list_avg <- list(mov_avg_ss, mov_avg_ms_no_hal, mov_avg_ms_hal, mov_avg_ms_rel_hal)
+
+
+```
 *3.1. Fit to data*
-	Three single species and 12 multi-species age-structured models were fit to fishery and survey data from walleye pollock, arrowtooth flounder, Pacific cod, and Pacific halibut data in the GOA. Annual recruitment deviates were treated as random effects except for models 2-8 where estimation ran into memory limits (memory limits were encountered on PCs with 32, 64, 128, and 256 GB of ram). Models that excluded predation mortality (single-species models) provided the best fit to the data for both long (model 1) and short (model 12) time-series of data (Table 5). However, the model that included predation mortality and included Pacific halibut as relative numbers-at-age (model 11) provided the best fit to the data for the medium time-series (Table 5), owing to improved fit of the age/length composition data (Table 6). For the long time-series models (Models 1-8), single-species models provided the best fit overall to both index and composition data (Table 6). However, for short-time series models (Models 9-13), some models that included predation provided the best fit to index (Model 10) and composition data (Model 12). 
+Three single species and 12 multi-species age-structured models were fit to fishery and survey data from walleye pollock, arrowtooth flounder, Pacific cod, and Pacific halibut data in the GOA. Annual recruitment deviates were treated as random effects except for models. Models that excluded predation mortality (single-species models) provided the lowest AIC for the long time-series (model 1; Table 5). However, the model that included predation mortality and Pacific halibut as relative numbers-at-age (model 11) provided the lowest AIC for the medium time-series (Table 5), owing to improved fit of the age/length composition data (Table 6). For the short time-series of data, the model that included predation mortality, but excluded predation from Pacific halibut provide the lowest AIC because of improved fit of the age/length composition data as well (Table 5-6). For the long time-series models (Models 1-8), single-species models provided the best fit overall to both index and composition data (Table 6). for the medium time-series models (models 9-11), models that included predation provided the best fit to the index and composition data (Table 6). For short-time series models (Models 12-15), single-species model provided the best fit to the index data (model 12), while the model that included predation provided the best fit to composition data (Model 13). 
 
-*3.2. Time series of derived quantities with predation*
-The inclusion of predation and estimation of residual natural mortality led to relatively large differences in estimates of biomass, spawning stock biomass, and recruitment for walleye pollock compared to single-species models (Figures 2-4). Estimates of biomass, spawning stock biomass, and recruitment of Pacific cod were less sensitive to the inclusion of predation than both walleye pollock and arrowtooth flounder. Across all models that included predation, biomass of pollock was estimated to be on average 2.82, 2.45, and 2.52 times greater than estimates from single species models across all years for long term models fit to data from 1977 to 2018 (Models 2-8), medium term models fit to data from 1993 to 2018 (Models 10-11), and short term models fit to data from 1996 to 2018 (Models 13-15), respectively. Similarly, spawning stock biomass of walleye pollock was estimated to be 2.47, 1.80, and 1.98 times greater across all years and models when predation was included in long-, medium-, and short-term models (Figures 3 & 4). When Pacific halibut was excluded from multi-species models (Models 2, 10, & 13) biomass consumed by species included in the model was relatively lower (Figure 5) leading to slightly lower estimates of biomass, spawning stock biomass, and recruitment. On average 169,626 mt of age-1 pollock, 6,367 mt of age-1 arrowtooth flounder, 2,878 mt of age-1 Pacific cod was consumed annually by species included in the multispecies models (Figure 5). However, arrowtooth flounder was the primary consumer of walleye pollock and arrowtooth flounder biomass across all models (Figure 6). Compare average M at age?
+```{r}
 
-*3.3. Comparison of alternative time series length*
-Long, medium, and short term single species models provided similar estimates of biomass, spawning stock biomass, and recruitment for all species in the model (Figures 2-4) and similar estimates of biomass to the single species SAFE models (Supplementary Figure 1). However, while long, medium, and short term multi-species models fit with different Pacific halibut numbers at age between had similar trends in population quantities within time periods, long-term models generally differed slightly from short and medium term models. For example, recent estimates of  biomass and spawning stock biomass of walleye pollock and arrowtooth flounder were estimated to be greater and lower, respectively, from long time-term multispecies models. While we estimated that arrowtooth consumed the most biomass of walleye pollock across models,  the short-term models (Models 13-15) estimated that arrowtooth flounder consumed more biomass of walleye pollock than the long and medium term models (Figure 6). Arrowtooth flounder cannibalism was also slightly different across long, medium, and short term (Figure 6). Similarly, total natural mortality (M1 + M2) was estimated to be lower in long timer-series models (Figure 7) than short time-series models for walleye pollock (Figure 7). 
+#######################################################
+# Biomass comparison
+#######################################################
+# - Long
+ssb_diff_avg <- lapply(mod_list_avg[2:3], function(x) x$quantities$biomassSSB / mod_list_avg[[1]]$quantities$biomassSSB)
+biom_diff_avg <- lapply(mod_list_avg[2:3], function(x) x$quantities$biomass / mod_list_avg[[1]]$quantities$biomass)
+R_diff_avg <- lapply(mod_list_avg[2:3], function(x) x$quantities$R / mod_list_avg[[1]]$quantities$R)
 
-*3.4. Comparison of alternative halibut distributions*
-	For the long time-series models, estimates of biomass, spawning stock biomass, and recruitment were robust to assumptions regarding historical Pacific halibut distribution in the GOA pre-1993. 15%, 50%, or 85% of the average adult halibut in area 3 between 1993 and 2018 was assumed for pre-1993 abundance in area 3 led to little difference in derived quantities (Figures 2-4). Similarly, using the numbers-at-age from the Pacific halibut areas-as-fleets and coast-wide models provided very similar trends in derived quantities for short time-series (Models 14 & 15) and long time-series models (Models 3-8).
 
-*3.5. Comparison of fixed vs relative halibut abundance*
-	To evaluate alternate inputs of fixed predators in the model we developed models that used both relative and fixed numbers-at-age for Pacific halibut. The scaling parameter for model 13 when Pacific halibut was incorporated as relative numbers-at-age of in area 3 from the IPHC fisheries independent set-line survey was estimated to be 1.53e-4 (s.e. = 0.20). The low estimate of this scaling parameter indicates that low Pacific halibut predation provided a better fit to the data.  Biomass, spawning stock biomass, and recruitment of all species were similar between multi-species models that excluded Pacific halibut predation (Model 10) and multi-species models that included relative halibut numbers-at-age (Model 13; Figures 2-4). Similarly, time series of predation mortality for walleye pollock from models 10 and 13 were very similar (Figure 7).
+ssb_diff_avg4 <-  mod_list_avg[[4]]$quantities$biomassSSB[,1:24] / mod_list_avg[[1]]$quantities$biomassSSB
+biom_diff_avg4 <- mod_list_avg[[4]]$quantities$biomass[,1:24] / mod_list_avg[[1]]$quantities$biomass
+R_diff_avg4 <- mod_list_avg[[4]]$quantities$R[,1:24] / mod_list_avg[[1]]$quantities$R
+```
 
-*3.6. Biomass consumed*
-	Across multi-species models we estimated that on average 781,014 mt of pollock, 1,106 mt of arrowtooth flounder, and 6,971 mt of Pacific cod was consumed annually by predators included in the model (Figure 5). Annual trends in biomass consumed as prey varied by species owing to both trends in prey and predator abundance. Biomass consumed of pollock consumed as prey peaked in 2014 coinciding with a peak in recruitment (Figure 4-5). Similarly, peaks in biomass consumed as prey of arrowtooth flounder and Pacific cod coincided with elevated recruitment of both species owing to the fact that younger individuals had higher abundance and younger individuals are more vulnerable to predation (Figure 7). Arrowtooth flounder was the primary consumer of prey biomass in the model across all species (Figure 6), followed by Pacific halibut.
+*3.2. Time series of derived quantities from ensemble models*
+Ensemble models were constructed by averaging individual models across predation types (no predation, no halibut predation, halibut predation vis absolute or relative numbers at age). In ensemble models that included predation and estimation of residual natural mortality there were relatively large differences in estimates of biomass, spawning stock biomass, and recruitment of walleye pollock and arrowtooth flounder relative to the single-species ensemble model (Figures 2-4). For example, across all years, ensemble models that included predation estimated biomass of pollock to be on average `r round(mean(biom_diff_avg[[1]][1,1:23]), 2)` (Avg 2), `r round(mean(biom_diff_avg[[2]][1,1:23]), 2)` (Avg 3), and `r round(mean(biom_diff_avg4[1,1:23]), 2)` (Avg 4) times greater than estimates from the single species ensemble model. Similarly, spawning stock biomass of walleye pollock was estimated to be `r round(mean(ssb_diff_avg[[1]][1,1:23]), 2)` (Avg 2), `r round(mean(ssb_diff_avg[[2]][1,1:23]), 2)` (Avg 3), and `r round(mean(ssb_diff_avg4[1,1:23]), 2)` (Avg 4) times greater across all years when predation was included. These differences were also evident when comparing individual multi-species models to single-species models (Models 1-15; Supplementary Figures 2-4). However, estimates of biomass and spawning stock biomass of Pacific cod from ensemble models were less sensitive to the inclusion of predation. Alternatively, estimates of recruitment of Pacific cod were greater in ensemble models that included predation (Figure 4). 
+
+*3.3. Biomass consumed*
+When predation from Pacific halibut was included in the mutli-species ensemble models as absoluted numbers-at-age (Avg 3) biomass consumed of all species included in the model was relatively higher (Figure 5) leading to slightly lower estimates of biomass, spawning stock biomass, and recruitment. Trends were more similar between multi-species ensemble models that excluded Pacific halibut predation (Avg 2) or treated Pacific halibut as relative numbers-at-age (Model 11). The ensemble multi-species model that excluded predation from Pacific halibut (Avg 2) estimated that on average `r round(mean(colSums(mod_list_avg[[2]]$quantities$B_eaten[1,1,,1:23])))` mt of pollock, `r round(mean(colSums(mod_list_avg[[2]]$quantities$B_eaten[2,1,,1:23]) + colSums(mod_list_avg[[2]]$quantities$B_eaten[2,2,,1:23])))` mt of arrowtooth flounder, and `r round(mean(colSums(mod_list_avg[[2]]$quantities$B_eaten[3,1,,1:23])))` mt of Pacific cod was consumed annually by predators included in the model (Figure 5). However, the ensemble multi-species model that included predation from Pacific halibut as absolute numbers-at-age (Avg 3) estimated that on average `r round(mean(colSums(mod_list_avg[[3]]$quantities$B_eaten[1,1,,1:23])))` mt of pollock, `r round(mean(colSums(mod_list_avg[[3]]$quantities$B_eaten[2,1,,1:23]) + colSums(mod_list_avg[[3]]$quantities$B_eaten[2,2,,1:23])))` mt of arrowtooth flounder, and `r round(mean(colSums(mod_list_avg[[3]]$quantities$B_eaten[3,1,,1:23])))` mt of Pacific cod was consumed annually by predators included in the model (Figure 5). When Pacific halibut was included as relative numbers-at-age we estimated that  `r round(mean(colSums(mod_list_avg[[4]]$quantities$B_eaten[1,1,,1:23])))` mt of pollock, `r round(mean(colSums(mod_list_avg[[4]]$quantities$B_eaten[2,1,,1:23]) + colSums(mod_list_avg[[4]]$quantities$B_eaten[2,2,,1:23])))` mt of arrowtooth flounder, and `r round(mean(colSums(mod_list_avg[[4]]$quantities$B_eaten[3,1,,1:23])))` mt of Pacific cod was consumed annually on average as prey Temporal trends in biomass consumed as prey were similar across ensemble models. 
+
+Annual trends in biomass consumed as prey varied by species owing to both trends in prey and predator abundance. Biomass consumed of pollock consumed as prey peaked in 2014 coinciding with a peak in recruitment (Figure 4-5). Similarly, peaks in biomass consumed as prey of arrowtooth flounder and Pacific cod coincided with elevated recruitment of both species owing to the fact that younger individuals had higher abundance and younger individuals are more vulnerable to predation (Figure 7). Depending on the model, consumption of arrowtooth flounder as prey peaked in 2000 or 2001 and of Pacific cod as prey peaks in 2006 or 2007 (Figure 5). Arrowtooth flounder was the primary consumer of prey biomass in the model across all species (Figure 6), followed by Pacific halibut. Predation mortality was the greatest for younger age-classes across all species, peaking between 2002 and 2006 owing to increased biomass of Arrowtooth flounder. Given the smaller size of arrowtooth flounder males, predation mortality (and total natural mortality) was greater for males. For example, on average total natural mortality at age-1 was `r round(mean((mod_list_avg[[3]]$quantities$M[1,1,1,1:23])),2)`for pollock, `r round(mean((mod_list_avg[[3]]$quantities$M[2,1,1,1:23])),2)` for for arrowtooth flounder females ` round(mean((mod_list_avg[[3]]$quantities$M[2,2,1,1:23])),2)` for arrowtooth flounder males, and `r round(mean((mod_list_avg[[3]]$quantities$M[3,1,1,1:23])))`for Pacific cod in ensemble model with absolute abundance-at-age of Pacific halibut (Avg 3; Figure 5). By age-5 total natural mortality of all species consisted mostly of M1, which was was `r round(mean((mod_list_avg[[3]]$quantities$M[1,1,5,1:23])),2)`for pollock, `r round(mean((mod_list_avg[[3]]$quantities$M[2,1,1,1:23])),2)` for for arrowtooth flounder females `r round(mean((mod_list_avg[[3]]$quantities$M[2,2,1,1:23])),2)` for arrowtooth flounder males, and `r round(mean((mod_list_avg[[3]]$quantities$M[3,1,5,1:23])))`for Pacific cod as estimated from Avg 3.
+
+*3.4. Comparison of fixed vs relative halibut abundance*
+To evaluate alternate inputs of fixed predators in the model we developed models that used both relative and fixed numbers-at-age for Pacific halibut. The scaling parameter for model 11 when Pacific halibut was incorporated as relative numbers-at-age of in area 3 from the IPHC fisheries independent set-line survey was estimated to be `r round(mov_avg_ms_rel_hal$quantities$pop_scalar[4,1],4)` (s.e. = `r round(mov_avg_ms_rel_hal$sdrep$sd[which(names(mov_avg_ms_rel_hal$sdrep$value) == "pop_scalar")][4],2)`). The low estimate of this scaling parameter indicates that low Pacific halibut predation provided a better fit to the data.  Biomass, spawning stock biomass, and recruitment of all species were similar between multi-species ensemble models that excluded Pacific halibut predation (Avg 2) and the multi-species model that included relative halibut numbers-at-age (Model 11; Figures 2-4). Similarly, time series of predation mortality for walleye pollock from Avg 2 and Model 11 were very similar (Figure 7).
+
+*3.5. Comparison of alternative time series length from individual models*
+Long, medium, and short term single species models provided similar estimates of biomass to the single species SAFE models (Supplementary Figure 1) and similar estimates of biomass, spawning stock biomass, and recruitment across all models (Supplementary Figures 2-4). However, while long, medium, and short term multi-species models fit with different Pacific halibut numbers-at-age between had similar trends in population quantities within time periods, long-term models generally differed slightly from short and medium term models. For example, recent estimates of  biomass and spawning stock biomass of walleye pollock and arrowtooth flounder were estimated to be greater and lower, respectively, from long time-term multi-species models. While we estimated that arrowtooth consumed the most biomass of walleye pollock across models,  the short-term models (Models 13-15) estimated that arrowtooth flounder consumed more biomass of walleye pollock than the long- and medium-term models (Supplementary Figure 6). Arrowtooth flounder cannibalism was also slightly different across long, medium, and short term (Supplementary Figure 6) and total natural mortality (M1 + M2) was estimated to be lower in long timer-series models (Supplementary Figure 7) than short time-series models for walleye pollock (Supplementary Figure 7). 
+
+*3.6. Comparison of alternative halibut distributions from individual models*
+For the long time-series models, estimates of biomass, spawning stock biomass, and recruitment were robust to assumptions regarding historical Pacific halibut distribution in the GOA pre-1993. 15%, 50%, or 85% of the average adult halibut in area 3 between 1993 and 2018 was assumed for pre-1993 abundance in area 3 led to little difference in derived quantities (Supplementary Figures 2-4). Similarly, using the numbers-at-age from the Pacific halibut areas-as-fleets and coast-wide models provided very similar trends in derived quantities for all individual models.
+
+
+
+
+
+
 
