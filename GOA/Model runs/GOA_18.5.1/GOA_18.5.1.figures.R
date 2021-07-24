@@ -63,7 +63,7 @@ mov_avg_ms_hal <- model_average(mod_list_all[c(3:8,14:15)], weights = c(1,1,1,1,
 mov_avg_ms_rel_hal <- mod_list_all[[11]]
 
 mod_list_avg <- list(mov_avg_ss, mov_avg_ms_no_hal, mov_avg_ms_hal, mov_avg_ms_rel_hal)
-mod_list_avg_names <- c("Avg 1-SS", "Avg 2-MS NH", "Avg 3-MS H", "11")
+mod_list_avg_names <- c("Avg 1-SS", "Avg 2-MS No Halibut", "Avg 3-MS Halibut", "Avg 4-MS Relative Halibut")
 
 # Bounds diagnostics
 rel_diff_upper <- abs(mod_list_all[[2]]$opt$diagnostics$Upper - mod_list_all[[2]]$opt$diagnostics$MLE)
@@ -289,7 +289,7 @@ exp(mod_list_all[[11]]$estimated_params$ln_pop_scalar)
 # Predation time-series
 #######################################################
 # Time series of total natural mortality
-
+mod_list_avg_names <- c("Avg 1-SS", "Avg 2-MS No Halibut", "Avg 3-MS Halibut", "Avg 4-MS Relative Halibut")
 # -- Model average
 # Pollock
 zmax <- max(sapply(mod_list_avg, function(x) max(x$quantities$M[1,1,1:10,])))
