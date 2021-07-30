@@ -167,7 +167,7 @@ mod_list_ms_hal <- mod_list_all[c(3:8,11,14:15)]
 mod_list_ms_no_hal <- mod_list_all[c(2,10,13)]
 
 
-mod_names_all <- c(mod_names_long, mod_names_medium, mod_names_short)
+mod_names_all <- c(mod_names_long, mod_names_medium, mod_names_short, col = 1:8)
 
 # Model average
 mov_avg_ss <- model_average(mod_list_ss)

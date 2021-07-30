@@ -373,26 +373,37 @@ for(i in 1:length(mod_list_all)){
 }
 
 
-
 #######################################################
-# Individual model
+# M-at-age
 #######################################################
-# Plot an individual model
-ind = 3
-file_name <- paste0("Results/Figures/Time-series plots/18.5.1_mod_",ind)
-plot_biomass(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], species = c(1:3), line_col = line_col[ind])
-plot_ssb(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], line_col = line_col[ind])
-plot_recruitment(mod_list_all[[ind]], file = file_name, add_ci = TRUE, model_names = mod_names_all[ind], line_col = line_col[ind])
-plot_b_eaten_prop(mod_list_all[[ind]], file = file_name, model_names = mod_names_all[ind], line_col = line_col[ind], species = 1:3)
+Mmat <- matrix(NA, nrow = 22, ncol = 4*4)
+ind = 1
 
-
-for(sp in 1:3){
-  plot_mortality(Rceattle = mod_list_all[[ind]],
-                 file = paste0(file_name,"_SPP", sp),
-                 incl_proj = FALSE, zlim = c(0,max(sapply(mod_list_all[1:3], function(x) max(x$quantities$M[sp,,,])))),
-                 contour = FALSE, spp = sp, maxage = 30, log = FALSE,
-                 title = paste0("Model ",mod_names_all[ind]), height = ifelse(i < 9, 4, 6))
+for(i in 1:length(mod_list_avg)){
+  nyrs <- dim(mod_list_avg[[i]]$quantities$M)[4] - 1 # avoid projection years where no halibut
+  Mmat[1,ind] = mod_list_avg[[i]]$quantities$M1[1,1,1]
+  Mmat[2:11,ind] = rowMeans(mod_list_avg[[i]]$quantities$M[1,1,1:10,1:nyrs])
+  ind = ind+1
+  
+  
+  Mmat[1,ind] = mod_list_avg[[i]]$quantities$M1[2,1,1]
+  Mmat[2:22,ind] = rowMeans(mod_list_avg[[i]]$quantities$M[2,1,1:21,1:nyrs])
+  ind = ind+1
+  
+  Mmat[1,ind] = mod_list_avg[[i]]$quantities$M1[2,2,1]
+  Mmat[2:22,ind] = rowMeans(mod_list_avg[[i]]$quantities$M[2,2,1:21,1:nyrs])
+  ind = ind+1
+  
+  Mmat[1,ind] = mod_list_avg[[i]]$quantities$M1[3,1,1]
+  Mmat[2:13,ind] = rowMeans(mod_list_avg[[i]]$quantities$M[3,1,1:12,1:nyrs])
+  ind = ind+1
 }
+Mmat <- round(Mmat, 3)
+Mmat <- as.data.frame(Mmat)
+Mmat <- cbind(c("M1", 1:21), Mmat)
+Mmat <- rbind(c("NA", rep(c("Pollock", "ATF Fem", "ATF Male", "Cod"), 4)), Mmat)
+colnames(Mmat) <- c("Age", rep("Avg1", 4),rep("Avg2", 4),rep("Avg3", 4),rep("Avg4", 4))
+write.csv(Mmat, file = "Results/Tables/Model_average_average_M_at_age.csv")
 
 
 

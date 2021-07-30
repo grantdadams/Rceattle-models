@@ -29,7 +29,7 @@ inits_M1_df$Class = ifelse(inits_M1_df$MsmMode == 0, "Single-species", "Multi-sp
 for(i in 15){
   load("Models/18_5_1_Niter3_2021-06-14.RData")
   mod_fe = mod_list_all[[i]]
-  rm(mod_list_all)
+
   
   # Update size of data by making smaller projection
   data_tmp <-  mod_fe$data_list
@@ -38,8 +38,9 @@ for(i in 15){
   }
   
   # Update rec devs
-  inits_tmp <- mod_re$estimated_params
+  inits_tmp <- mod_list_all[[14]]$estimated_params
   rm(mod_fe)
+  rm(mod_list_all)
   
   # Fit model - 3 iterations
   mod_re <- try( fit_mod(
