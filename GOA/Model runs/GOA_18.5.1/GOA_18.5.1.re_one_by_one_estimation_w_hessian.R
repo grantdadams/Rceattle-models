@@ -27,16 +27,22 @@ mod_numbers <- as.numeric(sapply(strsplit(mod_numbers, "_2021"), "[", 1))
 ################################################
 # Estimate 
 ################################################
-for(i in 9:15){
-  load(paste0("Models/Random_effects_models_3iter/", re_mods[which(mod_numbers == i)]))
+for(i in 6){
+  
+  load("Models/18_5_1_Niter3_2021-06-14.RData")
+  mod_fe = mod_list_all[[i]]
   
   
   # Update size of data by making smaller projection
-  data_tmp <-  mod_re$data_list
+  data_tmp <-  mod_fe$data_list
+  if(i == 11){
+    data_tmp$estDynamics <- c(0,0,0,2)
+  }
   
   # Update rec devs
-  inits_tmp <- mod_re$obj$env$parList()
-  rm(mod_re)
+  inits_tmp <- mod_list_all[[i]]$estimated_params
+  rm(mod_fe)
+  rm(mod_list_all)
   
   # Fit model - 3 iterations
   mod_re <- try( fit_mod(

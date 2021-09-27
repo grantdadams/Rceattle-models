@@ -148,6 +148,9 @@ plot_logindex(mod_list_all, file = file_name, model_names = 1:15, right_adj = 0.
 line_col_avg <- oce::oce.colorsViridis(5)[1:4] 
 
 file_name <- "Results/Figures/Time_series/Model_average"
+mod_list_avg[[2]]$quantities$biomass[4,] <- NA
+mod_list_avg[[2]]$quantities$biomassSSB[4,] <- NA
+
 plot_biomass(mod_list_avg, file = file_name, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996)
 
 plot_b_eaten(mod_list_avg[2:4], file = file_name, add_ci = FALSE, width = 5, top_adj = 0.15, mod_cex = 1, height = 6, model_names = mod_list_avg_names[2:4], right_adj = 0, line_col = line_col_avg[2:4], lwd = 2, species = 1:3, minyr = 1996)
