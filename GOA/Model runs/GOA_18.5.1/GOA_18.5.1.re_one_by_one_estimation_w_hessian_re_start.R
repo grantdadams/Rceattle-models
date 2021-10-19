@@ -27,39 +27,20 @@ mod_numbers <- as.numeric(sapply(strsplit(mod_numbers, "_2021"), "[", 1))
 ################################################
 # Estimate 
 ################################################
-for(i in 8){
+for(i in 6){
   
-  load("Models/18_5_1_Niter3_2021-06-14.RData")
-  mod_ss = mod_list_all[[1]]
   
+  load("~/GitHub/RceattleRuns/GOA/Model runs/GOA_18.5.1/Models/Random_effects_models_3iter/18_5_1_re_3iter_Mod_6_2021-07-07.Rdata")
   
   # Update size of data by making smaller projection
-  data_tmp <-  mod_list_all[[i]]$data_list
+  data_tmp <-  mod_re$data_list
   if(i == 11){
     data_tmp$estDynamics <- c(0,0,0,2)
   }
   
   # Update rec devs
-  inits_tmp <- mod_ss$estimated_params
-  rm(mod_ss)
-  rm(mod_list_all)
-  
-  # Fit model - 3 iterations
-  mod_fe <- try( fit_mod(
-    data_list = data_tmp,
-    inits = inits_tmp, # Start from ms mod
-    file = NULL, # Don't save
-    debug = 0, # Estimate
-    random_rec = FALSE, # Random recruitment
-    msmMode = data_tmp$msmMode,
-    silent = TRUE, 
-    phase = NULL, 
-    getJointPrecision = TRUE,
-    niter = 3,
-    recompile = FALSE),
-    silent = FALSE)
-  
-  inits_tmp <- mod_fe$estimated_params
+  inits_tmp <- mod_re$obj$env$parList()
+  rm(mod_re)
   
   # Fit model - 3 iterations
   mod_re <- try( fit_mod(
