@@ -152,24 +152,24 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$est_M1 = rep(0,4)
 }
 
-mydata_list_base <- mydata_list
-for(i in 1:length(mydata_list_base)){
-  
-  # Comp
-  mydata_list[[i]]$comp_data <- mydata_list[[i]]$comp_data[which(mydata_list[[i]]$comp_data$Year > 2017)]
-  mydata_list[[i]]$comp_data <- rbind(mydata_coastwide2018$comp_data, mydata_list[[i]]$comp_data)
-  
-  # Survey
-  mydata_list[[i]]$srv_biom <- mydata_list[[i]]$srv_biom[which(mydata_list[[i]]$srv_biom$Year > 2017)]
-  mydata_list[[i]]$srv_biom <- rbind(mydata_coastwide2018$srv_biom, mydata_list[[i]]$srv_biom)
-  
-  # Alk
-  mydata_list[[i]]$age_trans_matrix <- mydata_coastwide2018$age_trans_matrix
-  
-  # Uobs
-  mydata_list[[i]]$UobsWtAge <- mydata_coastwide2018$UobsWtAge
-
-}
+# mydata_list_base <- mydata_list
+# for(i in 1:length(mydata_list_base)){
+#   
+#   # Comp
+#   mydata_list[[i]]$comp_data <- mydata_list[[i]]$comp_data[which(mydata_list[[i]]$comp_data$Year > 2017),]
+#   mydata_list[[i]]$comp_data <- rbind(mydata_coastwide2018$comp_data, mydata_list[[i]]$comp_data)
+#   
+#   # Survey
+#   mydata_list[[i]]$srv_biom <- mydata_list[[i]]$srv_biom[which(mydata_list[[i]]$srv_biom$Year > 2017),]
+#   mydata_list[[i]]$srv_biom <- rbind(mydata_coastwide2018$srv_biom, mydata_list[[i]]$srv_biom)
+#   
+#   # Alk
+#   mydata_list[[i]]$age_trans_matrix <- mydata_coastwide2018$age_trans_matrix
+#   
+#   # Uobs
+#   mydata_list[[i]]$UobsWtAge <- mydata_coastwide2018$UobsWtAge
+# 
+# }
 
 
 ################################################
@@ -177,7 +177,7 @@ for(i in 1:length(mydata_list_base)){
 ################################################
 mod_list_all <- list()
 
-for(i in 1:length(mydata_list)){
+for(i in 1){
   if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
                                            inits = NULL, # Initial parameters = 0
@@ -194,7 +194,7 @@ mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
 plot_biomass(mod_list_unweighted)
 
 # Reweight the single species Cod model
-for(i in 1:length(mydata_list)){
+for(i in 1:7){
   if(inits_M1_df$MsmMode[i] == 0){
     
     data <- mydata_list[[i]]
@@ -261,7 +261,7 @@ plot_biomass(mod_list_all[c(1,8)])
 
 # - Run models
 # run_models <- function(inits_M1_df, data_list, iter = 3)
-for(i in 1:length(mydata_list)){
+for(i in 1:7){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
       
@@ -273,7 +273,7 @@ for(i in 1:length(mydata_list)){
       inits$ln_M1[1,,] <- log(0.328) # pollock
       inits$ln_M1[2,1,] <- log(0.288) # arrowtooth females
       inits$ln_M1[2,2,] <- log(0.354) # arrowtooth males
-      inits$ln_M1[3,2,] <- log(0.474) # Pacific cod
+      inits$ln_M1[3,,] <- log(0.474) # Pacific cod
       
       # Estimate M1
       # mydata_list[[i]]$est_M1 = c(1,2,1,0)
