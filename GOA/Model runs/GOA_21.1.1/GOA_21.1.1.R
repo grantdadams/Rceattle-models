@@ -134,6 +134,8 @@ inits_M1_df <- data.frame(
               0, rep(1,7)), # Short 
   EstM1 = c(0, rep(1,7), # Long
             0, rep(1,7)), # Short
+  CompModel = c(NA, rep(1,7), # Long
+                NA, rep(9,7)), # Short
   InitModel = c(NA, 1, rep(2,6), # Long
                 NA, 9, rep(10,6)) # Short
 ) 
@@ -174,14 +176,14 @@ plot_biomass(mod_list_unweighted)
 # Reweight the single species Cod model
 for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 0){
-    
+
     data <- mydata_list[[i]]
     subs <- which(data$fleet_control$Species == 3) # Species 3 is cod
     data$fleet_control$Comp_weights[subs] <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_mcallister[subs]
-    
+
     inits = mod_list_all[[i]]$estimated_params
     inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
-    
+
     # Refit
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = data,
                                            inits = inits, # Initial parameters = 0
@@ -195,9 +197,9 @@ for(i in 1:length(mydata_list)){
   
   # Update composition weights for Cod of data set from Init Model- 
   if(inits_M1_df$MsmMode[i] != 0){
-  init_model <- inits_M1_df$InitModel[i]
+    CompModel <- inits_M1_df$CompModel[i]
   subs <- which(mydata_list[[i]]$fleet_control$Species == 3)
-  mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
+  mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[CompModel]]$data_list$fleet_control$Comp_weights[subs]
   }
 }
 
