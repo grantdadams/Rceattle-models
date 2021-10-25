@@ -1,5 +1,14 @@
 library(Rceattle)
 library(readxl)
+
+# - Long
+mydata_aaf2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1977-2018_aaf_long.xlsx")
+mydata_coastwide2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1977-2018_coastwide_long.xlsx")
+
+# - Short
+mydata_aaf_short2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1996-2018_aaf_short.xlsx")
+mydata_coastwide_short2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1996-2018_coastwide_short.xlsx")
+
 setwd("Model runs/GOA_21.1.1/")
 
 
@@ -139,9 +148,25 @@ inits_M1_df$Divergent_jnll <- NA
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$projyr = 2023
   mydata_list[[i]]$est_M1 = rep(0,4)
-  if(inits_M1_df$EstM1[i] == 1){
-    # mydata_list[[i]]$est_M1 = c(1,2,1,0)
-  }
+}
+
+mydata_list_base <- mydata_list
+for(i in 1:length(mydata_list_2)){
+  
+  # Comp
+  mydata_list[[i]]$comp_data <- mydata_list[[i]]$comp_data[which(mydata_list[[i]]$comp_data$Year > 2017)]
+  mydata_list[[i]]$comp_data <- rbind(mydata_coastwide2018$comp_data, mydata_list[[i]]$comp_data)
+  
+  # Survey
+  mydata_list[[i]]$srv_biom <- mydata_list[[i]]$srv_biom[which(mydata_list[[i]]$srv_biom$Year > 2017)]
+  mydata_list[[i]]$srv_biom <- rbind(mydata_coastwide2018$srv_biom, mydata_list[[i]]$srv_biom)
+  
+  # Alk
+  mydata_list[[i]]$age_trans_matrix <- mydata_coastwide2018$age_trans_matrix
+  
+  # Uobs
+  mydata_list[[i]]$UobsWtAge <- mydata_coastwide2018$UobsWtAge
+
 }
 
 
@@ -151,7 +176,7 @@ for(i in 1:length(mydata_list)){
 mod_list_all <- list()
 
 for(i in 1:length(mydata_list)){
-  #if(inits_M1_df$MsmMode[i] == 0){
+  if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
                                            inits = NULL, # Initial parameters = 0
                                            file = NULL, # Don't save
@@ -160,7 +185,7 @@ for(i in 1:length(mydata_list)){
                                            msmMode = 0, # Single species mode
                                            silent = TRUE,
                                            phase = "default")
-  #}
+  }
 }
 
 mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
@@ -248,6 +273,9 @@ for(i in 1:length(mydata_list)){
       inits$ln_M1[2,2,] <- log(0.354) # arrowtooth males
       inits$ln_M1[2,2,] <- log(0.474) # Pacific cod
       
+      # Estimate M1
+      # mydata_list[[i]]$est_M1 = c(1,2,1,0)
+      
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = mydata_list[[i]],
@@ -256,7 +284,7 @@ for(i in 1:length(mydata_list)){
         debug = FALSE, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
-        silent = TRUE, phase = NULL,
+        silent = TRUE, phase = "default",
         niter = 3),
         silent = TRUE)
       
@@ -344,14 +372,17 @@ inits_M1_df$Objective <- sapply(mod_list_all[1:11], function(x) x$opt$objective)
 inits_M1_df$Divergent_jnll <- NA
 for(i in 1:length(mod_list_all)){
   if(!is.null(mod_list_all[[i]]$opt$objective)){
-    inits_M1_df$Divergent_jnll[i] <- try(round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3))
+    inits_M1_df$Divergent_jnll[i] <- round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3)
   }
 }
+
 
 # Plot to see if things are reasonable
 plot_biomass(mod_list_all[which(!is.na(inits_M1_df$Divergent_jnll))])
 
-inits_M1_df$InitModel <- c(NA,4,4,4,4,4,4,NA,11,11,11,11,11,11)
+
+# Change initial value model and rerun
+inits_M1_df$InitModel <- c(NA,rep(3,6),NA,11,11,11,11,11,11)
 
 
 mod_list_all_save <- mod_list_all

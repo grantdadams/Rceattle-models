@@ -1,5 +1,12 @@
+# 2018 model as inits
+
 library(Rceattle)
 library(readxl)
+
+# Load 2018 models
+load("~/GitHub/RceattleRuns/GOA/Model runs/GOA_18.5.1/Models/18_5_1_Niter3_2021-06-14.RData")
+mod_list_all_2018 <- mod_list_all
+
 setwd("Model runs/GOA_21.1.1/")
 
 
@@ -129,8 +136,8 @@ inits_M1_df <- data.frame(
               0, rep(1,6)), # Short 
   EstM1 = c(0, rep(1,6), # Long
             0, rep(1,6)), # Short
-  InitModel = c(NA, rep(1,6), # Long
-                NA, rep(8,6)) # Short
+  InitModel = c(NA, 3:8, # Long
+                NA, rep(14,3), rep(15,3)) # Short
 ) 
 inits_M1_df$Divergent_jnll <- NA
 
@@ -151,7 +158,7 @@ for(i in 1:length(mydata_list)){
 mod_list_all <- list()
 
 for(i in 1:length(mydata_list)){
-  #if(inits_M1_df$MsmMode[i] == 0){
+  if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
                                            inits = NULL, # Initial parameters = 0
                                            file = NULL, # Don't save
@@ -160,7 +167,7 @@ for(i in 1:length(mydata_list)){
                                            msmMode = 0, # Single species mode
                                            silent = TRUE,
                                            phase = "default")
-  #}
+  }
 }
 
 mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
@@ -195,8 +202,6 @@ for(i in 1:length(mydata_list)){
   mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
   }
 }
-
-plot_biomass(mod_list_all[c(1,8)])
 
 
 # ######################### 
@@ -240,13 +245,38 @@ for(i in 1:length(mydata_list)){
       
       # Set up initial values
       init_model <- inits_M1_df$InitModel[i]
-      inits = mod_list_all[[init_model]]$estimated_params
+      inits = mod_list_all_2018[[init_model]]$estimated_params
+      nyrs_hind <- length(mydata_list[[i]]$styr:mydata_list[[i]]$endyr)-3
+      nyrs_proj <- length(mydata_list[[i]]$styr:mydata_list[[i]]$projyr)
       
       # Set M1 to 2018 model estimates
-      inits$ln_M1[1,,] <- log(0.328) # pollock
-      inits$ln_M1[2,1,] <- log(0.288) # arrowtooth females
-      inits$ln_M1[2,2,] <- log(0.354) # arrowtooth males
-      inits$ln_M1[2,2,] <- log(0.474) # Pacific cod
+      # Update parameters
+      # -- F_dev
+      inits$F_dev <- cbind(inits$F_dev, matrix(0, nrow= nrow(inits$F_dev), ncol = 3))
+      
+      # -- Time-varying survey catachbilitiy - Assume last year - filled by columns
+      inits$ln_srv_q_dev <- cbind(inits$ln_srv_q_dev, matrix(inits$ln_srv_q_dev[,ncol(inits$ln_srv_q_dev)], nrow= nrow(inits$ln_srv_q_dev), ncol = 3))
+      
+      # -- Time-varing selectivity - Assume last year - filled by columns
+      n_selectivities <- dim(inits$ln_sel_slp_dev)[2]
+      
+      ln_sel_slp_dev = array(0, dim = c(2, n_selectivities, 2, nyrs_hind + 3))  # selectivity deviations paramaters for logistic; n = [2, nspp]
+      sel_inf_dev = array(0, dim = c(2, n_selectivities, 2, nyrs_hind + 3))  # selectivity deviations paramaters for logistic; n = [2, nspp]
+      
+      ln_sel_slp_dev[,,,1:nyrs_hind] <- inits$ln_sel_slp_dev
+      sel_inf_dev[,,,1:nyrs_hind] <- inits$sel_inf_dev
+      
+      # - Initialize next year with terminal year
+      ln_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + 3)] <- ln_sel_slp_dev[,,,nyrs_hind]
+      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + 3)] <- sel_inf_dev[,,,nyrs_hind]
+      
+      inits$ln_sel_slp_dev <- ln_sel_slp_dev
+      inits$sel_inf_dev <- sel_inf_dev
+      
+      # Rec dev
+      rec_dev = array(0, dim = c(4, nyrs_proj + 1))  # 
+      rec_dev[,1:(nyrs_hind+1)] <- inits$rec_dev
+      inits$rec_dev <- rec_dev
       
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
