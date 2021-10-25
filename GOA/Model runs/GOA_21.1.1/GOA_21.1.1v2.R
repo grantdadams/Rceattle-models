@@ -1,3 +1,5 @@
+# FixM
+
 library(Rceattle)
 library(readxl)
 
@@ -151,7 +153,7 @@ for(i in 1:length(mydata_list)){
 }
 
 mydata_list_base <- mydata_list
-for(i in 1:length(mydata_list_2)){
+for(i in 1:length(mydata_list_base)){
   
   # Comp
   mydata_list[[i]]$comp_data <- mydata_list[[i]]$comp_data[which(mydata_list[[i]]$comp_data$Year > 2017)]
@@ -271,7 +273,7 @@ for(i in 1:length(mydata_list)){
       inits$ln_M1[1,,] <- log(0.328) # pollock
       inits$ln_M1[2,1,] <- log(0.288) # arrowtooth females
       inits$ln_M1[2,2,] <- log(0.354) # arrowtooth males
-      inits$ln_M1[2,2,] <- log(0.474) # Pacific cod
+      inits$ln_M1[3,2,] <- log(0.474) # Pacific cod
       
       # Estimate M1
       # mydata_list[[i]]$est_M1 = c(1,2,1,0)
@@ -304,63 +306,63 @@ for(i in 1:length(mydata_list)){
       #   niter = 3),
       #   silent = TRUE)
       
-      
-      # Phase in predation if doesnt converge
-      if( class(mod_list_all[[i]]) == "try-error" ){
-        
-        fday_vec <- seq(0.5,1, by = 0.1)
-        
-        for(j in 1:length(fday_vec)){
-          my_data_tmp <- mydata_list[[i]]
-          my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
-          
-          if(j > 1){
-            inits <- mod_list_all[[i]]$estimated_params
-          }
-          
-          # Re-estimate
-          mod_list_all[[i]] <- Rceattle::fit_mod(
-            data_list = my_data_tmp,
-            inits = inits, # Initial parameters = 0
-            file = NULL, # Don't save
-            debug = 0, # Estimate
-            random_rec = FALSE, # No random recruitment
-            msmMode = 1, # Multi species mode
-            silent = TRUE, phase = "default",
-            niter = 3)
-        }
-      }
-      
-      
-      # If Hessian cant invert or is discontinuous - PHASE
-      if( is.null(mod_list_all[[i]]$opt$objective)){
-        mod_list_all[[i]] <- try( Rceattle::fit_mod(
-          data_list = mydata_list[[i]],
-          inits = inits, # Initial parameters = 0
-          file = NULL, # Don't save
-          debug = 0, # Estimate
-          random_rec = FALSE, # No random recruitment
-          msmMode = 1, # Multi species mode
-          silent = TRUE, phase = "default",
-          niter = 3),
-          silent = TRUE)
-      }
-      
-      # Discontinuous ll
-      if(!is.null(mod_list_all[[i]]$opt$objective)){
-        if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
-          mod_list_all[[i]] <- try( Rceattle::fit_mod(
-            data_list = mydata_list[[i]],
-            inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
-            file = NULL, # Don't save
-            debug = 0, # Estimate
-            random_rec = FALSE, # No random recruitment
-            msmMode = 1, # Multi species mode
-            silent = TRUE, phase = "default",
-            niter = 3),
-            silent = TRUE)
-        }
-      } 
+      # 
+      # # Phase in predation if doesnt converge
+      # if( class(mod_list_all[[i]]) == "try-error" ){
+      #   
+      #   fday_vec <- seq(0.5,1, by = 0.1)
+      #   
+      #   for(j in 1:length(fday_vec)){
+      #     my_data_tmp <- mydata_list[[i]]
+      #     my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+      #     
+      #     if(j > 1){
+      #       inits <- mod_list_all[[i]]$estimated_params
+      #     }
+      #     
+      #     # Re-estimate
+      #     mod_list_all[[i]] <- Rceattle::fit_mod(
+      #       data_list = my_data_tmp,
+      #       inits = inits, # Initial parameters = 0
+      #       file = NULL, # Don't save
+      #       debug = 0, # Estimate
+      #       random_rec = FALSE, # No random recruitment
+      #       msmMode = 1, # Multi species mode
+      #       silent = TRUE, phase = "default",
+      #       niter = 3)
+      #   }
+      # }
+      # 
+      # 
+      # # If Hessian cant invert or is discontinuous - PHASE
+      # if( is.null(mod_list_all[[i]]$opt$objective)){
+      #   mod_list_all[[i]] <- try( Rceattle::fit_mod(
+      #     data_list = mydata_list[[i]],
+      #     inits = inits, # Initial parameters = 0
+      #     file = NULL, # Don't save
+      #     debug = 0, # Estimate
+      #     random_rec = FALSE, # No random recruitment
+      #     msmMode = 1, # Multi species mode
+      #     silent = TRUE, phase = "default",
+      #     niter = 3),
+      #     silent = TRUE)
+      # }
+      # 
+      # # Discontinuous ll
+      # if(!is.null(mod_list_all[[i]]$opt$objective)){
+      #   if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+      #     mod_list_all[[i]] <- try( Rceattle::fit_mod(
+      #       data_list = mydata_list[[i]],
+      #       inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+      #       file = NULL, # Don't save
+      #       debug = 0, # Estimate
+      #       random_rec = FALSE, # No random recruitment
+      #       msmMode = 1, # Multi species mode
+      #       silent = TRUE, phase = "default",
+      #       niter = 3),
+      #       silent = TRUE)
+      #   }
+      # } 
       gc()
     }
   }
