@@ -203,7 +203,7 @@ for(i in 1:length(mydata_list)){
   }
 }
 
-plot_biomass(mod_list_all[c(1,8)])
+plot_biomass(mod_list_all[c(1,9)])
 
 
 # ######################### 
