@@ -104,33 +104,38 @@ mydata_list <- list(
   
   # Long time-series 1977-2018
   mydata_coastwide_avg, # 1 - single-species SAFE M
-  mydata_coastwide_avg, # 2 - Multi-species est M1 coastwide historical average dist
-  mydata_coastwide_low, # 3 - Multi-species est M1 coastwide historical low dist
-  mydata_coastwide_high, # 4 - Multi-species est M1 coastwide historical high dist
-  mydata_aaf_avg, # 5 - Multi-species est M1 aaf historical avg dist
-  mydata_aaf_low, # 6 - Multi-species est M1 aaf historical low dist
-  mydata_aaf_high,# 7 - Multi-species est M1 aaf historical high dist
+  mydata_coastwide_avg, # 2 - Multispecies est M1 no halibut
+  mydata_coastwide_avg, # 3 - Multi-species est M1 coastwide historical average dist
+  mydata_coastwide_low, # 4 - Multi-species est M1 coastwide historical low dist
+  mydata_coastwide_high, # 5 - Multi-species est M1 coastwide historical high dist
+  mydata_aaf_avg, # 6 - Multi-species est M1 aaf historical avg dist
+  mydata_aaf_low, # 7 - Multi-species est M1 aaf historical low dist
+  mydata_aaf_high,# 8 - Multi-species est M1 aaf historical high dist
   
   # Short time series 1996-2018
-  mydata_coastwide_short_avg, # 8 - single-species SAFE M
-  mydata_coastwide_short_avg, # 9 - Multi-species est M1 coastwide future average dist
-  mydata_coastwide_short_low, # 10 - Multi-species est M1 coastwide future low dist
-  mydata_coastwide_short_high, # 11 - Multi-species est M1 coastwide future high dist
-  mydata_aaf_short_avg, # 12 - Multi-species est M1 aaf future avg dist
-  mydata_aaf_short_low, # 13 - Multi-species est M1 aaf future low dist
-  mydata_aaf_short_high # 14 - Multi-species est M1 aaf future high dist
+  mydata_coastwide_short_avg, # 9 - single-species SAFE M
+  mydata_coastwide_short_avg, # 10 - Multispecies no halibut
+  mydata_coastwide_short_avg, # 11 - Multi-species est M1 coastwide future average dist
+  mydata_coastwide_short_low, # 12 - Multi-species est M1 coastwide future low dist
+  mydata_coastwide_short_high, # 13 - Multi-species est M1 coastwide future high dist
+  mydata_aaf_short_avg, # 14 - Multi-species est M1 aaf future avg dist
+  mydata_aaf_short_low, # 15 - Multi-species est M1 aaf future low dist
+  mydata_aaf_short_high # 16 - Multi-species est M1 aaf future high dist
 )
 
+# No halibut
+mydata_list[[2]]$pvalue[4] <- 0
+mydata_list[[10]]$pvalue[4] <- 0
 
 # Set up inits vectors
 inits_M1_df <- data.frame(
-  Model = 1:14,
-  MsmMode = c(0, rep(1,6), # Long
-              0, rep(1,6)), # Short 
-  EstM1 = c(0, rep(1,6), # Long
-            0, rep(1,6)), # Short
-  InitModel = c(NA, rep(1,6), # Long
-                NA, rep(8,6)) # Short
+  Model = 1:16,
+  MsmMode = c(0, rep(1,7), # Long
+              0, rep(1,7)), # Short 
+  EstM1 = c(0, rep(1,7), # Long
+            0, rep(1,7)), # Short
+  InitModel = c(NA, 1, rep(2,6), # Long
+                NA, 9, rep(10,6)) # Short
 ) 
 inits_M1_df$Divergent_jnll <- NA
 
@@ -151,7 +156,7 @@ for(i in 1:length(mydata_list)){
 mod_list_all <- list()
 
 for(i in 1:length(mydata_list)){
-  #if(inits_M1_df$MsmMode[i] == 0){
+  if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
                                            inits = NULL, # Initial parameters = 0
                                            file = NULL, # Don't save
@@ -160,7 +165,7 @@ for(i in 1:length(mydata_list)){
                                            msmMode = 0, # Single species mode
                                            silent = TRUE,
                                            phase = "default")
-  #}
+  }
 }
 
 mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
@@ -234,7 +239,7 @@ plot_biomass(mod_list_all[c(1,8)])
 
 # - Run models
 # run_models <- function(inits_M1_df, data_list, iter = 3)
-for(i in 1:length(mydata_list)){
+for(i in 1:3){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
       
