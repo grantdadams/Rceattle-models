@@ -281,12 +281,12 @@ for(i in 1:7){
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = mydata_list[[i]],
-        inits = inits, # Initial parameters = 0
+        inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
         file = NULL, # Don't save
         debug = FALSE, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
-        silent = TRUE, phase = "default",
+        silent = TRUE, phase = NULL,
         niter = 3),
         silent = TRUE)
       
