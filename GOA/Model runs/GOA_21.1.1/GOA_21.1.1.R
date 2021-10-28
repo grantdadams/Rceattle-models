@@ -22,16 +22,16 @@ mydata_coastwide_short <- Rceattle::read_data( file = "Data/GOA_21_1_1_data_1993
 # From Ian:
 # 2018 Stock distribution estimates for all sizes of Pacific halibut captured by the IPHC's fishery-independent setline survey
 # These are roughly applicable to ages 5+.
-halibut_dist <- read.csv("Data/Halibut_3_dist_age5plus_1993-2018.csv")
+halibut_dist <- read.csv("Data/Halibut_3_dist_age5plus_1993-2020.csv")
 halibut_dist_avg <- rbind(data.frame(Year = 1977:1992, Region.3 = mean(halibut_dist$Region.3)), 
                           halibut_dist,
-                          data.frame(Year = 2019:2021, Region.3 = mean(halibut_dist$Region.3)))
+                          data.frame(Year = 2021, Region.3 = mean(halibut_dist$Region.3)))
 halibut_dist_low <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15)), 
                           halibut_dist, 
-                          data.frame(Year = 2019:2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15))) # Lower 25th percentile
+                          data.frame(Year = 2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15))) # Lower 25th percentile
 halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85)), 
                            halibut_dist, 
-                           data.frame(Year = 2019:2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85))) # Upper 75th percentile
+                           data.frame(Year = 2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85))) # Upper 75th percentile
 
 
 # Scale halibut numbers at age
@@ -149,6 +149,9 @@ for(i in 1:length(mydata_list)){
   if(inits_M1_df$EstM1[i] == 1){
     # mydata_list[[i]]$est_M1 = c(1,2,1,0)
   }
+  
+  # Pcod mort
+  mydata_list[[i]]$M1_base[4,3:12] <- 0.536892 # Endyr <- 0.485969
 }
 
 
@@ -206,31 +209,35 @@ for(i in 1:length(mydata_list)){
 plot_biomass(mod_list_all[c(1,9)])
 
 
-# ######################### 
-# # Compare with SAFE Models
-# #########################
-# # Columns = year, pollock, cod, atf
-# safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 1))
-# safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 2))
-# safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 3))
-# 
-# # Assign data to CEATTLE object
-# Mod_18_SAFE <- mod_list_all[[1]]
-# # - Pollock and ATF
-# Mod_18_SAFE$quantities$biomass[1:2,1:42] <- t(safe2018biomass[1:42,c(2,4)]) * 1000
-# Mod_18_SAFE$quantities$biomassSSB[1:2,1:42] <- t(safe2018ssb[1:42,c(2,4)]) * 1000
-# 
-# # - Cod
-# Mod_18_SAFE$quantities$biomass[3,1:42] <- t(safe2018biomass[1:42,c(3)])
-# Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
-# 
-# # Convert to age-3 biomass
-# Mod_18_5_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
-# for(i in 1:3){
-#   Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:(Mod_18_5_1_3plusBiomass[[i]]$data_list$endyr - Mod_18_5_1_3plusBiomass[[i]]$data_list$styr + 1)] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:(Mod_18_5_1_3plusBiomass[[i]]$data_list$endyr - Mod_18_5_1_3plusBiomass[[i]]$data_list$styr + 1)])
-# }
-# 
-# plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.5.1/18.5.1. Bridging weighted March 2021", model_names = c("2018 CEATTLE SS - long", "2018 CEATTLE SS - medium", "2018 CEATTLE SS - short", "2018 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
+#########################
+# Compare with SAFE Models
+#########################
+# Columns = year, pollock, cod, atf
+safe2021biomass <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 1))
+safe2021ssb <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 2))
+safe2021rec <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 3))
+
+# Assign data to CEATTLE object
+Mod_2021_SAFE <- mod_list_all[[1]]
+# - Pollock
+Mod_2021_SAFE$quantities$biomass[1,1:45] <- safe2021biomass$`2021_Pollock` * 1000000
+Mod_2021_SAFE$quantities$biomassSSB[1,1:45] <-  safe2021ssb$`2021_Pollock` * 1000000
+
+# - ATF
+Mod_2021_SAFE$quantities$biomass[2,1:45] <- safe2021biomass$`2021_ATF` 
+Mod_2021_SAFE$quantities$biomassSSB[2,1:45] <-  safe2021ssb$`2021_ATF` 
+
+# - Cod
+Mod_2021_SAFE$quantities$biomass[3,1:45] <- safe2021biomass$`2021_Cod` 
+Mod_2021_SAFE$quantities$biomassSSB[3,1:45] <- safe2021ssb$`2021_Cod`
+
+# Convert to age-3 biomass
+Mod_2021_1_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
+for(i in 1:length(Mod_2021_1_1_3plusBiomass)){
+  Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomass[1,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)] <- colSums(Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)])
+}
+
+plot_biomass(c(Mod_2021_1_1_3plusBiomass, list(Mod_2021_SAFE)), file =  "Results/21.1.1. Bridging weighted Oct 2021", model_names = c("2021 CEATTLE SS - long", "2021 CEATTLE SS - short", "2021 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
 
 
 
@@ -241,7 +248,7 @@ plot_biomass(mod_list_all[c(1,9)])
 
 # - Run models
 # run_models <- function(inits_M1_df, data_list, iter = 3)
-for(i in 1:3){
+for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
       
