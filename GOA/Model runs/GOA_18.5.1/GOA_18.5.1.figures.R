@@ -5,11 +5,11 @@ library(readxl)
 
 # Load models
 setwd("Model runs/GOA_18.5.1")
-load("Models/18_5_1_Niter3_2021-06-14.RData")
 
-re_mods <- list.files("Models/Random_effects_models_3iter")
+mod_list_all <- list()
+re_mods <- list.files("Models/Random_effects_models_3iter_w_hessian")
 for(i in 1:length(re_mods)){
-  load(paste0("Models/Random_effects_models_3iter/", re_mods[i]))
+  load(paste0("Models/Random_effects_models_3iter_w_hessian/", re_mods[i]))
   mod_no <- as.numeric(gsub('_', '', substr(re_mods[i], 21,22)))
   mod_list_all[[mod_no]] <- mod_re
 }
@@ -57,11 +57,23 @@ line_col_short <- line_col[12:15]
 
 
 # Model average
-mov_avg_ss <- model_average(mod_list_ss, uncertainty = TRUE, nboot = 50000)
-mov_avg_ms_no_hal <- model_average(mod_list_ms_no_hal, uncertainty = TRUE, nboot = 50000)
-mov_avg_ms_hal <- model_average(mod_list_all[c(3:8,14:15)], weights = c(1,1,1,1,1,1,3,3), uncertainty = TRUE, nboot = 50000)
+mov_avg_ss <- model_average(mod_list_ss, uncertainty = TRUE, nboot = 10000)
+save(mov_avg_ss, file = "Models/18.5.1_mov_avg_ss.RData")
+
+mov_avg_ms_no_hal <- model_average(mod_list_ms_no_hal, uncertainty = TRUE, nboot = 10000)
+save(mov_avg_ms_no_hal, file = "Models/18.5.1_mov_avg_ms_no_hal.RData")
+
+save(mov_avg_ms_rel_hal, file = "Models/18.5.1_mod_avg_ms_rel_hal.RData")
+mov_avg_ms_hal <- model_average(mod_list_all[c(3:8,14:15)], weights = c(1,1,1,1,1,1,3,3), uncertainty = TRUE, nboot = 10000)
+save(mov_avg_ms_hal, file = "Models/18.5.1_mod_avg_ms_hal.RData")
+
 mov_avg_ms_rel_hal <- mod_list_all[[11]]
 
+
+mov_avg_ss$quantities$biomass[4,] <- NA
+mov_avg_ss$quantities$biomassSSB[4,] <- NA
+mov_avg_ms_no_hal$quantities$biomass[4,] <- NA
+mov_avg_ms_no_hal$quantities$biomassSSB[4,] <- NA
 mod_list_avg <- list(mov_avg_ss, mov_avg_ms_no_hal, mov_avg_ms_hal, mov_avg_ms_rel_hal)
 mod_list_avg_names <- c("Avg 1-SS", "Avg 2-MS No Halibut", "Avg 3-MS Halibut", "Avg 4-MS Relative Halibut")
 
@@ -146,18 +158,20 @@ plot_logindex(mod_list_all, file = file_name, model_names = 1:15, right_adj = 0.
 
 # Model-average
 line_col_avg <- oce::oce.colorsViridis(5)[1:4] 
-
 file_name <- "Results/Figures/Time_series/Model_average"
+mod_list_avg[[1]]$quantities$biomass[4,] <- NA
+mod_list_avg[[1]]$quantities$biomassSSB[4,] <- NA
 mod_list_avg[[2]]$quantities$biomass[4,] <- NA
 mod_list_avg[[2]]$quantities$biomassSSB[4,] <- NA
 
-plot_biomass(mod_list_avg, file = file_name, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996)
+plot_biomass(mod_list_avg, file = file_name, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
+plot_recruitment(Rceattle = mod_list_avg, file = file_name, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
+plot_ssb(mod_list_avg, file = file_name, species = 1:3, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
+
 
 plot_b_eaten(mod_list_avg[2:4], file = file_name, add_ci = FALSE, width = 5, top_adj = 0.15, mod_cex = 1, height = 6, model_names = mod_list_avg_names[2:4], right_adj = 0, line_col = line_col_avg[2:4], lwd = 2, species = 1:3, minyr = 1996)
 plot_b_eaten_prop(mod_list_avg[2:4], file = file_name, add_ci = FALSE, width = 5, height = 6, model_names = mod_list_avg_names[2:4], right_adj = 0, line_col = line_col_avg[2:4], lwd = 2, species = 1:3, minyr = 1996)
 
-plot_recruitment(Rceattle = mod_list_avg, file = file_name, width = 5, height = 6, add_ci = FALSE, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996)
-plot_ssb(mod_list_avg, file = file_name, add_ci = FALSE, species = 1:3, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996)
 
 
 #######################################################
