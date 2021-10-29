@@ -40,54 +40,54 @@ halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(hali
 # Coastwide long
 # - Avg distribution
 mydata_coastwide_avg <- mydata_coastwide
-mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] <- mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
+mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] <- mydata_coastwide_avg$NByageFixed[which(mydata_coastwide_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)/100
 
 # - Low distribution
 mydata_coastwide_low <- mydata_coastwide
-mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] <- mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
+mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] <- mydata_coastwide_low$NByageFixed[which(mydata_coastwide_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)/100
 
 # - High distribution
 mydata_coastwide_high <- mydata_coastwide
-mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] <- mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
+mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] <- mydata_coastwide_high$NByageFixed[which(mydata_coastwide_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)/100
 
 # AAF long
 # - Avg distribution
 mydata_aaf_avg <- mydata_aaf
-mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] <- mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)
+mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] <- mydata_aaf_avg$NByageFixed[which(mydata_aaf_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_avg$NByageFixed)] * c(halibut_dist_avg$Region.3, halibut_dist_avg$Region.3)/100
 
 # - Low distribution
 mydata_aaf_low <- mydata_aaf
-mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] <- mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)
+mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] <- mydata_aaf_low$NByageFixed[which(mydata_aaf_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_low$NByageFixed)] * c(halibut_dist_low$Region.3, halibut_dist_low$Region.3)/100
 
 # - High distribution
 mydata_aaf_high <- mydata_aaf
-mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] <- mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)
+mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] <- mydata_aaf_high$NByageFixed[which(mydata_aaf_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_high$NByageFixed)] * c(halibut_dist_high$Region.3, halibut_dist_high$Region.3)/100
 
 # Coastwide short
 # - Avg distribution
 mydata_coastwide_short_avg <- mydata_coastwide_short
-mydata_coastwide_short_avg$NByageFixed[which(mydata_coastwide_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_avg$NByageFixed)] <- mydata_coastwide_short_avg$NByageFixed[which(mydata_coastwide_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_avg$NByageFixed)] * c(halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)], halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)])
+mydata_coastwide_short_avg$NByageFixed[which(mydata_coastwide_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_avg$NByageFixed)] <- mydata_coastwide_short_avg$NByageFixed[which(mydata_coastwide_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_avg$NByageFixed)] * c(halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)], halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)])/100
 
 # - Low distribution
 mydata_coastwide_short_low <- mydata_coastwide_short
-mydata_coastwide_short_low$NByageFixed[which(mydata_coastwide_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_low$NByageFixed)] <- mydata_coastwide_short_low$NByageFixed[which(mydata_coastwide_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_low$NByageFixed)] * c(halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)], halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)])
+mydata_coastwide_short_low$NByageFixed[which(mydata_coastwide_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_low$NByageFixed)] <- mydata_coastwide_short_low$NByageFixed[which(mydata_coastwide_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_low$NByageFixed)] * c(halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)], halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)])/100
 
 # - High distribution
 mydata_coastwide_short_high <- mydata_coastwide_short
-mydata_coastwide_short_high$NByageFixed[which(mydata_coastwide_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_high$NByageFixed)] <- mydata_coastwide_short_high$NByageFixed[which(mydata_coastwide_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_high$NByageFixed)] * c(halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)], halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)])
+mydata_coastwide_short_high$NByageFixed[which(mydata_coastwide_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_high$NByageFixed)] <- mydata_coastwide_short_high$NByageFixed[which(mydata_coastwide_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_coastwide_short_high$NByageFixed)] * c(halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)], halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)])/100
 
 # AAF short
 # - Avg distribution
 mydata_aaf_short_avg <- mydata_aaf_short
-mydata_aaf_short_avg$NByageFixed[which(mydata_aaf_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_avg$NByageFixed)] <- mydata_aaf_short_avg$NByageFixed[which(mydata_aaf_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_avg$NByageFixed)] * c(halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)], halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)])
+mydata_aaf_short_avg$NByageFixed[which(mydata_aaf_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_avg$NByageFixed)] <- mydata_aaf_short_avg$NByageFixed[which(mydata_aaf_short_avg$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_avg$NByageFixed)] * c(halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)], halibut_dist_avg$Region.3[which(halibut_dist_avg$Year >= 1996)])/100
 
 # - Low distribution
 mydata_aaf_short_low <- mydata_aaf_short
-mydata_aaf_short_low$NByageFixed[which(mydata_aaf_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_low$NByageFixed)] <- mydata_aaf_short_low$NByageFixed[which(mydata_aaf_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_low$NByageFixed)] * c(halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)], halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)])
+mydata_aaf_short_low$NByageFixed[which(mydata_aaf_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_low$NByageFixed)] <- mydata_aaf_short_low$NByageFixed[which(mydata_aaf_short_low$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_low$NByageFixed)] * c(halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)], halibut_dist_low$Region.3[which(halibut_dist_low$Year >= 1996)])/100
 
 # - High distribution
 mydata_aaf_short_high <- mydata_aaf_short
-mydata_aaf_short_high$NByageFixed[which(mydata_aaf_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_high$NByageFixed)] <- mydata_aaf_short_high$NByageFixed[which(mydata_aaf_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_high$NByageFixed)] * c(halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)], halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)])
+mydata_aaf_short_high$NByageFixed[which(mydata_aaf_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_high$NByageFixed)] <- mydata_aaf_short_high$NByageFixed[which(mydata_aaf_short_high$NByageFixed$Species_name == "Halibut"),5:ncol(mydata_aaf_short_high$NByageFixed)] * c(halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)], halibut_dist_high$Region.3[which(halibut_dist_high$Year >= 1996)])/100
 
 
 
@@ -163,33 +163,35 @@ for(i in 1:length(mydata_list)){
 ################################################
 mod_list_all <- list()
 
-for(i in 1:9){
+for(i in 1:8){
   if(inits_M1_df$MsmMode[i] == 0){
-    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
-                                           inits =  NULL, # Initial parameters = 0
-                                           file = NULL, # Don't save
-                                           debug = FALSE, # Estimate
-                                           random_rec = FALSE, # No random recruitment
-                                           msmMode = 0, # Single species mode
-                                           silent = TRUE,
-                                           phase = "default")
+    mod_list_all[[i]] <- try(Rceattle::fit_mod(data_list = mydata_list[[i]],
+                                               inits =  NULL, # Initial parameters = 0
+                                               file = NULL, # Don't save
+                                               debug = FALSE, # Estimate
+                                               random_rec = FALSE, # No random recruitment
+                                               msmMode = 0, # Single species mode
+                                               silent = TRUE,
+                                               phase = "default"), silent = TRUE)
     
-    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
-                                           inits =  mod_list_all[[i]]$estimated_params, # Initial parameters = 0
-                                           file = NULL, # Don't save
-                                           debug = FALSE, # Estimate
-                                           random_rec = FALSE, # No random recruitment
-                                           msmMode = 0, # Single species mode
-                                           silent = TRUE,
-                                           phase = NULL)
+    if(is.null( mod_list_all[[i]]$sdrep)){
+      mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
+                                             inits =  mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+                                             file = NULL, # Don't save
+                                             debug = FALSE, # Estimate
+                                             random_rec = FALSE, # No random recruitment
+                                             msmMode = 0, # Single species mode
+                                             silent = TRUE,
+                                             phase = NULL)
+    }
   }
 }
 
-mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
+mod_list_unweighted <- mod_list_all[[1]]
 plot_biomass(mod_list_unweighted)
 
 # Reweight the single species Cod model
-for(i in 1:9){
+for(i in 1:8){
   if(inits_M1_df$MsmMode[i] == 0){
     
     data <- mydata_list[[i]]
@@ -197,17 +199,28 @@ for(i in 1:9){
     data$fleet_control$Comp_weights[subs] <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_mcallister[subs]
     
     inits = mod_list_all[[i]]$estimated_params
-    inits$comp_weights[subs] <- data$fleet_control$Comp_weights[subs]
+    inits$comp_weights[subs] <- sapply(data$fleet_control$Comp_weights[subs],function(x) min(c(x,1)))
     
     # Refit
-    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = data,
-                                           inits = inits, # Initial parameters = 0
-                                           file = NULL, # Don't save
-                                           debug = 0, # Estimate
-                                           random_rec = FALSE, # No random recruitment
-                                           msmMode = 0, # Single species mode
-                                           silent = TRUE,
-                                           phase = "default")
+    mod_list_all[[i]] <- try(Rceattle::fit_mod(data_list = data,
+                                               inits = inits, # Initial parameters = 0
+                                               file = NULL, # Don't save
+                                               debug = 0, # Estimate
+                                               random_rec = FALSE, # No random recruitment
+                                               msmMode = 0, # Single species mode
+                                               silent = TRUE,
+                                               phase = "default"), silent = TRUE)
+    
+    if(is.null( mod_list_all[[i]]$sdrep)){
+      mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
+                                             inits =  mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+                                             file = NULL, # Don't save
+                                             debug = FALSE, # Estimate
+                                             random_rec = FALSE, # No random recruitment
+                                             msmMode = 0, # Single species mode
+                                             silent = TRUE,
+                                             phase = NULL)
+    }
   }
   
   # Update composition weights for Cod of data set from Init Model- 
@@ -244,12 +257,12 @@ Mod_2021_SAFE$quantities$biomass[3,1:45] <- safe2021biomass$`2021_Cod`
 Mod_2021_SAFE$quantities$biomassSSB[3,1:45] <- safe2021ssb$`2021_Cod`
 
 # Convert to age-3 biomass
-Mod_2021_1_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
+Mod_2021_1_1_3plusBiomass <- list(mod_list_all[[1]]) #[which(inits_M1_df$MsmMode == 0)]
 for(i in 1:length(Mod_2021_1_1_3plusBiomass)){
   Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomass[1,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)] <- colSums(Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)])
 }
 
-plot_biomass(c(Mod_2021_1_1_3plusBiomass, list(Mod_2021_SAFE)), file =  "Results/21.1.1. Bridging weighted Oct 2021 v2", model_names = c("2021 CEATTLE SS - long", "2021 CEATTLE SS - short", "2021 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
+plot_biomass(c(Mod_2021_1_1_3plusBiomass, list(Mod_2021_SAFE)), file =  "Results/21.1.1. Bridging weighted Oct 2021 v1", model_names = c("2021 CEATTLE SS - long", "2021 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
 
 
 
@@ -275,22 +288,23 @@ for(i in 1:8){
       inits$ln_M1[3,,] <- log(0.474) # Pacific cod
       
       # Estimate M1
-      # mydata_list[[i]]$est_M1 = c(1,2,1,0)
+      mydata_list[[i]]$est_M1 = c(0,0,0,0)
       
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = mydata_list[[i]],
         inits = inits, # Initial parameters = 0
         file = NULL, # Don't save
-        debug = TRUE, # Estimate
+        debug = FALSE, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
         silent = TRUE, phase = NULL,
         niter = 3),
         silent = TRUE)
       
-      plot_biomass(mod_list_all[[i]])
-      
+      plot_biomass(mod_list_all[c(init_model,i)])
+      plot_recruitment(mod_list_all[c(init_model,i)])
+      plot_b_eaten(mod_list_all[c(init_model,i)])
       # mod_list_all[[i]]$quantities$jnll_comp
       # plot_catch(mod_list_all[[i]])
       

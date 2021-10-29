@@ -153,7 +153,7 @@ for(i in 1:length(mydata_list)){
   
   # Pcod mort
   mydata_list[[i]]$M1_base[4,3:12] <- 0.536892 # Endyr <- 0.485969
-  mydata_list[[i]]$fleet_control$Comp_weights <- 1
+  # mydata_list[[i]]$fleet_control$Comp_weights <- 1
 }
 
 
@@ -194,7 +194,7 @@ for(i in 1:8){
   if(inits_M1_df$MsmMode[i] == 0){
     
     data <- mydata_list[[i]]
-    subs <- which(data$fleet_control$Species %in% c(2,3)) # Species 3 is cod
+    subs <- which(data$fleet_control$Species %in% c(3)) # Species 3 is cod
     data$fleet_control$Comp_weights[subs] <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_mcallister[subs]
     
     inits = mod_list_all[[i]]$estimated_params
@@ -225,7 +225,7 @@ for(i in 1:8){
   # Update composition weights for Cod of data set from Init Model- 
   if(inits_M1_df$MsmMode[i] != 0){
     CompModel <- inits_M1_df$CompModel[i]
-    subs <- which(mydata_list[[i]]$fleet_control$Species  %in% c(2,3))
+    subs <- which(mydata_list[[i]]$fleet_control$Species  %in% c(3))
     mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[CompModel]]$data_list$fleet_control$Comp_weights[subs]
   }
 }
