@@ -256,11 +256,7 @@ for(i in 1:length(mydata_list)){
       init_model <- inits_M1_df$InitModel[i]
       inits = mod_list_all[[init_model]]$estimated_params
       
-      # Set M1 to 2018 model estimates
-      inits$ln_M1[1,,] <- log(0.328) # pollock
-      inits$ln_M1[2,1,] <- log(0.288) # arrowtooth females
-      inits$ln_M1[2,2,] <- log(0.354) # arrowtooth males
-      inits$ln_M1[2,2,] <- log(0.474) # Pacific cod
+      mydata_list[[i]]$est_M1 = c(1,2,1,0)
       
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(

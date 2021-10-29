@@ -154,6 +154,7 @@ for(i in 1:length(mydata_list)){
   
   # Pcod mort
   mydata_list[[i]]$M1_base[4,3:12] <- 0.536892 # Endyr <- 0.485969
+  mydata_list[[i]]$fleet_control$Comp_weights <- 1
 }
 
 
@@ -162,16 +163,25 @@ for(i in 1:length(mydata_list)){
 ################################################
 mod_list_all <- list()
 
-for(i in 1:length(mydata_list)){
+for(i in 1:9){
   if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
-                                           inits = NULL, # Initial parameters = 0
+                                           inits =  NULL, # Initial parameters = 0
                                            file = NULL, # Don't save
                                            debug = FALSE, # Estimate
                                            random_rec = FALSE, # No random recruitment
                                            msmMode = 0, # Single species mode
                                            silent = TRUE,
                                            phase = "default")
+    
+    mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
+                                           inits =  mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+                                           file = NULL, # Don't save
+                                           debug = FALSE, # Estimate
+                                           random_rec = FALSE, # No random recruitment
+                                           msmMode = 0, # Single species mode
+                                           silent = TRUE,
+                                           phase = NULL)
   }
 }
 
@@ -179,11 +189,11 @@ mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
 plot_biomass(mod_list_unweighted)
 
 # Reweight the single species Cod model
-for(i in 1:length(mydata_list)){
+for(i in 1:9){
   if(inits_M1_df$MsmMode[i] == 0){
     
     data <- mydata_list[[i]]
-    subs <- which(data$fleet_control$Species == 3) # Species 3 is cod
+    subs <- which(data$fleet_control$Species %in% c(2,3)) # Species 3 is cod
     data$fleet_control$Comp_weights[subs] <- mod_list_all[[i]]$data_list$fleet_control$Est_weights_mcallister[subs]
     
     inits = mod_list_all[[i]]$estimated_params
@@ -203,12 +213,12 @@ for(i in 1:length(mydata_list)){
   # Update composition weights for Cod of data set from Init Model- 
   if(inits_M1_df$MsmMode[i] != 0){
     CompModel <- inits_M1_df$CompModel[i]
-    subs <- which(mydata_list[[i]]$fleet_control$Species == 3)
+    subs <- which(mydata_list[[i]]$fleet_control$Species  %in% c(2,3))
     mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[CompModel]]$data_list$fleet_control$Comp_weights[subs]
   }
 }
 
-plot_biomass(mod_list_all[c(1,9)])
+plot_biomass(mod_list_all[c(1)])
 
 
 #########################
@@ -250,7 +260,7 @@ plot_biomass(c(Mod_2021_1_1_3plusBiomass, list(Mod_2021_SAFE)), file =  "Results
 
 # - Run models
 # run_models <- function(inits_M1_df, data_list, iter = 3)
-for(i in 1:length(mydata_list)){
+for(i in 1:8){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
       
@@ -270,14 +280,16 @@ for(i in 1:length(mydata_list)){
       # Fit model
       mod_list_all[[i]] <- try( Rceattle::fit_mod(
         data_list = mydata_list[[i]],
-        inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+        inits = inits, # Initial parameters = 0
         file = NULL, # Don't save
-        debug = FALSE, # Estimate
+        debug = TRUE, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
         silent = TRUE, phase = NULL,
         niter = 3),
         silent = TRUE)
+      
+      plot_biomass(mod_list_all[[i]])
       
       # mod_list_all[[i]]$quantities$jnll_comp
       # plot_catch(mod_list_all[[i]])
