@@ -163,10 +163,13 @@ mod_list_avg[[1]]$quantities$biomass[4,] <- NA
 mod_list_avg[[1]]$quantities$biomassSSB[4,] <- NA
 mod_list_avg[[2]]$quantities$biomass[4,] <- NA
 mod_list_avg[[2]]$quantities$biomassSSB[4,] <- NA
+mod_list_avg[[1]]$asymptotic_samples$biomass[4,,] <- NA
+mod_list_avg[[2]]$asymptotic_samples$biomass[4,,] <- NA
 
-plot_biomass(mod_list_avg, file = file_name, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
-plot_recruitment(Rceattle = mod_list_avg, file = file_name, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
-plot_ssb(mod_list_avg, file = file_name, species = 1:3, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE)
+
+plot_biomass(mod_list_avg, file = file_name, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE, alpha = 0.35, species = 1:4)
+plot_recruitment(Rceattle = mod_list_avg, file = file_name, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE, alpha = 0.35)
+plot_ssb(mod_list_avg, file = file_name, species = 1:3, width = 5, height = 6, model_names = mod_list_avg_names, right_adj = 0, line_col = line_col_avg, lwd = 2, minyr = 1996, mod_avg = c(TRUE, TRUE, TRUE, FALSE), add_ci = TRUE, alpha = 0.35)
 
 
 plot_b_eaten(mod_list_avg[2:4], file = file_name, add_ci = FALSE, width = 5, top_adj = 0.15, mod_cex = 1, height = 6, model_names = mod_list_avg_names[2:4], right_adj = 0, line_col = line_col_avg[2:4], lwd = 2, species = 1:3, minyr = 1996)
