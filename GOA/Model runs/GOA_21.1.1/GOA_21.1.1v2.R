@@ -1,17 +1,8 @@
-# FixM
-
+# Fix M
 library(Rceattle)
 library(readxl)
-
-# - Long
-mydata_aaf2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1977-2018_aaf_long.xlsx")
-mydata_coastwide2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1977-2018_coastwide_long.xlsx")
-
-# - Short
-mydata_aaf_short2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1996-2018_aaf_short.xlsx")
-mydata_coastwide_short2018 <- Rceattle::read_data( file = "Model runs/GOA_18.5.1/Data/GOA_18_5_1_data_1996-2018_coastwide_short.xlsx")
-
 setwd("Model runs/GOA_21.1.1/")
+
 
 
 ######################### 
@@ -33,16 +24,16 @@ mydata_coastwide_short <- Rceattle::read_data( file = "Data/GOA_21_1_1_data_1993
 # From Ian:
 # 2018 Stock distribution estimates for all sizes of Pacific halibut captured by the IPHC's fishery-independent setline survey
 # These are roughly applicable to ages 5+.
-halibut_dist <- read.csv("Data/Halibut_3_dist_age5plus_1993-2018.csv")
+halibut_dist <- read.csv("Data/Halibut_3_dist_age5plus_1993-2020.csv")
 halibut_dist_avg <- rbind(data.frame(Year = 1977:1992, Region.3 = mean(halibut_dist$Region.3)), 
                           halibut_dist,
-                          data.frame(Year = 2019:2021, Region.3 = mean(halibut_dist$Region.3)))
+                          data.frame(Year = 2021, Region.3 = mean(halibut_dist$Region.3)))
 halibut_dist_low <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15)), 
                           halibut_dist, 
-                          data.frame(Year = 2019:2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15))) # Lower 25th percentile
+                          data.frame(Year = 2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.15))) # Lower 25th percentile
 halibut_dist_high <- rbind(data.frame(Year = 1977:1992, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85)), 
                            halibut_dist, 
-                           data.frame(Year = 2019:2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85))) # Upper 75th percentile
+                           data.frame(Year = 2021, Region.3 = quantile(halibut_dist$Region.3, probs = 0.85))) # Upper 75th percentile
 
 
 # Scale halibut numbers at age
@@ -115,33 +106,40 @@ mydata_list <- list(
   
   # Long time-series 1977-2018
   mydata_coastwide_avg, # 1 - single-species SAFE M
-  mydata_coastwide_avg, # 2 - Multi-species est M1 coastwide historical average dist
-  mydata_coastwide_low, # 3 - Multi-species est M1 coastwide historical low dist
-  mydata_coastwide_high, # 4 - Multi-species est M1 coastwide historical high dist
-  mydata_aaf_avg, # 5 - Multi-species est M1 aaf historical avg dist
-  mydata_aaf_low, # 6 - Multi-species est M1 aaf historical low dist
-  mydata_aaf_high,# 7 - Multi-species est M1 aaf historical high dist
+  mydata_coastwide_avg, # 2 - Multispecies est M1 no halibut
+  mydata_coastwide_avg, # 3 - Multi-species est M1 coastwide historical average dist
+  mydata_coastwide_low, # 4 - Multi-species est M1 coastwide historical low dist
+  mydata_coastwide_high, # 5 - Multi-species est M1 coastwide historical high dist
+  mydata_aaf_avg, # 6 - Multi-species est M1 aaf historical avg dist
+  mydata_aaf_low, # 7 - Multi-species est M1 aaf historical low dist
+  mydata_aaf_high,# 8 - Multi-species est M1 aaf historical high dist
   
   # Short time series 1996-2018
-  mydata_coastwide_short_avg, # 8 - single-species SAFE M
-  mydata_coastwide_short_avg, # 9 - Multi-species est M1 coastwide future average dist
-  mydata_coastwide_short_low, # 10 - Multi-species est M1 coastwide future low dist
-  mydata_coastwide_short_high, # 11 - Multi-species est M1 coastwide future high dist
-  mydata_aaf_short_avg, # 12 - Multi-species est M1 aaf future avg dist
-  mydata_aaf_short_low, # 13 - Multi-species est M1 aaf future low dist
-  mydata_aaf_short_high # 14 - Multi-species est M1 aaf future high dist
+  mydata_coastwide_short_avg, # 9 - single-species SAFE M
+  mydata_coastwide_short_avg, # 10 - Multispecies no halibut
+  mydata_coastwide_short_avg, # 11 - Multi-species est M1 coastwide future average dist
+  mydata_coastwide_short_low, # 12 - Multi-species est M1 coastwide future low dist
+  mydata_coastwide_short_high, # 13 - Multi-species est M1 coastwide future high dist
+  mydata_aaf_short_avg, # 14 - Multi-species est M1 aaf future avg dist
+  mydata_aaf_short_low, # 15 - Multi-species est M1 aaf future low dist
+  mydata_aaf_short_high # 16 - Multi-species est M1 aaf future high dist
 )
 
+# No halibut
+mydata_list[[2]]$pvalue[4] <- 0
+mydata_list[[10]]$pvalue[4] <- 0
 
 # Set up inits vectors
 inits_M1_df <- data.frame(
-  Model = 1:14,
-  MsmMode = c(0, rep(1,6), # Long
-              0, rep(1,6)), # Short 
-  EstM1 = c(0, rep(1,6), # Long
-            0, rep(1,6)), # Short
-  InitModel = c(NA, rep(1,6), # Long
-                NA, rep(8,6)) # Short
+  Model = 1:16,
+  MsmMode = c(0, rep(1,7), # Long
+              0, rep(1,7)), # Short 
+  EstM1 = c(0, rep(1,7), # Long
+            0, rep(1,7)), # Short
+  CompModel = c(NA, rep(1,7), # Long
+                NA, rep(9,7)), # Short
+  InitModel = c(NA, 1, rep(2,6), # Long
+                NA, 9, rep(10,6)) # Short
 ) 
 inits_M1_df$Divergent_jnll <- NA
 
@@ -150,26 +148,13 @@ inits_M1_df$Divergent_jnll <- NA
 for(i in 1:length(mydata_list)){
   mydata_list[[i]]$projyr = 2023
   mydata_list[[i]]$est_M1 = rep(0,4)
+  if(inits_M1_df$EstM1[i] == 1){
+    # mydata_list[[i]]$est_M1 = c(1,2,1,0)
+  }
+  
+  # Pcod mort
+  mydata_list[[i]]$M1_base[4,3:12] <- 0.536892 # Endyr <- 0.485969
 }
-
-# mydata_list_base <- mydata_list
-# for(i in 1:length(mydata_list_base)){
-#   
-#   # Comp
-#   mydata_list[[i]]$comp_data <- mydata_list[[i]]$comp_data[which(mydata_list[[i]]$comp_data$Year > 2017),]
-#   mydata_list[[i]]$comp_data <- rbind(mydata_coastwide2018$comp_data, mydata_list[[i]]$comp_data)
-#   
-#   # Survey
-#   mydata_list[[i]]$srv_biom <- mydata_list[[i]]$srv_biom[which(mydata_list[[i]]$srv_biom$Year > 2017),]
-#   mydata_list[[i]]$srv_biom <- rbind(mydata_coastwide2018$srv_biom, mydata_list[[i]]$srv_biom)
-#   
-#   # Alk
-#   mydata_list[[i]]$age_trans_matrix <- mydata_coastwide2018$age_trans_matrix
-#   
-#   # Uobs
-#   mydata_list[[i]]$UobsWtAge <- mydata_coastwide2018$UobsWtAge
-# 
-# }
 
 
 ################################################
@@ -177,7 +162,7 @@ for(i in 1:length(mydata_list)){
 ################################################
 mod_list_all <- list()
 
-for(i in 1){
+for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 0){
     mod_list_all[[i]] <- Rceattle::fit_mod(data_list = mydata_list[[i]],
                                            inits = NULL, # Initial parameters = 0
@@ -194,7 +179,7 @@ mod_list_unweighted <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
 plot_biomass(mod_list_unweighted)
 
 # Reweight the single species Cod model
-for(i in 1:7){
+for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 0){
     
     data <- mydata_list[[i]]
@@ -217,40 +202,44 @@ for(i in 1:7){
   
   # Update composition weights for Cod of data set from Init Model- 
   if(inits_M1_df$MsmMode[i] != 0){
-  init_model <- inits_M1_df$InitModel[i]
-  subs <- which(mydata_list[[i]]$fleet_control$Species == 3)
-  mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[init_model]]$data_list$fleet_control$Comp_weights[subs]
+    CompModel <- inits_M1_df$CompModel[i]
+    subs <- which(mydata_list[[i]]$fleet_control$Species == 3)
+    mydata_list[[i]]$fleet_control$Comp_weights[subs] <- mod_list_all[[CompModel]]$data_list$fleet_control$Comp_weights[subs]
   }
 }
 
-plot_biomass(mod_list_all[c(1,8)])
+plot_biomass(mod_list_all[c(1,9)])
 
 
-# ######################### 
-# # Compare with SAFE Models
-# #########################
-# # Columns = year, pollock, cod, atf
-# safe2018biomass <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 1))
-# safe2018ssb <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 2))
-# safe2018rec <- as.data.frame(read_xlsx("Data/2018_SAFE_biomass_estimate.xlsx", sheet = 3))
-# 
-# # Assign data to CEATTLE object
-# Mod_18_SAFE <- mod_list_all[[1]]
-# # - Pollock and ATF
-# Mod_18_SAFE$quantities$biomass[1:2,1:42] <- t(safe2018biomass[1:42,c(2,4)]) * 1000
-# Mod_18_SAFE$quantities$biomassSSB[1:2,1:42] <- t(safe2018ssb[1:42,c(2,4)]) * 1000
-# 
-# # - Cod
-# Mod_18_SAFE$quantities$biomass[3,1:42] <- t(safe2018biomass[1:42,c(3)])
-# Mod_18_SAFE$quantities$biomassSSB[3,1:42] <- t(safe2018ssb[1:42,c(3)])
-# 
-# # Convert to age-3 biomass
-# Mod_18_5_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
-# for(i in 1:3){
-#   Mod_18_5_1_3plusBiomass[[i]]$quantities$biomass[1,1:(Mod_18_5_1_3plusBiomass[[i]]$data_list$endyr - Mod_18_5_1_3plusBiomass[[i]]$data_list$styr + 1)] <- colSums(Mod_18_5_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:(Mod_18_5_1_3plusBiomass[[i]]$data_list$endyr - Mod_18_5_1_3plusBiomass[[i]]$data_list$styr + 1)])
-# }
-# 
-# plot_biomass(c(Mod_18_5_1_3plusBiomass, list(Mod_18_SAFE)), file =  "Figures/18.5.1/18.5.1. Bridging weighted March 2021", model_names = c("2018 CEATTLE SS - long", "2018 CEATTLE SS - medium", "2018 CEATTLE SS - short", "2018 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
+#########################
+# Compare with SAFE Models
+#########################
+# Columns = year, pollock, cod, atf
+safe2021biomass <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 1))
+safe2021ssb <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 2))
+safe2021rec <- as.data.frame(read_xlsx("Data/2021_SAFE_biomass_estimate.xlsx", sheet = 3))
+
+# Assign data to CEATTLE object
+Mod_2021_SAFE <- mod_list_all[[1]]
+# - Pollock
+Mod_2021_SAFE$quantities$biomass[1,1:45] <- safe2021biomass$`2021_Pollock` * 1000000
+Mod_2021_SAFE$quantities$biomassSSB[1,1:45] <-  safe2021ssb$`2021_Pollock` * 1000000
+
+# - ATF
+Mod_2021_SAFE$quantities$biomass[2,1:45] <- safe2021biomass$`2021_ATF` 
+Mod_2021_SAFE$quantities$biomassSSB[2,1:45] <-  safe2021ssb$`2021_ATF` 
+
+# - Cod
+Mod_2021_SAFE$quantities$biomass[3,1:45] <- safe2021biomass$`2021_Cod` 
+Mod_2021_SAFE$quantities$biomassSSB[3,1:45] <- safe2021ssb$`2021_Cod`
+
+# Convert to age-3 biomass
+Mod_2021_1_1_3plusBiomass <- mod_list_all[which(inits_M1_df$MsmMode == 0)]
+for(i in 1:length(Mod_2021_1_1_3plusBiomass)){
+  Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomass[1,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)] <- colSums(Mod_2021_1_1_3plusBiomass[[i]]$quantities$biomassByage[1,3:10,1:(Mod_2021_1_1_3plusBiomass[[i]]$data_list$endyr - Mod_2021_1_1_3plusBiomass[[i]]$data_list$styr + 1)])
+}
+
+plot_biomass(c(Mod_2021_1_1_3plusBiomass, list(Mod_2021_SAFE)), file =  "Results/21.1.1. Bridging weighted Oct 2021 v2", model_names = c("2021 CEATTLE SS - long", "2021 CEATTLE SS - short", "2021 SAFE"), right_adj = 0.27, line_col = NULL, species = c(1:3))
 
 
 
@@ -261,7 +250,7 @@ plot_biomass(mod_list_all[c(1,8)])
 
 # - Run models
 # run_models <- function(inits_M1_df, data_list, iter = 3)
-for(i in 1:7){
+for(i in 1:length(mydata_list)){
   if(inits_M1_df$MsmMode[i] == 1){
     if(is.na(inits_M1_df$Divergent_jnll[i])){
       
@@ -306,63 +295,77 @@ for(i in 1:7){
       #   niter = 3),
       #   silent = TRUE)
       
-      # 
-      # # Phase in predation if doesnt converge
-      # if( class(mod_list_all[[i]]) == "try-error" ){
-      #   
-      #   fday_vec <- seq(0.5,1, by = 0.1)
-      #   
-      #   for(j in 1:length(fday_vec)){
-      #     my_data_tmp <- mydata_list[[i]]
-      #     my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
-      #     
-      #     if(j > 1){
-      #       inits <- mod_list_all[[i]]$estimated_params
-      #     }
-      #     
-      #     # Re-estimate
-      #     mod_list_all[[i]] <- Rceattle::fit_mod(
-      #       data_list = my_data_tmp,
-      #       inits = inits, # Initial parameters = 0
-      #       file = NULL, # Don't save
-      #       debug = 0, # Estimate
-      #       random_rec = FALSE, # No random recruitment
-      #       msmMode = 1, # Multi species mode
-      #       silent = TRUE, phase = "default",
-      #       niter = 3)
-      #   }
-      # }
-      # 
-      # 
-      # # If Hessian cant invert or is discontinuous - PHASE
-      # if( is.null(mod_list_all[[i]]$opt$objective)){
-      #   mod_list_all[[i]] <- try( Rceattle::fit_mod(
-      #     data_list = mydata_list[[i]],
-      #     inits = inits, # Initial parameters = 0
-      #     file = NULL, # Don't save
-      #     debug = 0, # Estimate
-      #     random_rec = FALSE, # No random recruitment
-      #     msmMode = 1, # Multi species mode
-      #     silent = TRUE, phase = "default",
-      #     niter = 3),
-      #     silent = TRUE)
-      # }
-      # 
-      # # Discontinuous ll
-      # if(!is.null(mod_list_all[[i]]$opt$objective)){
-      #   if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
-      #     mod_list_all[[i]] <- try( Rceattle::fit_mod(
-      #       data_list = mydata_list[[i]],
-      #       inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
-      #       file = NULL, # Don't save
-      #       debug = 0, # Estimate
-      #       random_rec = FALSE, # No random recruitment
-      #       msmMode = 1, # Multi species mode
-      #       silent = TRUE, phase = "default",
-      #       niter = 3),
-      #       silent = TRUE)
-      #   }
-      # } 
+      # If it didn't work - phase it
+      if( class(mod_list_all[[i]]) == "try-error" ){
+        mod_list_all[[i]] <- try( Rceattle::fit_mod(
+          data_list = mydata_list[[i]],
+          inits = inits, # Initial parameters = 0
+          file = NULL, # Don't save
+          debug = 0, # Estimate
+          random_rec = FALSE, # No random recruitment
+          msmMode = 1, # Multi species mode
+          silent = TRUE, phase = "default",
+          niter = 3),
+          silent = TRUE)
+        
+        # Phase in predation if doesnt converge
+        if( class(mod_list_all[[i]]) == "try-error" ){
+          
+          fday_vec <- seq(0.5,1, by = 0.1)
+          
+          for(j in 1:length(fday_vec)){
+            my_data_tmp <- mydata_list[[i]]
+            my_data_tmp$fday <- replace(my_data_tmp$fday, values = rep(fday_vec[j], length(my_data_tmp$fday))) # Set foraging days to half
+            
+            if(j > 1){
+              inits <- mod_list_all[[i]]$estimated_params
+            }
+            
+            # Re-estimate
+            mod_list_all[[i]] <- Rceattle::fit_mod(
+              data_list = my_data_tmp,
+              inits = inits, # Initial parameters = 0
+              file = NULL, # Don't save
+              debug = 0, # Estimate
+              random_rec = FALSE, # No random recruitment
+              msmMode = 1, # Multi species mode
+              silent = TRUE, phase = "default",
+              niter = 3)
+          }
+        }
+      }
+      
+      if( class(mod_list_all[[i]]) != "try-error" ){
+        # If Hessian cant invert or is discontinuous - PHASE
+        if( is.null(mod_list_all[[i]]$opt$objective)){
+          mod_list_all[[i]] <- try( Rceattle::fit_mod(
+            data_list = mydata_list[[i]],
+            inits = inits, # Initial parameters = 0
+            file = NULL, # Don't save
+            debug = 0, # Estimate
+            random_rec = FALSE, # No random recruitment
+            msmMode = 1, # Multi species mode
+            silent = TRUE, phase = "default",
+            niter = 3),
+            silent = TRUE)
+        }
+        
+        # Discontinuous ll
+        if(!is.null(mod_list_all[[i]]$opt$objective)){
+          if(abs(mod_list_all[[i]]$opt$objective -  mod_list_all[[i]]$quantities$jnll) > 1 ){
+            mod_list_all[[i]] <- try( Rceattle::fit_mod(
+              data_list = mydata_list[[i]],
+              inits = mod_list_all[[i]]$estimated_params, # Initial parameters = 0
+              file = NULL, # Don't save
+              debug = 0, # Estimate
+              random_rec = FALSE, # No random recruitment
+              msmMode = 1, # Multi species mode
+              silent = TRUE, phase = "default",
+              niter = 3),
+              silent = TRUE)
+          }
+        }
+      }
       gc()
     }
   }

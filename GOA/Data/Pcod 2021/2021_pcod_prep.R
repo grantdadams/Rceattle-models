@@ -17,6 +17,7 @@ setwd("C:/Users/Grant Adams/Documents/GitHub/RceattleRuns/GOA")
 dir0 <- "~/GitHub/RceattleRuns/GOA/Data/Pcod 2021/Model21.2B/" # 3.24 Model
 
 mod0 <- SS_output(dir=dir0)
+SSexecutivesummary(mod0)
 
 # 1 -1 1 1 0 FshTrawl  # 1
 # 1 -1 1 1 0 FshLL  # 2
