@@ -170,7 +170,7 @@ for(i in 1:8){
                                            debug = FALSE, # Estimate
                                            random_rec = FALSE, # No random recruitment
                                            msmMode = 0, # Single species mode
-                                           silent = TRUE,
+                                           verbose = 1,
                                            phase = "default"), silent = TRUE)
     
     if(is.null( mod_list_all[[i]]$sdrep)){
@@ -180,7 +180,7 @@ for(i in 1:8){
                                              debug = FALSE, # Estimate
                                              random_rec = FALSE, # No random recruitment
                                              msmMode = 0, # Single species mode
-                                             silent = TRUE,
+                                             verbose = 1,
                                              phase = NULL)
     }
   }
@@ -207,7 +207,7 @@ for(i in 1:8){
                                            debug = 0, # Estimate
                                            random_rec = FALSE, # No random recruitment
                                            msmMode = 0, # Single species mode
-                                           silent = TRUE,
+                                           verbose = 1,
                                            phase = "default"), silent = TRUE)
     
     if(is.null( mod_list_all[[i]]$sdrep)){
@@ -217,7 +217,7 @@ for(i in 1:8){
                                              debug = FALSE, # Estimate
                                              random_rec = FALSE, # No random recruitment
                                              msmMode = 0, # Single species mode
-                                             silent = TRUE,
+                                             verbose = 1,
                                              phase = NULL)
     }
   }
@@ -298,7 +298,7 @@ for(i in 1:8){
         debug = FALSE, # Estimate
         random_rec = FALSE, # No random recruitment
         msmMode = 1, # Multi species mode
-        silent = TRUE, phase = NULL,
+        verbose = 1, phase = NULL,
         niter = 3),
         silent = TRUE)
       
@@ -317,7 +317,7 @@ for(i in 1:8){
       #   debug = 0, # Estimate
       #   random_rec = FALSE, # No random recruitment
       #   msmMode = 1, # Multi species mode
-      #   silent = TRUE, phase = NULL,
+      #   verbose = 1, phase = NULL,
       #   niter = 3),
       #   silent = TRUE)
       
@@ -330,7 +330,7 @@ for(i in 1:8){
           debug = 0, # Estimate
           random_rec = FALSE, # No random recruitment
           msmMode = 1, # Multi species mode
-          silent = TRUE, phase = "default",
+          verbose = 1, phase = "default",
           niter = 3),
           silent = TRUE)
         
@@ -355,7 +355,7 @@ for(i in 1:8){
               debug = 0, # Estimate
               random_rec = FALSE, # No random recruitment
               msmMode = 1, # Multi species mode
-              silent = TRUE, phase = "default",
+              verbose = 1, phase = "default",
               niter = 3)
           }
         }
@@ -371,7 +371,7 @@ for(i in 1:8){
             debug = 0, # Estimate
             random_rec = FALSE, # No random recruitment
             msmMode = 1, # Multi species mode
-            silent = TRUE, phase = "default",
+            verbose = 1, phase = "default",
             niter = 3),
             silent = TRUE)
         }
@@ -386,7 +386,7 @@ for(i in 1:8){
               debug = 0, # Estimate
               random_rec = FALSE, # No random recruitment
               msmMode = 1, # Multi species mode
-              silent = TRUE, phase = "default",
+              verbose = 1, phase = "default",
               niter = 3),
               silent = TRUE)
           }
@@ -406,7 +406,7 @@ for(i in 1:length(mod_list_all)){
     inits_M1_df$Divergent_jnll[i] <- round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3)
   }
 }
-
+inits_M1_df$InitModel[c(5:6)] <- c(4,4)
 
 # Plot to see if things are reasonable
 plot_biomass(mod_list_all[which(!is.na(inits_M1_df$Divergent_jnll))])
@@ -420,4 +420,4 @@ mod_list_all_save <- mod_list_all
 
 
 # Save
-save(mod_list_all, file = paste0("Models/20_1_1_Niter5_", Sys.Date(),".RData"))
+save(mod_list_all, file = paste0("Models/21_1_1_Niter3_v1", Sys.Date(),".RData"))

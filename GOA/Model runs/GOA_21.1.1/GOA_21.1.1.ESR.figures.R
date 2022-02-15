@@ -5,7 +5,7 @@ library(readxl)
 
 # Load models
 setwd("Model runs/GOA_21.1.1/")
-load("Models/18_5_1_Niter3_2021-06-14.RData")
+load("Models/21_1_1_Niter3_v42021-11-01.RData")
 
 
 # Set up model list
@@ -21,9 +21,9 @@ load("Models/18_5_1_Niter3_2021-06-14.RData")
 
 
 mod_names <- c("3. MS-Coast long avg", "4. MS-Coast long low", "5. MS-Coast long high", "6. MS-AAF long avg", "7. MS-AAF long low", "8. MS-AAF long high")
-mod_list <- mod_list_all[c(3:5)]
+mod_list <- mod_list_all[c(4,7)]
 
-mod_avg <- mod_list_all[[6]]
+mod_avg <- model_average(mod_list, uncertainty = FALSE)
 # for(i in 1:length(mod_avg$quantities)){
 #   mod_avg$quantities[[i]] <- mod_avg$quantities[[i]]/length(mod_list)
 #   for(mod in 2:length(mod_list)){
@@ -31,7 +31,8 @@ mod_avg <- mod_list_all[[6]]
 #   }
 # }
 
-file_name <- "Results/ESR/21.1.1_model_avg"
+file_name <- "Results/ESR/21.1.1_v4_model_avg"
+plot_biomass(list(mod_list_all[[1]], mod_avg), file = file_name, add_ci = FALSE, model_names = c("Single-species", "Multi-species"), right_adj = 0, line_col = 1, lwd = 2, species = 1:4)
 plot_b_eaten(mod_avg, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = TRUE)
 plot_b_eaten(mod_avg, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = TRUE)
 plot_b_eaten_prop(mod_avg, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0, line_col = 1, lwd = 2, species = 1:3, incl_mean = FALSE)
@@ -39,21 +40,20 @@ plot_m_at_age(Rceattle = mod_avg, age = 1, file = file_name, add_ci = FALSE, mod
 plot_m2_at_age_prop(Rceattle = mod_avg, age = 1, file = file_name, add_ci = FALSE, model_names = NULL, right_adj = 0.23, line_col = 1, lwd = 2, species = 1:3, incl_mean = FALSE)
 
 # Mean M1
-round(mean(mod_avg$quantities$M[1,1,1,]),3)
-round(mean(mod_avg$quantities$M[2,1,1,]),3)
-round(mean(mod_avg$quantities$M[2,2,1,]),3)
-round(mean(mod_avg$quantities$M[3,1,1,]),3)
+round(mean(mod_avg$quantities$M[1,1,1,1:45]),3)
+round(mean(mod_avg$quantities$M[2,1,1,1:45]),3)
+round(mean(mod_avg$quantities$M[2,2,1,1:45]),3)
+round(mean(mod_avg$quantities$M[3,1,1,1:45]),3)
 
-# Age - 1
-round(mean(mod_avg$quantities$B_eaten[1,1,1,]),0)
-round(mean(mod_avg$quantities$B_eaten[2,1,1,] + mod_avg$quantities$B_eaten[2,2,1,]),0)
-round(mean(mod_avg$quantities$B_eaten[2,2,1,]),0)
-round(mean(mod_avg$quantities$B_eaten[3,1,1,]),0)
+# Age - 1 biomass eaten
+round(mean(mod_avg$quantities$B_eaten[1,1,1,1:45]),0)
+round(mean(mod_avg$quantities$B_eaten[2,1,1,1:45] + mod_avg$quantities$B_eaten[2,2,1,1:45]),0)
+round(mean(mod_avg$quantities$B_eaten[3,1,1,1:45]),0)
 
 
-c(round(mean(rowSums(mod_avg$quantities$B_eaten[1,1,,])),0),
-  round(mean(rowSums(mod_avg$quantities$B_eaten[2,1,,]+mod_avg$quantities$B_eaten[2,2,,])),0),
-  round(mean(rowSums(mod_avg$quantities$B_eaten[3,1,,])),0))
+c(round(mean(rowSums(mod_avg$quantities$B_eaten[1,1,,1:45])),0),
+  round(mean(rowSums(mod_avg$quantities$B_eaten[2,1,,1:45]+mod_avg$quantities$B_eaten[2,2,,1:45])),0),
+  round(mean(rowSums(mod_avg$quantities$B_eaten[3,1,,1:45])),0))
 
 
 table1 <- data.frame(
@@ -109,3 +109,4 @@ persp(x = 1:21, y = 1977:2021, z = mod_avg$quantities$B_eaten[2, 1,1:21,1:45], t
 persp(x = 1:21, y = 1977:2021, z = mod_avg$quantities$NByage[2, 2,1:21,1:45]/1000000, theta = 130, main = "ATF Males N-at-age", zlab = "Numbers (millions)", xlab = "Age")
 persp(x = 1:21, y = 1977:2021, z = mod_avg$quantities$M[2, 2,1:21,1:45], theta = 130, main = "ATF Males M1 + M2", zlab = "M yr^-1", xlab = "Age")
 persp(x = 1:21, y = 1977:2021, z = mod_avg$quantities$B_eaten[2, 2,1:21,1:45], theta = 130, main = "ATF Males consumed", zlab = "Biomass consumed (million mt)", xlab = "Age")
+

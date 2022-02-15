@@ -1,3 +1,5 @@
+#2018 ATF Weights
+
 library(Rceattle)
 library(readxl)
 setwd("Model runs/GOA_21.1.1/")
@@ -302,9 +304,9 @@ for(i in 1:8){
         niter = 3),
         silent = TRUE)
       
-      plot_biomass(mod_list_all[c(init_model,i)])
-      plot_recruitment(mod_list_all[c(init_model,i)])
-      plot_b_eaten(mod_list_all[c(init_model,i)])
+      # plot_biomass(mod_list_all[c(init_model,i)])
+      # plot_recruitment(mod_list_all[c(init_model,i)])
+      # plot_b_eaten(mod_list_all[c(init_model,i)])
       # mod_list_all[[i]]$quantities$jnll_comp
       # plot_catch(mod_list_all[[i]])
       
@@ -406,7 +408,7 @@ for(i in 1:length(mod_list_all)){
     inits_M1_df$Divergent_jnll[i] <- round(mod_list_all[[i]]$quantities$jnll - mod_list_all[[i]]$opt$objective,3)
   }
 }
-
+inits_M1_df
 
 # Plot to see if things are reasonable
 plot_biomass(mod_list_all[which(!is.na(inits_M1_df$Divergent_jnll))])
@@ -420,4 +422,4 @@ mod_list_all_save <- mod_list_all
 
 
 # Save
-save(mod_list_all, file = paste0("Models/20_1_1_Niter5_", Sys.Date(),".RData"))
+save(mod_list_all, file = paste0("Models/21_1_1_Niter3_v4", Sys.Date(),".RData"))
