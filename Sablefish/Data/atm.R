@@ -1,0 +1,15 @@
+atm <- read.csv("Data/atm.csv")
+
+atm1_m <- matrix(atm[,1], 30, 30, byrow = TRUE)
+atm1_f <- matrix(atm[,2], 30, 30, byrow = TRUE)
+atm1_u <- matrix(atm[,3], 30, 30, byrow = TRUE)
+atm2_m <- matrix(atm[,4], 30, 30, byrow = TRUE)
+atm2_f <- matrix(atm[,5], 30, 30, byrow = TRUE)
+age_error <- matrix(atm[,6], 30, 30, byrow = TRUE)
+
+write.csv(atm1_m, file = "Data/atm1_m.csv")
+write.csv(atm1_f, file = "Data/atm1_f.csv")
+write.csv(atm1_u, file = "Data/atm1_u.csv")
+write.csv(atm2_m, file = "Data/atm2_m.csv")
+write.csv(atm2_f, file = "Data/atm2_f.csv")
+write.csv(age_error, file = "Data/age_error.csv")
