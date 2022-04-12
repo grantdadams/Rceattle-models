@@ -1,7 +1,7 @@
 # Grant Adams, Kirstin Holsman, Andre Punt - April 2021
 # Function to run Gulf of Alaska single-species CEATTLE models in TMB
 # Citation:
-# Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., and Moffitt, E. A. 2015. A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134: 360–378.
+# Adams, G.D., Holsman, K.K., Barbeaux, S.J., Dorn, M.W., Ianelli, J.N., Spies, I., Stewart, I.J., Punt, A.E., 2022. An ensemble approach to understand predation mortality for groundfish in the Gulf of Alaska. Fish. Res. 251, 106303. doi:10.1016/j.fishres.2022.106303
 
 ################################################
 # Load packages
@@ -15,17 +15,17 @@ library(readxl)
 ################################################
 
 # Pollock
-mydata_pollock <- Rceattle::read_data( file = "GOA_18.5.1_pollock_single_species_1970-2018.xlsx")
+mydata_pollock <- data("GOApollock")
 # Note - the Pollock indices of abundance are rescaled (martin does the scaling in model)
 # Differences between CEATTLE and SAFE: the SAFE model penalizes the first 7 and last recruitment deviates, while I penalize them all. Besides that its parameterized the exact same.
 
 # Cod
-mydata_pcod <- Rceattle::read_data( file = "GOA_18.5.1_pcod_single_species_1977-2018.xlsx")
+mydata_pcod <- data("GOAcod")
 mydata_pcod$pmature[1,2:13] <- 2 # Spawn wt from SS model includes sex-ratio and maturity already, so setting Pmature (age-at-maturity) to 2 to have CEATTLE calculations be the same
 # The cod model was  a bit trickier to recreate because of the use of internal age-length estimation/conditional age-at-length and more flexible selectivity parameterization than I currently have set up in CEATTLE. I use the output weight-at-age, mortality, and terminal year age-length-key from SS as inputs into CEATTLE and set age-based selectivity in CEATTLE to be the form that is most similar to the terminal year length-based selectivity pattern in SS. I fit the same index, catch, and length-at-age data as well as marginal age- and length-comp data that the SAFE model doesn't fit. I ignore annual varying selectivity (you could do it in CEATTLE... see meta_data sheet in the Excel file, I just stopped trying after some convergence issues). I ignored the aging error (could add in, but was having convergence problems). I also do not use the Taylor and Methot 2013 recruitment bias correction thats in SS and did not have a 2016 bump in mortality from the blob.
 
-# ATF
-mydata_atf <- Rceattle::read_data( file = "GOA_18.5.1_arrowtooth_single_species_1961-2018.xlsx")
+# Arrowtooth flounder
+mydata_atf <- data("GOAatf")
 # Differences between CEATTLE and SAFE: ATF composition sample sizes and non-parametric selectivity penalties are the same for each sex while they are different in the SAFE model (differences between sexes for both bits are < 5 in the SAFE model. This was a convenience for coding
 
 
@@ -106,9 +106,9 @@ cod_model <- Rceattle::fit_mod(
 # Compare with SAFE Models
 ################################################
 # Columns = year, pollock, cod, atf - outputs here are 1977-2018
-safe2018biomass <- as.data.frame(read_xlsx("2018_SAFE_biomass_estimate.xlsx", sheet = 1))
-safe2018ssb <- as.data.frame(read_xlsx("2018_SAFE_biomass_estimate.xlsx", sheet = 2))
-safe2018rec <- as.data.frame(read_xlsx("2018_SAFE_biomass_estimate.xlsx", sheet = 3))
+safe2018biomass <- GOAsafe2018$biomass
+safe2018ssb <- GOAsafe2018$ssb
+safe2018rec <- GOAsafe2018$recruitment
 
 # Assign data to CEATTLE object
 pollock_model_safe <- pollock_model
