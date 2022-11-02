@@ -116,7 +116,7 @@ bridging_fun <- function(GOA_data){
                                          estimateMode = 0, # Estimate
                                          random_rec = FALSE, # No random recruitment
                                          msmMode = 0, # Single species mode
-                                         verbose = 1,
+                                         verbose = 0,
                                          phase = "default")
   
   print("Model 2 - Run single-species est M")
@@ -126,7 +126,7 @@ bridging_fun <- function(GOA_data){
                                          estimateMode = 0, # Estimate
                                          random_rec = FALSE, # No random recruitment
                                          msmMode = 0, # Single species mode
-                                         verbose = 1,
+                                         verbose = 0,
                                          phase = "default")
   
   
@@ -140,7 +140,7 @@ bridging_fun <- function(GOA_data){
     estimateMode = 0, # Estimate
     random_rec = FALSE, # No random recruitment
     msmMode = 1, # Multi species mode
-    verbose = 1,
+    verbose = 0,
     niter = 3,
     updateM1 = FALSE,
     use_gradient = TRUE,
