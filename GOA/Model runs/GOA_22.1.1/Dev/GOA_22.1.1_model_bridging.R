@@ -8,23 +8,65 @@ setwd("~/GitHub/RceattleRuns/GOA/Model runs/GOA_22.1.1")
 GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_18_5_1_data_1977-2018_no_halibut.xlsx")
 base <- bridging_fun(GOA_data)
 
-# Add updated catch (using 2018 weights for 2019-2022)
+# 1: Add updated catch (using 2018 weights for 2019-2022)
 GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b1.xlsx")
 GOA_data$endyr <- 2022
 c1 <- bridging_fun(GOA_data)
 plot_biomass(c1)
 
 
-# Add updated weight-at-age
+# 2: Add updated weight-at-age
 GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b2.xlsx")
 c2 <- bridging_fun(GOA_data)
 plot_biomass(c2)
 
 
-# Add updated survey data
+# 3: Add updated survey data
 GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b3.xlsx")
 c3 <- bridging_fun(GOA_data)
 plot_biomass(c3)
+
+
+# 4: Add updated comp data (pollock and arrowtooth only)
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b4.xlsx")
+c4 <- bridging_fun(GOA_data)
+plot_biomass(c4)
+
+
+# 5: Change cod to max-age 10
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b5.xlsx")
+c5 <- bridging_fun(GOA_data)
+plot_biomass(c5)
+
+
+# 6: Update cod comp data
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b6.xlsx")
+c6 <- bridging_fun(GOA_data)
+plot_biomass(c6)
+
+
+# 7: Add in new cod age data
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b7.xlsx")
+c7 <- bridging_fun(GOA_data)
+plot_biomass(c7)
+
+
+# 8: Add in new age-transition matrix
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b8.xlsx")
+c8 <- bridging_fun(GOA_data)
+plot_biomass(c8)
+
+
+# 9: Add in new surveys
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b9.xlsx")
+c9 <- bridging_fun(GOA_data)
+plot_biomass(c9)
+
+
+# 10: Update penalties for time-varying Q for pollock
+GOA_data <- Rceattle::read_data( file = "Data/Bridging/GOA_22_1_1_data_1977-2022_b10.xlsx")
+c10 <- bridging_fun(GOA_data)
+plot_biomass(c10)
 
 
 bridging_fun <- function(GOA_data){
