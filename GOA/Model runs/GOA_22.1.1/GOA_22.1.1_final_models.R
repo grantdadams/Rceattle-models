@@ -5,7 +5,7 @@ library(readxl)
 # Read in data
 #########################
 setwd("~/GitHub/RceattleRuns/GOA/Model runs/GOA_22.1.1")
-GOA_data <- Rceattle::read_data( file = "Data/GOA_22_1_1_data_1977_2022_no_halibut.xlsx")
+GOA_data <- Rceattle::read_data( file = "Data/GOA_22_1_1_data_1977_2022_b10.xlsx")
 GOA_data$styr <- 1977
 
 # Set up model list
