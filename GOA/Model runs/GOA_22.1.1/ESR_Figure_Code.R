@@ -19,12 +19,12 @@ ESR_plot_biomass_consumed <- function(Rceattle, endyr = 2022){
   yrs <- Rceattle$data_list$styr:endyr
   
   Biomass_eaten <- rbind(
-    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[1,,,1:length(yrs)], 3, sum)/1e6,Species = "Prey: Walleye pollock"),
-    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[3,,,1:length(yrs)], 3, sum)/1e6,Species = "Prey: Pacific cod"),
-    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[2,,,1:length(yrs)], 3, sum)/1e6,Species = "Prey: Arrowtooth flounder"))
+    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[1,,,1:length(yrs)], 3, sum)/1e6,Species = "a) Prey: Walleye pollock"),
+    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[3,,,1:length(yrs)], 3, sum)/1e6,Species = "b) Prey: Pacific cod"),
+    data.frame(Year = yrs,Biomass=apply(Rceattle$quantities$B_eaten_as_prey[2,,,1:length(yrs)], 3, sum)/1e6,Species = "c) Prey: Arrowtooth flounder"))
   
   
-  Biomass_eaten$Species <- factor( Biomass_eaten$Species,levels = c("Prey: Walleye pollock","Prey: Pacific cod","Prey: Arrowtooth flounder"))
+  Biomass_eaten$Species <- factor( Biomass_eaten$Species,levels = c("a) Prey: Walleye pollock","b) Prey: Pacific cod","c) Prey: Arrowtooth flounder"))
   
   mn<- Biomass_eaten%>%
     group_by(Species)%>%
@@ -58,10 +58,10 @@ ESR_plot_annual_ration <- function(Rceattle, minage = 4, endyr = 2022){
   maxage <- max(Rceattle$data_list$nages)
   
   Annual_ration <- rbind(
-    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 1, endyr, minage)/1e6, Species = "Predator: Walleye pollock"),
-    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 3, endyr, minage)/1e6, Species = "Predator: Pacific cod"),
-    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 2, endyr, minage)/1e6, Species = "Predator: Arrowtooth flounder"))
-  Annual_ration$Species <- factor( Annual_ration$Species,levels = c("Predator: Walleye pollock","Predator: Pacific cod","Predator: Arrowtooth flounder"))
+    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 1, endyr, minage)/1e6, Species = "a) Predator: Walleye pollock"),
+    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 3, endyr, minage)/1e6, Species = "b) Predator: Pacific cod"),
+    data.frame(Year = yrs, Ration=weighted_ration(Rceattle, spp = 2, endyr, minage)/1e6, Species = "c) Predator: Arrowtooth flounder"))
+  Annual_ration$Species <- factor( Annual_ration$Species,levels = c("a) Predator: Walleye pollock","b) Predator: Pacific cod","c) Predator: Arrowtooth flounder"))
   
   mn<- Annual_ration %>%
     group_by(Species)%>%
@@ -83,7 +83,9 @@ ESR_plot_annual_ration <- function(Rceattle, minage = 4, endyr = 2022){
     facet_grid(Species~.,scales="free_y")+
     scale_color_viridis_d(begin = 0,end=.6)+
     scale_fill_viridis_d(begin = 0,end=.6)+
-    theme(panel.background = element_rect(fill = NA, color = "grey"), panel.grid.major = element_blank(), legend.key=element_blank(), strip.background = element_blank()) + 
+    theme(panel.background = element_rect(fill = NA, color = "grey"), 
+          panel.grid.major = element_blank(), legend.key=element_blank(), 
+          strip.background = element_blank()) + 
     ylab("Annual ration (adult; age 4 +)") # for the y axis label
   
 }
@@ -99,11 +101,11 @@ ESR_plot_M_age <-function(msModel, ssModel, age = 1, endyr = 2022){
   yrs <- msModel$data_list$styr:endyr
   
   M2 <- rbind(
-    data.frame(Year = c(yrs, 2050), SSM= c(ssModel$quantities$M[1,1,age,1:length(yrs)], 1) , MSM= c(msModel$quantities$M[1,1,age,1:length(yrs)], NA), Species = "Prey: Walleye pollock"),
-    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[3,1,age,1:length(yrs)], .4) , MSM= c(msModel$quantities$M[3,1,age,1:length(yrs)], NA), Species = "Prey: Pacific cod"),
-    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[2,1,age,1:length(yrs)], 0.15) , MSM= c(msModel$quantities$M[2,1,age,1:length(yrs)], NA), Species = "Prey: Arrowtooth (F)"),
-    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[2,2,age,1:length(yrs)], 0.3) , MSM= c(msModel$quantities$M[2,2,age,1:length(yrs)], NA), Species = "Prey: Arrowtooth (M)"))
-  M2$Species <- factor( M2$Species,levels = c("Prey: Walleye pollock","Prey: Pacific cod","Prey: Arrowtooth (F)", "Prey: Arrowtooth (M)"))
+    data.frame(Year = c(yrs, 2050), SSM= c(ssModel$quantities$M[1,1,age,1:length(yrs)], 1) , MSM= c(msModel$quantities$M[1,1,age,1:length(yrs)], NA), Species = "a) Prey: Walleye pollock"),
+    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[3,1,age,1:length(yrs)], .4) , MSM= c(msModel$quantities$M[3,1,age,1:length(yrs)], NA), Species = "b) Prey: Pacific cod"),
+    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[2,1,age,1:length(yrs)], 0.15) , MSM= c(msModel$quantities$M[2,1,age,1:length(yrs)], NA), Species = "c) Prey: Arrowtooth (F)"),
+    data.frame(Year = c(yrs, 2050),SSM= c(ssModel$quantities$M[2,2,age,1:length(yrs)], 0.3) , MSM= c(msModel$quantities$M[2,2,age,1:length(yrs)], NA), Species = "d) Prey: Arrowtooth (M)"))
+  M2$Species <- factor( M2$Species,levels = c("a) Prey: Walleye pollock","b) Prey: Pacific cod","c) Prey: Arrowtooth (F)", "d) Prey: Arrowtooth (M)"))
   
   M2<- melt(M2%>%dplyr::select(Year,Species,SSM,MSM),id=c("Year","Species"))
   M2<- M2%>%dplyr::rename(Model=variable,totalM=value)
