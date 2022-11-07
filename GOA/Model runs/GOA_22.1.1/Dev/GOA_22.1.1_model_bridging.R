@@ -69,6 +69,12 @@ c10 <- bridging_fun(GOA_data)
 plot_biomass(c10)
 
 
+# 11: Estimate new surveys
+GOA_data$fleet_control$Fleet_type[17:18] <- 2
+c11 <- bridging_fun(GOA_data)
+plot_biomass(c11)
+
+
 bridging_fun <- function(GOA_data){
   library(Rceattle)
   library(readxl)
