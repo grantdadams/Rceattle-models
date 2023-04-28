@@ -4,11 +4,12 @@ library(readxl)
 ################################################
 # Data
 ################################################
-mydata_hake <- Rceattle::read_data( file = "Data/2019PAcificHake.xlsx")
+mydata_hake <- Rceattle::read_data( file = "Data/2019PacificHake.xlsx")
 
 ################################################
 # Fit initial model
 ################################################
+mydata_hake$est_M1 <- 0
 hake_base <- Rceattle::fit_mod(data_list = mydata_hake,
                                inits = NULL, # Initial parameters = 0
                                file = NULL, # Don't save
@@ -16,8 +17,22 @@ hake_base <- Rceattle::fit_mod(data_list = mydata_hake,
                                msmMode = 0, # Single species mode
                                phase = "default")
 
-# -- Look at jnll comp
-# hake_base$quantities$jnll_comp
+mydata_hake$est_M1 <- 1
+hake_baseM <- Rceattle::fit_mod(data_list = mydata_hake,
+                               inits = NULL, # Initial parameters = 0
+                               file = NULL, # Don't save
+                               estimateMode = 1,
+                               msmMode = 0, # Single species mode
+                               phase = "default")
+
+mydata_hake$est_M1 <- 1
+hake_ms <- Rceattle::fit_mod(data_list = mydata_hake,
+                               inits = NULL, # Initial parameters = 0
+                               file = NULL, # Don't save
+                               estimateMode = 1,
+                               msmMode = 1, # Multi species mode
+                               niter = 3,
+                               phase = "default")
 
 # -- Plot
 plot_biomass(hake_base)

@@ -1,0 +1,19 @@
+"","Sp/Srv/Fsh_1","Sp/Srv/Fsh_2","Sp/Srv/Fsh_3","Sp/Srv/Fsh_4","Sp/Srv/Fsh_5","Sp/Srv/Fsh_6","Sp/Srv/Fsh_7","Sp/Srv/Fsh_8"
+"Survey biomass",47.9316024868115,16.3707942944625,51.0465119853001,16.9396299701678,16.3079619435912,1.19724225623008,0,0
+"Total catch",0,0,0,0,0,0,0,2023268.43066537
+"Age/length composition data",33.1069198084552,19.3000519696356,35.6106877863905,0,0,6.41702258742334,0,117.612760672914
+"Sex ratio",0,0,0,0,0,0,0,0
+"Non-parametric selectivity",0,0,0,0,0,0,0,0
+"Selectivity deviates",0,0,0,0,0,0,0,-127.885070637986
+"NA",0,0,0,0,0,0,0,0
+"Selectivity normalization",0,0,0,0,0,0,0,4.16505943115558e-21
+"Catchability prior",0,-0.188861796897375,0,0,0,0,0,0
+"Catchability deviates",-113.263537353475,0,-93.0658113452051,0,0,0,0,0
+"Recruitment deviates",108.53910303334,0,0,0,0,0,0,0
+"Initial abundance deviates",18.4479884936992,0,0,0,0,0,0,0
+"Fishing mortality deviates",0,0,0,0,0,0,0,13.9939558393198
+"SPR Calculation",0,0,0,0,0,0,0,0
+"Zero n-at-age penalty",0,0,0,0,0,0,0,0
+"Ration",0,0,0,0,0,0,0,0
+"Ration penalties",0,0,0,0,0,0,0,0
+"Stomach content proportion by weight",0,0,0,0,0,0,0,0
