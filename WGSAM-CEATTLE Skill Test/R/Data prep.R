@@ -2,7 +2,7 @@
 # install.packages("pacman")
 pacman::p_load(remotes, tidyr, dplyr, data.table)
 
-# remotes::install_github("NOAA-EDAB/ms-keyrun")
+# remotes::install_github("NOAA-EDAB/ms-keyrun", ref = "sarah_wgsamsim")
 library(mskeyrun)
 library(Rceattle)
 
@@ -16,44 +16,47 @@ WGSAM <- BS2017SS
 # --------------------------------
 # Remove Long_rough_dab and Polar_cod because they have no fishery
 # --------------------------------
+species <- c("Haddock", "North_atl_cod", "Capelin")
+
+# Cod, capelin, haddock
 simFocalSpecies <- simFocalSpecies %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simCatchIndex <- simCatchIndex %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyIndex <- simSurveyIndex %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyAgecomp <- simSurveyAgecomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyLencomp <- simSurveyLencomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyAgeLencomp <- simSurveyAgeLencomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyWtatAge <- simSurveyWtatAge %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simFisheryAgecomp <- simFisheryAgecomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simFisheryLencomp <- simFisheryLencomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simFisheryWtatAge<- simFisheryWtatAge %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simBiolPar <- simBiolPar %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simSurveyDietcomp <- simSurveyDietcomp %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 simPerCapCons <- simPerCapCons %>%
-  filter(!Name %in% c("Long_rough_dab", "Polar_cod"))
+  filter(Name %in% species)
 
 
 # --------------------------------
@@ -91,19 +94,21 @@ srv_lengths <- simSurveyLencomp %>% group_by(Name) %>%
             maxsrvlength = max(lenbin),
             minsrvlength = min(lenbin))
 
+srv_agelengths <- simSurveyAgeLencomp %>% group_by(Name) %>% 
+  summarise(nsrvlengths = length(unique(lenbin)),
+            maxsrvagelength = max(lenbin),
+            minsrvagelength = min(lenbin))
+
 lengths <- merge(srv_lengths, fsh_lengths, all = TRUE) %>%
   group_by(Name) %>%
-  mutate(nlengths = max(c(nfshlengths, nsrvlengths), na.rm = TRUE))
+  mutate(nlengths = max(c(maxsrvlength, maxfshlength), na.rm = TRUE))
 
-WGSAM$nlengths <- lengths$nlengths
-WGSAM$pop_wt_index <- rep(1, WGSAM$nspp) #TODO
-WGSAM$ssb_wt_index <- rep(1, WGSAM$nspp) #TODO
-WGSAM$pop_age_transition_index <- rep(1, WGSAM$nspp) #TODO
+WGSAM$nlengths <- lengths$nlengths - min(lengths[,2:ncol(lengths)])+1
 WGSAM$sigma_rec_prior <- rep(1, WGSAM$nspp)
 WGSAM$other_food <- rep(1e6, WGSAM$nspp)
 WGSAM$estDynamics <- rep(0, WGSAM$nspp) # Estimate everything
 WGSAM$proj_F <- rep(0, WGSAM$nspp) # Not used
-WGSAM$est_M1 <- rep(0.2, WGSAM$nspp)
+WGSAM$est_M1 <- rep(0, WGSAM$nspp)
 WGSAM$est_sex_ratio <- rep(0, WGSAM$nspp) # Not used
 
 
@@ -129,25 +134,26 @@ frst_srv_age <- simSurveyWtatAge %>% group_by(Name, survey) %>% summarise(Age_fi
   rename(Fleet_name = survey)
 first_selected_age <- rbind(frst_srv_age, frst_fish_age)
 
-# - build fleet_control
+# - build
 fleet_control <- rbind(fishingfleets, surveys)
 fleet_control <- merge(fleet_control, spp_inds, all = TRUE)
-fleet_control <- merge(fleet_control, first_selected_age, all = TRUE)
+# fleet_control <- merge(fleet_control, first_selected_age, all = TRUE)
 
 fleet_control <- fleet_control %>%
   mutate(Fleet_code = 1:n(),
-         Selectivity_index = Species, # Selectivity the same for spring and fall surveys
-         Selectivity = 1, # All logistic
-         Time_varying_sel = 0,
-         Sel_sd_prior = 0,
-         Nselages = NA,
+         Selectivity_index = 1:n(), # Selectivity the same for spring and fall surveys
+         Selectivity = 2, # All non-parametric
+         Nselages = 8,
+         Time_varying_sel = 12.5,
+         Sel_sd_prior = 20,
+         Age_first_selected = 1,
          Accumatation_age_lower = 1,
          Accumatation_age_upper = maxage,
          Weight1_Numbers2 = 1,
          Weight_index = 1:n(), # Unique weight for season/fleet
          Age_transition_index = 1:n(),
-         Q_index = Species, # Q same for spring and fall surveys
-         Estimate_q = 0, # Free parameter (may want to go analytical)
+         Q_index = 1:n(), # Q same for spring and fall surveys
+         Estimate_q = 3, # Free parameter (analytical)
          Q_prior = 1,
          Q_sd_prior = 0,
          Time_varying_q = 0,
@@ -158,14 +164,14 @@ fleet_control <- fleet_control %>%
          Catch_sd_prior = NA,
          Comp_weights = 1,
          proj_F_prop = 1 # One fishing fleet per species
-         )
+  )
 
 # Set q/srv bits to NA for fishery
 fleet_control[which(fleet_control$Fleet_type == 1),
               c("Q_index", "Estimate_q", "Q_prior", "Q_sd_prior", "Time_varying_q", "Time_varying_q_sd_prior", "Estimate_survey_sd","Survey_sd_prior")] <- NA
 
-# Set selectivity index for surveys to spp + 11 (survey has same selectivity across seasons)
-fleet_control[which(fleet_control$Fleet_type == 2), "Selectivity_index"] <- fleet_control[which(fleet_control$Fleet_type == 2), "Selectivity_index"] + WGSAM$nspp
+# # Set selectivity index for surveys to spp + 11 (survey has same selectivity across seasons)
+# fleet_control[which(fleet_control$Fleet_type == 2), "Selectivity_index"] <- fleet_control[which(fleet_control$Fleet_type == 2), "Selectivity_index"] + WGSAM$nspp
 
 # Set fishery bits to NA for survey
 fleet_control[which(fleet_control$Fleet_type == 2),
@@ -218,7 +224,7 @@ fsh_biom <- data.frame(
   Month = 0, # Double check spring and fall survey months?
   Selectivity_block = 1,
   Catch = catch$value, # Is this metric tons?
-  Log_sd = catchcv$value # May want to do analytical SD
+  Log_sd = 0.05 # May want to do analytical SD (default is 0.01, loosening it up)
 )
 
 fsh_biom <- merge(fsh_biom, species_fleet_crosswalk, all.x = TRUE)
@@ -237,8 +243,7 @@ comp_data_fsh_age <- data.frame(
   Age0_Length1 = 0,
   Year = simFisheryAgecomp$year,
   Month = 0, 
-  Sample_size = rowSums(simFisheryAgecomp[,8:ncol(simFisheryAgecomp)], na.rm = TRUE))
-comp_data_fsh_age <- merge(comp_data_fsh_age, species_fleet_crosswalk, all.x = TRUE)
+  Sample_size = 200) # Set as default (using number of samples was a lot...)
 
 comp_temp <- simFisheryAgecomp[,8:ncol(simFisheryAgecomp)]
 comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
@@ -246,6 +251,7 @@ comp_temp[is.na(comp_temp)] <- 0
 # colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
 
 comp_data_fsh_age <- cbind(comp_data_fsh_age, comp_temp)
+comp_data_fsh_age <- merge(comp_data_fsh_age, species_fleet_crosswalk, all.x = TRUE)
 
 # - survey age
 simSurveyAgecomp <- pivot_wider(simSurveyAgecomp, names_from = "age") %>% as.data.frame()
@@ -256,8 +262,8 @@ comp_data_srv_age <- data.frame(
   Age0_Length1 = 0,
   Year = simSurveyAgecomp$year,
   Month = ifelse(substr(simSurveyAgecomp$survey, 5, 8) == "fall", 10, 5), 
-  Sample_size = rowSums(simSurveyAgecomp[,8:ncol(simSurveyAgecomp)], na.rm = TRUE))
-comp_data_srv_age <- merge(comp_data_srv_age, species_fleet_crosswalk, all.x = TRUE)
+  Sample_size = 200) # Set as default (using number of samples was a lot...)
+# rowSums(simSurveyAgecomp[,8:ncol(simSurveyAgecomp)], na.rm = TRUE))
 
 comp_temp <- simSurveyAgecomp[,8:ncol(simSurveyAgecomp)]
 comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
@@ -265,74 +271,90 @@ comp_temp[is.na(comp_temp)] <- 0
 # colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
 
 comp_data_srv_age <- cbind(comp_data_srv_age, comp_temp)
+comp_data_srv_age <- merge(comp_data_srv_age, species_fleet_crosswalk, all.x = TRUE)
 
 
-# - Fishery length
-simFisheryLencomp <- pivot_wider(simFisheryLencomp, names_from = "lenbin") %>% as.data.frame()
-comp_data_fsh_len <- data.frame(
-  Name = simFisheryLencomp$Name,
-  Fleet_name = simFisheryLencomp$fishery,
-  Sex = 0,
-  Age0_Length1 = 1,
-  Year = simFisheryLencomp$year,
-  Month = 0, 
-  Sample_size = rowSums(simFisheryLencomp[,8:ncol(simFisheryLencomp)], na.rm = TRUE))
-comp_data_fsh_len <- merge(comp_data_fsh_len, species_fleet_crosswalk, all.x = TRUE)
-
-comp_temp <- simFisheryLencomp[,8:ncol(simFisheryLencomp)]
-comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
-comp_temp[is.na(comp_temp)] <- 0
-# colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
-
-comp_data_fsh_len <- cbind(comp_data_fsh_len, comp_temp)
-
-
-# - Survey length
-simSurveyLencomp <- pivot_wider(simSurveyLencomp, names_from = "lenbin") %>% 
-  as.data.frame()
-
-comp_data_srv_len <- data.frame(
-  Name = simSurveyLencomp$Name,
-  Fleet_name = simSurveyLencomp$survey,
-  Sex = 0,
-  Age0_Length1 = 1,
-  Year = simSurveyLencomp$year,
-  Month = ifelse(substr(simSurveyLencomp$survey, 5, 8) == "fall", 10, 5), 
-  Sample_size = rowSums(simSurveyLencomp[,8:ncol(simSurveyLencomp)], na.rm = TRUE))
-comp_data_srv_len <- merge(comp_data_srv_len, species_fleet_crosswalk, all.x = TRUE)
-
-comp_temp <- simSurveyLencomp[,8:ncol(simSurveyLencomp)]
-comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
-comp_temp[is.na(comp_temp)] <- 0
-# colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
-
-comp_data_srv_len <- cbind(comp_data_srv_len, comp_temp)
+# 
+# # - Fishery length
+# simFisheryLencomp <- pivot_wider(simFisheryLencomp, names_from = "lenbin") %>% as.data.frame()
+# comp_data_fsh_len <- data.frame(
+#   Name = simFisheryLencomp$Name,
+#   Fleet_name = simFisheryLencomp$fishery,
+#   Sex = 0,
+#   Age0_Length1 = 1,
+#   Year = simFisheryLencomp$year,
+#   Month = 0, 
+#   Sample_size = rowSums(simFisheryLencomp[,8:ncol(simFisheryLencomp)], na.rm = TRUE))
+# comp_data_fsh_len <- merge(comp_data_fsh_len, species_fleet_crosswalk, all.x = TRUE)
+# 
+# comp_temp <- simFisheryLencomp[,8:ncol(simFisheryLencomp)]
+# comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
+# comp_temp[is.na(comp_temp)] <- 0
+# # colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
+# 
+# comp_data_fsh_len <- cbind(comp_data_fsh_len, comp_temp)
+# 
+# 
+# # - Survey length
+# simSurveyLencomp <- pivot_wider(simSurveyLencomp, names_from = "lenbin") %>% 
+#   as.data.frame()
+# 
+# comp_data_srv_len <- data.frame(
+#   Name = simSurveyLencomp$Name,
+#   Fleet_name = simSurveyLencomp$survey,
+#   Sex = 0,
+#   Age0_Length1 = 1,
+#   Year = simSurveyLencomp$year,
+#   Month = ifelse(substr(simSurveyLencomp$survey, 5, 8) == "fall", 10, 5), 
+#   Sample_size = rowSums(simSurveyLencomp[,8:ncol(simSurveyLencomp)], na.rm = TRUE))
+# comp_data_srv_len <- merge(comp_data_srv_len, species_fleet_crosswalk, all.x = TRUE)
+# 
+# comp_temp <- simSurveyLencomp[,8:ncol(simSurveyLencomp)]
+# comp_temp <- comp_temp[,order(as.numeric(colnames(comp_temp)))]
+# comp_temp[is.na(comp_temp)] <- 0
+# # colnames(comp_temp) <- paste0("Comp_", 1:ncol(comp_temp))
+# 
+# comp_data_srv_len <- cbind(comp_data_srv_len, comp_temp)
 
 # - Combine
 age_comp <- rbind(comp_data_fsh_age, comp_data_srv_age)
+age_comp <- age_comp[,c("Name","Fleet_name","Fleet_code", "Species", "Sex", "Age0_Length1", "Year", "Month", "Sample_size", 1:max(WGSAM$nages))]
 colnames(age_comp)[10:ncol(age_comp)] <- paste0("Comp_", 1:length(10:ncol(age_comp)))
+# 
+# len_comp <- bind_rows(comp_data_srv_len, comp_data_fsh_len)
+# len_comp[is.na(len_comp)] <- 0 # Min length-bin is 3, max length-bin is 199
+# colnames(len_comp)[10:ncol(len_comp)] <- paste0("Comp_", 1:length(10:ncol(len_comp)))
 
-len_comp <- bind_rows(comp_data_srv_len, comp_data_fsh_len)
-len_comp[is.na(len_comp)] <- 0 # Min length-bin is 3, max length-bin is 199
-colnames(len_comp)[10:ncol(len_comp)] <- paste0("Comp_", 1:length(10:ncol(len_comp)))
+comp_data <- age_comp # bind_rows(age_comp, len_comp)
+# comp_data <- comp_data[,c("Name", colnames(WGSAM$comp_data), paste0("Comp_",26:197))]
 
-comp_data <- bind_rows(age_comp, len_comp)
-comp_data <- comp_data[,c("Name", colnames(WGSAM$comp_data), paste0("Comp_",26:197))]
+# Remove comp data with 0s
+comp_data <- comp_data[which(rowSums(comp_data[,10:ncol(comp_data)]) != 0),]
+
+comp_data <- comp_data %>%
+  select(Name, Fleet_name, Fleet_code, Species, Sex, Age0_Length1, Year, Month, Sample_size, paste0("Comp_",1:max(WGSAM$nages)))
 
 
 # --------------------------------
 # Set up empirical selectivity
 # --------------------------------
 emp_sel <- WGSAM$emp_sel
-emp_sel[] <- NA
+emp_sel <- emp_sel[-c(1:20),] 
 
 
 # --------------------------------
 # Set up age transition matrix
 # --------------------------------
-simSurveyAgeLencomp <- pivot_wider(simSurveyAgeLencomp, names_from = "lenbin") %>% as.data.frame()
+#FIXME adjust for agecl to age converesion?
+agelengthdat <- simSurveyAgeLencomp %>%
+  mutate(lenbin = paste0("Length",lenbin - min(lenbin) + 1)) %>% 
+  pivot_wider(names_from = "lenbin") %>% 
+  as.data.frame()
 
-agelen_names <- simSurveyAgeLencomp %>%
+agelengthdat <- agelengthdat %>%
+  select(ModSim, year, Code,  Name, survey, agecl, variable, units, paste0("Length",sort(unique(simSurveyAgeLencomp$lenbin))-min(simSurveyAgeLencomp$lenbin) + 1))
+
+agelen_names <- agelengthdat %>%
   distinct(Name, survey) %>%
   mutate(Age_transition_index = 1:n())
 
@@ -340,7 +362,7 @@ age_trans_list <- list()
 for(i in 1:nrow(agelen_names)){
   
   # Annual
-  agelencomp_temp <- simSurveyAgeLencomp %>%
+  agelencomp_temp <- agelengthdat %>%
     filter(Name == agelen_names$Name[i] & survey == agelen_names$survey[i])
   agecl_df <- data.frame(agecl = sort(unique(agelencomp_temp$agecl)))
   
@@ -377,12 +399,11 @@ for(i in 1:nrow(agelen_names)){
   
   age_trans_temp <- merge(age_trans_temp, comp_temp, by = "Age", all.x = TRUE)
   age_trans_temp[is.na(age_trans_temp)] <- 0
-  age_trans_temp <- age_trans_temp[,c("Name", colnames(WGSAM$age_trans_matrix), paste0("Length",26:197))]
+  age_trans_temp <- age_trans_temp[,c("Name", colnames(BS2017SS$age_trans_matrix)[1:5], paste0("Length",1:max(WGSAM$nlengths)))]
   age_trans_list[[i]] <- age_trans_temp
 }
 
 age_trans_matrix <-rbindlist(age_trans_list)
-
 
 # --------------------------------
 # Age error
@@ -395,7 +416,7 @@ for(i in 1:WGSAM$nspp){
   age_error_tmp <- data.frame(
     Species = i,
     True_age = ages
-    )
+  )
   
   comp_temp <- diag(length(ages))
   colnames(comp_temp) = paste0("Obs_age",ages)
@@ -419,7 +440,9 @@ species_wt_crosswalk <- fleet_control %>%
 # - Survey
 simSurveyWtatAge$value <- simSurveyWtatAge$value * 0.001 # Convert g to kg
 simSurveyWtatAge$units <- "kg"
-simSurveyWtatAge <- pivot_wider(simSurveyWtatAge, names_from = "age") %>% as.data.frame()
+simSurveyWtatAge <- simSurveyWtatAge %>%
+  mutate(age = paste0("Age",age)) %>%
+  pivot_wider(names_from = "age") %>% as.data.frame()
 
 srv_wt <- data.frame(
   Name = simSurveyWtatAge$Name,
@@ -429,15 +452,17 @@ srv_wt <- data.frame(
 )
 
 # Add wt_index and species
-srv_wt <- merge(srv_wt, species_wt_crosswalk, all.x = TRUE)
-wt_temp <- simSurveyWtatAge[,8:ncol(simSurveyWtatAge)]
+wt_temp <- simSurveyWtatAge[,paste0("Age",1:max(WGSAM$nages))]
 srv_wt <- cbind(srv_wt, wt_temp)
+srv_wt <- merge(srv_wt, species_wt_crosswalk, all.x = TRUE)
 
 
 # - fishery
 simFisheryWtatAge$value <- simFisheryWtatAge$value * 0.001 # Convert g to kg
 simFisheryWtatAge$units <- "kg"
-simFisheryWtatAge <- pivot_wider(simFisheryWtatAge, names_from = "age") %>% as.data.frame()
+simFisheryWtatAge <- simFisheryWtatAge %>%
+  mutate(age = paste0("Age",age)) %>%
+  pivot_wider(names_from = "age") %>% as.data.frame()
 
 fsh_wt <- data.frame(
   Name = simFisheryWtatAge$Name,
@@ -447,16 +472,15 @@ fsh_wt <- data.frame(
 )
 
 # Add wt_index and species
-fsh_wt <- merge(fsh_wt, species_wt_crosswalk, all.x = TRUE)
-wt_temp <- simFisheryWtatAge[,8:ncol(simFisheryWtatAge)]
+wt_temp <- simFisheryWtatAge[,paste0("Age",1:max(WGSAM$nages))]
 fsh_wt <- cbind(fsh_wt, wt_temp)
+fsh_wt <- merge(fsh_wt, species_wt_crosswalk, all.x = TRUE)
 
 
 # - Combine fishery and survey
-wt <- bind_rows(fsh_wt, srv_wt)
+wt <- rbind(fsh_wt, srv_wt)
 wt[is.na(wt)] <- 0 # Set wt to 0 for age surveys
-colnames(wt)[7:ncol(wt)] <- paste0("Age", 1:length(7:ncol(wt)))
-wt <- wt[,c("Name", colnames(WGSAM$wt), paste0("Age",22:40))]
+wt <- wt[,c("Name", "Wt_name", "Wt_index", "Species","Sex", "Year", paste0("Age",1:max(WGSAM$nages)))]
 
 
 
@@ -517,11 +541,12 @@ agelen_names <- agelen_names %>%
   rename(Fleet_name = survey)
 fleet_control$Age_transition_index <- NULL
 fleet_control <- merge(fleet_control, agelen_names, all = TRUE)
+fleet_control <- fleet_control[,c("Name", colnames(BS2017SS$fleet_control))]
 
 # --------------------------------
 # Update name and add in
 # --------------------------------
-WGSAM$fleet_control <- fleet_control
+WGSAM$fleet_control <- fleet_control %>% arrange(Fleet_code)
 WGSAM$srv_biom <- srv_biom
 WGSAM$fsh_biom <- fsh_biom
 WGSAM$comp_data <- comp_data
@@ -555,23 +580,33 @@ WGSAM$sex_ratio <- sex_ratio
 WGSAM$M1_base <- M1_base
 WGSAM$aLW <- aLW
 WGSAM$env_data <- env_data
+WGSAM$Pyrs <- WGSAM$Pyrs[-c(1:nrow(WGSAM$Pyrs)),]
+WGSAM$UobsWtAge <- BS2017SS$UobsWtAge[-c(1:nrow(BS2017SS$UobsWtAge)),]
 
 
+# Weight indices
+WGSAM$pop_wt_index <- rep(1, WGSAM$nspp) #TODO
+WGSAM$ssb_wt_index <- rep(1, WGSAM$nspp) #TODO
+WGSAM$pop_age_transition_index <- rep(1, WGSAM$nspp) #TODO
+
+# --------------------------------
+# Save
+# --------------------------------
 write_data(WGSAM, file = "WGSAM.xlsx")
-
-WGSAM$fsh_biom %>%
-  group_by(Fleet_name) %>%
-  summarise(maxcatch = max(Catch))
 
 
 # TODO
 # update ALK on control. Update wt_index for pop and ssb
+# add length comp data
 # convert agecl to age
 # add diet data
 # add ration data
+# maturity from simbiopar
+#FIXME: weight-at-age for fishery data missing for ages 1-4
 
 # Questions:
 # - What are spring and fall survey months?
+# - Fit length comp data?
 # - Are selectivity and catchability the same for spring and fall surveys?
 # - Are all species are sex combined?
 # - When is spawning occurring during the year for each species? Assuming at new year now.
@@ -579,3 +614,7 @@ WGSAM$fsh_biom %>%
 # - How do age-classes convert to ages?
 # - What weight index to use for SSB and biomass?
 # - What form of selectivity?
+
+##  Diet data
+# Gap width parameters are weight ratio (can use that to fix lognormal suitability parameters)
+# found in simbiolpar (gaperatio)
