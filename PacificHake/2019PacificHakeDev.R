@@ -159,7 +159,6 @@ plot_ssb(bridge_mod7); mtext(side = 3, "SSB")
 
 
 # Est M1
-bridge7$styr <- 1980
 bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                  inits = NULL, # Initial parameters = 0
                                  file = NULL, # Don't save
@@ -170,7 +169,7 @@ bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                                             M1_prior_sd = .1),
                                  recFun = build_srr(srr_fun = 1, # Beverton holt
                                                     proj_mean_rec = FALSE,
-                                                    srr_est_mode = 2,
+                                                    srr_est_mode = 2, # Use prior on steepness
                                                     srr_prior_mean = 0.777,
                                                     srr_prior_sd = 0.113),
                                  msmMode = 0, # Single species mode
