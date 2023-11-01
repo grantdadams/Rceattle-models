@@ -23,12 +23,13 @@ safe2018estMain <- as.data.frame(read_xlsx("Data/Pollock tests/2018_SAFE_pollock
 #######################################
 # Mod 2 - Fix n-at-age and parameters - Check likelihoods
 #######################################
-mydata_pollock_fixed <- mydata_pollock_fixed
+mydata_pollock_fixed$srr_prior_mean <- 4
+mydata_pollock_fixed$initMode  <- 1
 mydata_pollock_fixed$estDynamics = 1
 
 # Scale n-at-age to vals
-mydata_pollock_fixed$NByageFixed[,5:15] <- mydata_pollock_fixed$NByageFixed[,5:15] * 1000000
-mydata_pollock_fixed$srv_biom$Observation <- mydata_pollock_fixed$srv_biom$Observation * 1000000
+# mydata_pollock_fixed$NByageFixed[,5:15] <- mydata_pollock_fixed$NByageFixed[,5:15] * 1000000
+# mydata_pollock_fixed$srv_biom$Observation <- mydata_pollock_fixed$srv_biom$Observation * 1000000
 mydata_pollock_fixed$msmMode = 0
 inits <- build_params(mydata_pollock_fixed)
 
@@ -43,7 +44,7 @@ inits$ln_mean_F[8] <- -1.96496591515
 inits$F_dev[8,] <- safe2018est$F_dev
 
 # Recruitment
-inits$ln_mean_rec = 1.14237068498
+inits$rec_pars[1,1] = 1.14237068498
 inits$rec_dev[1:49] <- safe2018est$R_dev
 
 # Survey 1 - Descending logistic, random walk q
@@ -78,15 +79,16 @@ library(Rceattle)
 pollock_fixed <- Rceattle::fit_mod(data_list = mydata_pollock_fixed,
                                    inits = inits, # Initial parameters = 0
                                    file = NULL, # Don't save
-                                   debug = 1, # Estimate
+                                   estimateMode = 4, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 0, # Single species mode
-                                   silent = TRUE,
-                                   recompile = FALSE,
+                                   verbose = 1,
                                    phase = "default")
+
+  
 round(pollock_fixed$quantities$jnll_comp,4)[1:8,1:6]
 
-safe_jnll <- read.csv( file = "Data/2018_SAFE_nll_components.csv")
+safe_jnll <- read.csv( file = "Data/Pollock tests/2018_SAFE_nll_components.csv")
 rownames(safe_jnll) <- safe_jnll[,1]
 safe_jnll = safe_jnll[,-1]
 round(safe_jnll,4)[1:8,1:6]
@@ -104,7 +106,7 @@ for(i in 1:nrow(index_cols)){
   sub <- which(srv_biom$Fleet_code == index_cols$Index[i])
   yrs <- srv_biom$Year[sub]
   bio_hat <- safe_2018_index[which(safe_2018_index$Year %in% yrs),index_cols$Col[i]]
-  srv_biom$SAFE[sub] <- bio_hat
+  srv_biom$SAFE[sub] <- bio_hat * 1e6
 }
 srv_biom
 srv_biom$RE <- (srv_biom$est - srv_biom$SAFE)/srv_biom$SAFE
@@ -133,7 +135,7 @@ pollock_fixed$quantities$srv_q[3,] - c(0.635507, 0.635507, 0.635507, 0.635507, 0
 # - Srv selectivity for srv 4 is good
 pollock_fixed$quantities$sel[4,1,,1]
 
-# - Catchability is not good
+# - Catchability is good
 pollock_fixed$quantities$srv_q[4,1] - 0.335939
 
 
@@ -141,7 +143,7 @@ pollock_fixed$quantities$srv_q[4,1] - 0.335939
 # - Srv selectivity for srv 5 is good
 pollock_fixed$quantities$sel[5,1,,1]
 
-# - Catchability is not good
+# - Catchability is good
 pollock_fixed$quantities$srv_q[5,1] - 0.418653
 
 
@@ -152,11 +154,8 @@ pollock_fixed$quantities$sel[6,1,,1] # All 1s
 # - Catchability is good
 pollock_fixed$quantities$srv_q[6,] - 0.82806
 
-# Something is up with surveys 2,3,6
 # Selectivities are correct
 # Catchabilities are correct
-
-
 
 
 comp_hat <- mydata_pollock_fixed$comp_data[,1:8]
@@ -176,17 +175,17 @@ sum(0.5*(((safe2018est$log_q3_dev[2:49] - safe2018est$log_q3_dev[1:48])/0.05)^2)
 
 mydata_pollock_est <- mydata_pollock_fixed
 mydata_pollock_est$estDynamics = 0
-pollock_est <- Rceattle::fit_mod(data_list = mydata_pollock_est,
+data("GOApollock")
+pollock_est <- Rceattle::fit_mod(data_list = mydata_pollock_fixed,
                                    inits = NULL, # Initial parameters = 0
                                    file = NULL, # Don't save
-                                   debug = 0, # Estimate
+                                   estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 0, # Single species mode
-                                   silent = TRUE,
-                                   recompile = FALSE,
+                                   verbose = 1,
                                    phase = "default")
 
-mod_list <- list(pollock_est, pollock_fixed, pcod_safe)
-mod_names <- c( "CEATTLE est","CEATTLE fixed natage","2018 SAFE (mt)")
-
-plot_biomass(mod_list, file = file_name, model_names = mod_names, right_adj = 0.27, line_col = NULL, species = 1)
+pollock_fixed$quantities$biomass <- pollock_fixed$quantities$biomass/1e6
+mod_list <- list(pollock_est, pollock_fixed)
+mod_names <- c( "CEATTLE est","CEATTLE fixed natage")
+plot_biomass(mod_list, model_names = mod_names)
