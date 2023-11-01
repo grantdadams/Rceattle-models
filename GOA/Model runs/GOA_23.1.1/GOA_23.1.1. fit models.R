@@ -1,7 +1,7 @@
 library(Rceattle)
 library(readxl)
 library(dplyr)
-# setwd("Model runs/GOA_23.1.1/")
+setwd("Model runs/GOA_23.1.1/")
 
 combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023_edited.xlsx")
 

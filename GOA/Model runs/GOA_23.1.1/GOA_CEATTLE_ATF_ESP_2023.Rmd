@@ -26,10 +26,10 @@ thisYr <- years[length(years)]
 
 # Uncertainty of key parameters
 b_eaten_as_prey <- ceattle_esr_model$quantities$B_eaten_as_prey
-# b_eaten_as_prey_sd <- replace(b_eaten_as_prey, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "B_eaten_as_prey")])
+b_eaten_as_prey_sd <- replace(b_eaten_as_prey, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "B_eaten_as_prey")])
 
 M_at_age <- ceattle_esr_model$quantities$M
-# M_at_age_sd <- replace(M_at_age, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "M")])
+M_at_age_sd <- replace(M_at_age, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "M")])
 
 
 # Mortality rates and means/peaks
@@ -54,9 +54,9 @@ for(sp in 1:3){
     peak_M[ind] <- max(ceattle_esr_model$quantities$M[sp,sex,1,1:length(years)])
     avg_M[ind] <- mean(ceattle_esr_model$quantities$M[sp,sex,1,1:length(years)])
     terminal_M[ind] <- ceattle_esr_model$quantities$M[sp,sex,1,length(years)]
-    # terminal_M_sd[ind] <- M_at_age_sd[sp,sex,1,length(years)]
+    terminal_M_sd[ind] <- M_at_age_sd[sp,sex,1,length(years)]
     terminal_Age1_Beaten[ind] <- (ceattle_esr_model$quantities$B_eaten_as_prey[sp,sex,1,length(years)])
-    # terminal_Age1_Beaten_sd[ind] <- b_eaten_as_prey_sd[sp,sex,1,length(years)]
+    terminal_Age1_Beaten_sd[ind] <- b_eaten_as_prey_sd[sp,sex,1,length(years)]
     
     peak_M_ind[ind] <- which(ceattle_esr_model$quantities$M[sp,sex,1,1:length(years)] == peak_M[ind])
     peak_M_years[ind] <- years[peak_M_ind[ind]]
@@ -85,7 +85,7 @@ terminal_Beaten <- format(round(terminal_Beaten, 0), scientific = FALSE, big.mar
 
 avg_Age1_Beaten <- format(round(avg_Age1_Beaten, 0), scientific = FALSE, big.mark = ",")
 terminal_Age1_Beaten <- format(round(terminal_Age1_Beaten, 0), scientific = FALSE, big.mark = ",")
-# terminal_Age1_Beaten_sd <- format(round(terminal_Age1_Beaten_sd, 0), scientific = FALSE, big.mark = ",")
+terminal_Age1_Beaten_sd <- format(round(terminal_Age1_Beaten_sd, 0), scientific = FALSE, big.mark = ",")
 ```
 
 ```{r chunk3, echo=FALSE, eval=TRUE, include=FALSE}
