@@ -117,10 +117,10 @@ catch_list[["SS"]] <- catch_list[["SS"]] %>%
   pivot_wider(names_from = Fleet_name, values_from = c(Catch, Projected_catch)) %>%
   as.data.frame()
 
-catch_list <- list()
-catch_list[["MS"]] <- ss_mod_tier3$data_list$fsh_biom
-catch_list[["MS"]]$Projected_catch <- ss_mod_tier3$quantities$fsh_bio_hat
+catch_list[["MS"]] <- ms_mod_tier3$data_list$fsh_biom
+catch_list[["MS"]]$Projected_catch <- ms_mod_tier3$quantities$fsh_bio_hat
 catch_list[["MS"]] <- catch_list[["MS"]] %>%
   select(-Fleet_code, - Species, - Month, - Selectivity_block, -Log_sd) %>%
   pivot_wider(names_from = Fleet_name, values_from = c(Catch, Projected_catch)) %>%
   as.data.frame()
+writexl::write_xlsx(catch_list, path = "projected_catches.xlsx")
