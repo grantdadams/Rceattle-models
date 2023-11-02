@@ -6,13 +6,13 @@ library(ggplot2)
 #'Figs for EcoCons CEATTLE
 #'
 #'
-weighted_ration <- function(Rceattle, spp = 1, endyr = 2022, minage = 4, maxage = max(Rceattle$data_list$nages)){
+weighted_ration <- function(Rceattle, spp = 1, endyr = 2023, minage = 4, maxage = max(Rceattle$data_list$nages)){
   yrs <- Rceattle$data_list$styr:endyr
   
   return(apply(Rceattle$quantities$ration[spp,,minage:maxage,1:length(yrs)] * Rceattle$quantities$biomassByage[spp,,minage:maxage,1:length(yrs)], 3, sum))
 }
 
-ESR_plot_biomass_consumed <- function(Rceattle, endyr = 2022){
+ESR_plot_biomass_consumed <- function(Rceattle, endyr = 2023){
   library(dplyr)
   library(ggplot2)
   
@@ -50,7 +50,7 @@ ESR_plot_biomass_consumed <- function(Rceattle, endyr = 2022){
 }
 
 
-ESR_plot_annual_ration <- function(Rceattle, minage = 4, endyr = 2022){
+ESR_plot_annual_ration <- function(Rceattle, minage = 4, endyr = 2023){
   library(dplyr)
   library(ggplot2)
   
@@ -93,7 +93,7 @@ ESR_plot_annual_ration <- function(Rceattle, minage = 4, endyr = 2022){
 
 
 
-ESR_plot_M_age <-function(msModel, ssModel, age = 1, endyr = 2022){
+ESR_plot_M_age <-function(msModel, ssModel, age = 1, endyr = 2023){
   library(dplyr)
   library(ggplot2)
   library(reshape2)
@@ -124,7 +124,7 @@ ESR_plot_M_age <-function(msModel, ssModel, age = 1, endyr = 2022){
   
 }
 
-ESR_plot_propM<-function(Rceattle, age = 1, species = 1, sex = 1, endyr = 2022){
+ESR_plot_propM<-function(Rceattle, age = 1, species = 1, sex = 1, endyr = 2023){
   
   yrs <- Rceattle$data_list$styr:endyr
   M2age <- Rceattle$quantities$M2[species,sex,age,1:length(yrs)]

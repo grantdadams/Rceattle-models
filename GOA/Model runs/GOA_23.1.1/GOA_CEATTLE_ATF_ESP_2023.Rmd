@@ -16,6 +16,7 @@ library(Rceattle)
 library(lubridate)
 
 # Load models and code
+source("ESP_Figure_Code.R")
 source("ESR_Figure_Code.R")
 load("Models/GOA_23_1_1_mod_list.RData")
 
@@ -124,6 +125,21 @@ jpeg(file="Results/ATF_ESP_Fig4.jpg",height=5*sclr, width=4.5*sclr, units="in",r
 plot_ration(mod_list_all[[3]], line_col = cols[2], species = 2, minage = 4)
 dev.off()
 
+# Figure 5: Combined plots
+# - Pollock
+jpeg(file="Results/Pollock_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
+ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 1)
+dev.off()
+
+# - Cod
+jpeg(file="Results/Cod_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
+ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 3)
+dev.off()
+
+# - Atf
+jpeg(file="Results/ATF_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
+ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 2)
+dev.off()
 ```	
 
 
