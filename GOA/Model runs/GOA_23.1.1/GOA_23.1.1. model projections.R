@@ -1,5 +1,5 @@
 pacman::p_load(Rceattle, readxl, dplyr, tidyr)
-setwd("Model runs/GOA_23.1.1/")
+# setwd("Model runs/GOA_23.1.1/")
 load("Models/GOA_23_1_1_mod_list.RData")
 combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023_edited.xlsx")
 combined_data$projyr <- 2100
@@ -25,7 +25,12 @@ climate_sub <- data.frame(Year = 1977:1979,
            ssp126 = mean(climate_data$ssp126[1:10]), 
            ssp585 = mean(climate_data$ssp585[1:10]))
 
-climate_data <- rbind(climate_sub, climate_data)
+climate_data <- rbind(climate_sub, climate_data) %>%
+  mutate(ssp126z = scale(ssp126),
+         ssp585z = scale(ssp585))
+
+
+combined_data$fleet_control$Fleet_type[18] <- 0
 ssp_dat <- combined_data
 ssp_dat$env_data <- climate_data
 
@@ -48,7 +53,7 @@ ss_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
                             estimateMode = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
                             recFun = build_srr(srr_fun = 1,
-                                               srr_env_indices = 1),
+                                               srr_env_indices = 3),
                             msmMode = 0, # Single species mode
                             verbose = 1,
                             phase = NULL)
@@ -60,7 +65,7 @@ ss_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 2),
+                                                      srr_env_indices = 4),
                                    msmMode = 0, # Single species mode
                                    verbose = 1,
                                    phase = NULL)
@@ -97,7 +102,7 @@ ms_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 1))
+                                                      srr_env_indices = 3))
 
 # -- SSP526
 ms_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
@@ -114,7 +119,7 @@ ms_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 2))
+                                                      srr_env_indices = 4))
 
 
 # Adjust f prop ----
@@ -164,7 +169,7 @@ ss_mod_ssp126_tier3 <- Rceattle::fit_mod(data_list = ss_mod_ssp126$data_list,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 1),
+                                                      srr_env_indices = 3),
                                    HCR = build_hcr(HCR = 5, # Tier3 HCR
                                                    FsprTarget = 0.4, # F40%
                                                    FsprLimit = 0.35, # F35%
@@ -181,7 +186,7 @@ ss_mod_ssp526_tier3 <- Rceattle::fit_mod(data_list = ss_mod_ssp526$data_list,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 2),
+                                                      srr_env_indices = 4),
                                    HCR = build_hcr(HCR = 5, # Tier3 HCR
                                                    FsprTarget = 0.4, # F40%
                                                    FsprLimit = 0.35, # F35%
@@ -224,7 +229,7 @@ ms_mod_ssp126_tier3 <- Rceattle::fit_mod(data_list = ms_mod_ssp126$data_list,
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 1),
+                                                      srr_env_indices = 3),
                                    HCR = build_hcr(HCR = 3, # Constant F HCR
                                                    DynamicHCR = FALSE, # Use dynamic reference points
                                                    FsprTarget = 0.4))
@@ -244,7 +249,7 @@ ms_mod_ssp526_tier3 <- Rceattle::fit_mod(data_list = ms_mod_ssp526$data_list,
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
                                    recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 2),
+                                                      srr_env_indices = 4),
                                    HCR = build_hcr(HCR = 3, # Constant F HCR
                                                    DynamicHCR = FALSE, # Use dynamic reference points
                                                    FsprTarget = 0.4))
