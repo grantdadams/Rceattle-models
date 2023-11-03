@@ -1,7 +1,4 @@
-library(Rceattle)
-library(readxl)
-library(dplyr)
-library(tidyr)
+pacman::p_load(Rceattle, readxl, dplyr, tidyr)
 setwd("Model runs/GOA_23.1.1/")
 load("Models/GOA_23_1_1_mod_list.RData")
 combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023_edited.xlsx")
@@ -12,6 +9,22 @@ for(i in 1:length(mod_list_all)){
   mod_list_all[[i]]$estimated_params$rec_dev <- cbind(
     mod_list_all[[i]]$estimated_params$rec_dev, matrix(0, nrow = 3, ncol = 50))
 }
+
+
+# Climate data ----
+climate_data <- read.csv("Data/GOA_NEP_ROMZ_avg_temp_610_to_630_FebApril_300m.csv")
+climate_data <- climate_data %>%
+  filter(depthclass == "Bottom", hind == "yes") %>%
+  pivot_wider(names_from = simulation, values_from = mean_value_dc_610_to_630) %>%
+  select(year, ssp126, ssp585) %>%
+  rename(Year = year)
+
+climate_sub <- data.frame(Year = 1977:1979, 
+           ssp126 = mean(climate_data$ssp126[1:10]), 
+           ssp585 = mean(climate_data$ssp585[1:10]))
+
+climate_data <- rbind(climate_sub, climate_data)
+
 
 # Hindcast ----
 # - Est single-species fixed M
@@ -24,10 +37,39 @@ ss_mod <- Rceattle::fit_mod(data_list = combined_data,
                             verbose = 1,
                             phase = NULL)
 
+# -- SSP126
+ssp_dat <- ss_mod$data_list
+ssp_dat$env_data <- climate_data
+ss_mod$estimated_params$beta_rec_pars <- matrix(0, 3, 1)
+ss_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
+                            inits = ss_mod$estimated_params, # Initial parameters = 0
+                            file = NULL, # Don't save
+                            estimateMode = 0, # Estimate
+                            random_rec = FALSE, # No random recruitment
+                            recFun = build_srr(srr_fun = 1,
+                                               srr_env_indices = 1),
+                            msmMode = 0, # Single species mode
+                            verbose = 1,
+                            phase = NULL)
+
+# -- SSP526
+ss_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
+                                   inits = ss_mod$estimated_params, # Initial parameters = 0
+                                   file = NULL, # Don't save
+                                   estimateMode = 0, # Estimate
+                                   random_rec = FALSE, # No random recruitment
+                                   recFun = build_srr(srr_fun = 1,
+                                                      srr_env_indices = 2),
+                                   msmMode = 0, # Single species mode
+                                   verbose = 1,
+                                   phase = NULL)
+
+
+
 # - Est multi-species
 inits <- mod_list_all[[3]]$estimated_params
 ms_mod <- Rceattle::fit_mod(data_list = combined_data,
-                            inits = inits, # Initial parameters = 0
+                            inits = mod_list_all[[3]]$estimated_params, # Initial parameters = 0
                             file = NULL, # Don't save
                             estimateMode = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
@@ -39,6 +81,42 @@ ms_mod <- Rceattle::fit_mod(data_list = combined_data,
                             M1Fun = build_M1(M1_model = c(1,2,1),
                                              M1_use_prior = FALSE,
                                              M2_use_prior = FALSE))
+
+# -- SSP126
+ms_mod$estimated_params$beta_rec_pars <- matrix(0, 3, 1)
+ms_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
+                                   inits = ms_mod$estimated_params, # Initial parameters = 0
+                                   file = NULL, # Don't save
+                                   estimateMode = 0, # Estimate
+                                   random_rec = FALSE, # No random recruitment
+                                   msmMode = 1, # Multi species mode
+                                   verbose = 1,
+                                   niter = 3,
+                                   meanyr = 2018,
+                                   phase = NULL,
+                                   M1Fun = build_M1(M1_model = c(1,2,1),
+                                                    M1_use_prior = FALSE,
+                                                    M2_use_prior = FALSE),
+                                   recFun = build_srr(srr_fun = 1,
+                                                      srr_env_indices = 1))
+
+# -- SSP526
+ms_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
+                                   inits = ms_mod$estimated_params, # Initial parameters = 0
+                                   file = NULL, # Don't save
+                                   estimateMode = 0, # Estimate
+                                   random_rec = FALSE, # No random recruitment
+                                   msmMode = 1, # Multi species mode
+                                   verbose = 1,
+                                   niter = 3,
+                                   meanyr = 2018,
+                                   phase = NULL,
+                                   M1Fun = build_M1(M1_model = c(1,2,1),
+                                                    M1_use_prior = FALSE,
+                                                    M2_use_prior = FALSE),
+                                   recFun = build_srr(srr_fun = 1,
+                                                      srr_env_indices = 2))
+
 
 # Adjust f prop ----
 mod_list_all <- list(ss_mod, ms_mod)
@@ -98,15 +176,21 @@ ms_mod_tier3 <- Rceattle::fit_mod(data_list = ms_mod$data_list,
 # Plot ----
 model_names <- c("SS no F", "MS no F", "SS Tier 3", "MS Tier 3")
 proj_list_all <- list(ss_mod, ms_mod, ss_mod_tier3, ms_mod_tier3)
-plot_biomass(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "proj")
-plot_b_eaten(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "proj")
-plot_recruitment(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "proj")
-plot_catch(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "proj")
+plot_biomass(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
+plot_ssb(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
+plot_b_eaten(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
+plot_recruitment(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
+plot_catch(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
 
 
 # Save ----
 # - Model
 save(proj_list_all, file = "Models/GOA_23_mod_projections.RData")
+load("Models/GOA_23_mod_projections.RData")
+ss_mod <- proj_list_all[[1]]
+ms_mod <- proj_list_all[[2]]
+ss_mod_tier3 <- proj_list_all[[3]]
+ms_mod_tier3 <- proj_list_all[[3]]
 
 # - Catch
 catch_list <- list()
