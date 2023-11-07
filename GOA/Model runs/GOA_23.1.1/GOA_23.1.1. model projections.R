@@ -1,4 +1,4 @@
-pacman::p_load(Rceattle, readxl, dplyr, tidyr)
+pacman::p_load(Rceattle, readxl, dplyr, tidyr, nmfspalette)
 # setwd("Model runs/GOA_23.1.1/")
 load("Models/GOA_23_1_1_mod_list.RData")
 combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023_edited.xlsx")
@@ -14,20 +14,22 @@ for(i in 1:length(mod_list_all)){
 
 
 # Climate data ----
-climate_data <- read.csv("Data/GOA_NEP_ROMZ_avg_temp_610_to_630_FebApril_300m.csv")
+climate_data <- read.csv("Data/goa_temp_610_to_630_fall_300M.csv")
 climate_data <- climate_data %>%
   filter(depthclass == "Bottom", hind == "yes") %>%
   pivot_wider(names_from = simulation, values_from = mean_value_dc_610_to_630) %>%
   select(year, ssp126, ssp585) %>%
-  rename(Year = year)
-
-climate_sub <- data.frame(Year = 1977:1979, 
-           ssp126 = mean(climate_data$ssp126[1:10]), 
-           ssp585 = mean(climate_data$ssp585[1:10]))
-
-climate_data <- rbind(climate_sub, climate_data) %>%
+  rename(Year = year) %>%
   mutate(ssp126z = scale(ssp126),
          ssp585z = scale(ssp585))
+
+climate_sub <- data.frame(Year = 1977:1979, 
+                          ssp126 = mean(climate_data$ssp126[1:10]), 
+                          ssp585 = mean(climate_data$ssp585[1:10]),
+                          ssp126z = 0, 
+                          ssp585z = 0)
+
+climate_data <- rbind(climate_sub, climate_data) 
 
 
 combined_data$fleet_control$Fleet_type[18] <- 0
@@ -48,15 +50,15 @@ ss_mod <- Rceattle::fit_mod(data_list = combined_data,
 
 # -- SSP126
 ss_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
-                            inits = ss_mod$estimated_params, # Initial parameters = 0
-                            file = NULL, # Don't save
-                            estimateMode = 0, # Estimate
-                            random_rec = FALSE, # No random recruitment
-                            recFun = build_srr(srr_fun = 1,
-                                               srr_env_indices = 3),
-                            msmMode = 0, # Single species mode
-                            verbose = 1,
-                            phase = NULL)
+                                   inits = ss_mod$estimated_params, # Initial parameters = 0
+                                   file = NULL, # Don't save
+                                   estimateMode = 0, # Estimate
+                                   random_rec = FALSE, # No random recruitment
+                                   recFun = build_srr(srr_fun = 1,
+                                                      srr_env_indices = 3),
+                                   msmMode = 0, # Single species mode
+                                   verbose = 1,
+                                   phase = NULL)
 
 # -- SSP526
 ss_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
@@ -80,7 +82,7 @@ ms_mod <- Rceattle::fit_mod(data_list = combined_data,
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # Multi species mode
                             verbose = 1,
-                            niter = 3,
+                            niter = 5,
                             meanyr = 2018,
                             phase = NULL,
                             M1Fun = build_M1(M1_model = c(1,2,1),
@@ -95,7 +97,7 @@ ms_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat,
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 1, # Multi species mode
                                    verbose = 1,
-                                   niter = 3,
+                                   niter = 5,
                                    meanyr = 2018,
                                    phase = NULL,
                                    M1Fun = build_M1(M1_model = c(1,2,1),
@@ -112,7 +114,7 @@ ms_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 1, # Multi species mode
                                    verbose = 1,
-                                   niter = 3,
+                                   niter = 5,
                                    meanyr = 2018,
                                    phase = NULL,
                                    M1Fun = build_M1(M1_model = c(1,2,1),
@@ -125,7 +127,7 @@ ms_mod_ssp526 <- Rceattle::fit_mod(data_list = ssp_dat,
 # Adjust f prop ----
 mod_list_all <- list(ss_mod, ss_mod_ssp126, ss_mod_ssp526, ms_mod, ms_mod_ssp126, ms_mod_ssp526)
 
-for(i in 1:2){
+for(i in 1:length(mod_list_all)){
   avg_F <- (exp(mod_list_all[[i]]$estimated_params$ln_mean_F+mod_list_all[[i]]$estimated_params$F_dev)) # Average F from last 2 years
   avg_F <- rowMeans(avg_F[,(ncol(avg_F)-2) : ncol(avg_F)])
   f_ratio <- avg_F[14:16]
@@ -148,145 +150,174 @@ ms_mod_ssp526 <- mod_list_all[[6]]
 # Projections ----
 # - Project single-species fixed M
 ss_mod_tier3 <- Rceattle::fit_mod(data_list = ss_mod$data_list,
-                            inits = ss_mod$estimated_params, # Initial parameters = 0
-                            file = NULL, # Don't save
-                            estimateMode = 0, # Estimate
-                            random_rec = FALSE, # No random recruitment
-                            msmMode = 0, # Single species mode
-                            HCR = build_hcr(HCR = 5, # Tier3 HCR
-                                            FsprTarget = 0.4, # F40%
-                                            FsprLimit = 0.35, # F35%
-                                            Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
-                                            Alpha = 0.05),
-                            verbose = 1,
-                            phase = NULL)
+                                  inits = ss_mod$estimated_params, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  estimateMode = 0, # Estimate
+                                  random_rec = FALSE, # No random recruitment
+                                  msmMode = 0, # Single species mode
+                                  HCR = build_hcr(HCR = 5, # Tier3 HCR
+                                                  FsprTarget = 0.4, # F40%
+                                                  FsprLimit = 0.35, # F35%
+                                                  Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
+                                                  Alpha = 0.05),
+                                  verbose = 1,
+                                  phase = NULL)
 
 
 # -- SSP126
 ss_mod_ssp126_tier3 <- Rceattle::fit_mod(data_list = ss_mod_ssp126$data_list,
-                                   inits = ss_mod_ssp126$estimated_params, # Initial parameters = 0
-                                   file = NULL, # Don't save
-                                   estimateMode = 0, # Estimate
-                                   random_rec = FALSE, # No random recruitment
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 3),
-                                   HCR = build_hcr(HCR = 5, # Tier3 HCR
-                                                   FsprTarget = 0.4, # F40%
-                                                   FsprLimit = 0.35, # F35%
-                                                   Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
-                                                   Alpha = 0.05),
-                                   msmMode = 0, # Single species mode
-                                   verbose = 1,
-                                   phase = NULL)
+                                         inits = ss_mod_ssp126$estimated_params, # Initial parameters = 0
+                                         file = NULL, # Don't save
+                                         estimateMode = 0, # Estimate
+                                         random_rec = FALSE, # No random recruitment
+                                         recFun = build_srr(srr_fun = 1,
+                                                            srr_env_indices = 3),
+                                         HCR = build_hcr(HCR = 5, # Tier3 HCR
+                                                         FsprTarget = 0.4, # F40%
+                                                         FsprLimit = 0.35, # F35%
+                                                         Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
+                                                         Alpha = 0.05),
+                                         msmMode = 0, # Single species mode
+                                         verbose = 1,
+                                         phase = NULL)
 
 # -- SSP526
 ss_mod_ssp526_tier3 <- Rceattle::fit_mod(data_list = ss_mod_ssp526$data_list,
-                                   inits = ss_mod_ssp526$estimated_params, # Initial parameters = 0
-                                   file = NULL, # Don't save
-                                   estimateMode = 0, # Estimate
-                                   random_rec = FALSE, # No random recruitment
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 4),
-                                   HCR = build_hcr(HCR = 5, # Tier3 HCR
-                                                   FsprTarget = 0.4, # F40%
-                                                   FsprLimit = 0.35, # F35%
-                                                   Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
-                                                   Alpha = 0.05),
-                                   msmMode = 0, # Single species mode
-                                   verbose = 1,
-                                   phase = NULL)
+                                         inits = ss_mod_ssp526$estimated_params, # Initial parameters = 0
+                                         file = NULL, # Don't save
+                                         estimateMode = 0, # Estimate
+                                         random_rec = FALSE, # No random recruitment
+                                         recFun = build_srr(srr_fun = 1,
+                                                            srr_env_indices = 4),
+                                         HCR = build_hcr(HCR = 5, # Tier3 HCR
+                                                         FsprTarget = 0.4, # F40%
+                                                         FsprLimit = 0.35, # F35%
+                                                         Plimit = c(0.2, 0.2, 0), # No fishing when SB<SB20
+                                                         Alpha = 0.05),
+                                         msmMode = 0, # Single species mode
+                                         verbose = 1,
+                                         phase = NULL)
 
 # - Project multi-species
 ms_mod_tier3 <- Rceattle::fit_mod(data_list = ms_mod$data_list,
-                            inits = ms_mod$estimated_params, # Initial parameters = 0
-                            file = NULL, # Don't save
-                            estimateMode = 0, # Estimate
-                            random_rec = FALSE, # No random recruitment
-                            msmMode = 1, # Multi species mode
-                            verbose = 1,
-                            niter = 3,
-                            meanyr = 2018,
-                            phase = NULL,
-                            M1Fun = build_M1(M1_model = c(1,2,1),
-                                             M1_use_prior = FALSE,
-                                             M2_use_prior = FALSE),
-                            HCR = build_hcr(HCR = 3, # Constant F HCR
-                                            DynamicHCR = FALSE, # Use dynamic reference points
-                                            FsprTarget = 0.4))
+                                  inits = ms_mod$estimated_params, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  estimateMode = 0, # Estimate
+                                  random_rec = FALSE, # No random recruitment
+                                  msmMode = 1, # Multi species mode
+                                  verbose = 1,
+                                  niter = 5,
+                                  meanyr = 2018,
+                                  phase = NULL,
+                                  M1Fun = build_M1(M1_model = c(1,2,1),
+                                                   M1_use_prior = FALSE,
+                                                   M2_use_prior = FALSE),
+                                  HCR = build_hcr(HCR = 3, # Constant F HCR
+                                                  DynamicHCR = FALSE, # Use dynamic reference points
+                                                  FsprTarget = 0.4))
 
 # -- SSP126
 ms_mod_ssp126_tier3 <- Rceattle::fit_mod(data_list = ms_mod_ssp126$data_list,
-                                   inits = ms_mod_ssp126$estimated_params, # Initial parameters = 0
-                                   file = NULL, # Don't save
-                                   estimateMode = 0, # Estimate
-                                   random_rec = FALSE, # No random recruitment
-                                   msmMode = 1, # Multi species mode
-                                   verbose = 1,
-                                   niter = 3,
-                                   meanyr = 2018,
-                                   phase = NULL,
-                                   M1Fun = build_M1(M1_model = c(1,2,1),
-                                                    M1_use_prior = FALSE,
-                                                    M2_use_prior = FALSE),
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 3),
-                                   HCR = build_hcr(HCR = 3, # Constant F HCR
-                                                   DynamicHCR = FALSE, # Use dynamic reference points
-                                                   FsprTarget = 0.4))
+                                         inits = ms_mod_ssp126$estimated_params, # Initial parameters = 0
+                                         file = NULL, # Don't save
+                                         estimateMode = 0, # Estimate
+                                         random_rec = FALSE, # No random recruitment
+                                         msmMode = 1, # Multi species mode
+                                         verbose = 1,
+                                         niter = 5,
+                                         meanyr = 2018,
+                                         phase = NULL,
+                                         M1Fun = build_M1(M1_model = c(1,2,1),
+                                                          M1_use_prior = FALSE,
+                                                          M2_use_prior = FALSE),
+                                         recFun = build_srr(srr_fun = 1,
+                                                            srr_env_indices = 3),
+                                         HCR = build_hcr(HCR = 3, # Constant F HCR
+                                                         DynamicHCR = FALSE, # Use dynamic reference points
+                                                         FsprTarget = 0.4))
 
 # -- SSP526
 ms_mod_ssp526_tier3 <- Rceattle::fit_mod(data_list = ms_mod_ssp526$data_list,
-                                   inits = ms_mod_ssp526$estimated_params, # Initial parameters = 0
-                                   file = NULL, # Don't save
-                                   estimateMode = 0, # Estimate
-                                   random_rec = FALSE, # No random recruitment
-                                   msmMode = 1, # Multi species mode
-                                   verbose = 1,
-                                   niter = 3,
-                                   meanyr = 2018,
-                                   phase = NULL,
-                                   M1Fun = build_M1(M1_model = c(1,2,1),
-                                                    M1_use_prior = FALSE,
-                                                    M2_use_prior = FALSE),
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = 4),
-                                   HCR = build_hcr(HCR = 3, # Constant F HCR
-                                                   DynamicHCR = FALSE, # Use dynamic reference points
-                                                   FsprTarget = 0.4))
+                                         inits = ms_mod_ssp526$estimated_params, # Initial parameters = 0
+                                         file = NULL, # Don't save
+                                         estimateMode = 0, # Estimate
+                                         random_rec = FALSE, # No random recruitment
+                                         msmMode = 1, # Multi species mode
+                                         verbose = 1,
+                                         niter = 5,
+                                         meanyr = 2018,
+                                         phase = NULL,
+                                         M1Fun = build_M1(M1_model = c(1,2,1),
+                                                          M1_use_prior = FALSE,
+                                                          M2_use_prior = FALSE),
+                                         recFun = build_srr(srr_fun = 1,
+                                                            srr_env_indices = 4),
+                                         HCR = build_hcr(HCR = 3, # Constant F HCR
+                                                         DynamicHCR = FALSE, # Use dynamic reference points
+                                                         FsprTarget = 0.4))
 
 
 # Plot ----
-model_names <- c("SS no F", "SS no F SSP-126", "SS no F SSP-526",
-                 "MS no F", "MS no F SSP-126", "MS no F SSP-526", 
-                 "SS Tier 3", "SS Tier 3 SSP-126", "SS Tier 3 SSP-526", 
-                 "MS Tier 3", "MS Tier 3 SSP-126", "MS Tier 3 SSP-526")
-proj_list_all <- list(ss_mod, ss_mod_ssp126, ss_mod_ssp526, 
-                      ms_mod, ms_mod_ssp126, ms_mod_ssp526, 
-                      ss_mod_tier3, ss_mod_ssp126_tier3, ss_mod_ssp526_tier3,
-                      ms_mod_tier3, ms_mod_ssp126_tier3, ms_mod_ssp526_tier3)
-plot_biomass(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
-plot_ssb(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
-plot_b_eaten(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
-plot_recruitment(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
-plot_catch(proj_list_all, incl_proj = TRUE, model_names = model_names, file = "Results/Projections/proj")
+ss_col <- nmfspalette::nmfs_palette("seagrass")(7)[1:6]
+ms_col <- nmfspalette::nmfs_palette("oceans")(7)[1:6]
+model_names <- c("no F", "no F SSP-126", "no F SSP-585", 
+                 "Tier 3", "Tier 3 SSP-126", "Tier 3 SSP-585")
+
+proj_list_ss <- list(ss_mod, ss_mod_ssp126, ss_mod_ssp526, 
+                     ss_mod_tier3, ss_mod_ssp126_tier3, ss_mod_ssp526_tier3)
+proj_list_ms <- list(ms_mod, ms_mod_ssp126, ms_mod_ssp526, 
+                     ms_mod_tier3, ms_mod_ssp126_tier3, ms_mod_ssp526_tier3)
+
+plot_biomass(list(ms_mod_ssp526, ms_mod_ssp526_tier3), incl_proj = TRUE)
+
+plot_biomass(c(proj_list_ss, proj_list_ms), incl_proj = TRUE, 
+             model_names = paste0("SS ", model_names), 
+             line_col = c(ss_col, ms_col),
+             file = "Results/Projections/proj")
+
+plot_biomass(c(proj_list_ms), incl_proj = TRUE, 
+             model_names = paste0("SS ", model_names), 
+             line_col = c( ms_col))
+
+
+plot_ssb(c(proj_list_ms, proj_list_ss), incl_proj = TRUE, 
+         model_names = paste0("MS ", model_names), 
+         line_col = c(ms_col, ss_col),
+         file = "Results/Projections/proj")
+
+plot_b_eaten(proj_list_ms, incl_proj = TRUE, 
+             model_names = paste0("MS ", model_names), 
+             line_col = ms_col,
+             file = "Results/Projections/proj")
+
+plot_recruitment(c(proj_list_ss, proj_list_ms), incl_proj = TRUE, 
+                 line_col = c(ss_col, ms_col), 
+                 file = "Results/Projections/proj")
+
+plot_catch(c(proj_list_ss, proj_list_ms), incl_proj = TRUE, 
+           line_col = c(ss_col, ms_col),
+           width = 7, height = 5,
+           file = "Results/Projections/proj")
 
 
 # Save ----
 # - Model
+proj_list_all <- c(proj_list_ss, proj_list_ms)
 save(proj_list_all, file = "Models/GOA_23_mod_projections.RData")
-# load("Models/GOA_23_mod_projections.RData")
-# ss_mod <- proj_list_all[[1]]
-# ms_mod <- proj_list_all[[2]]
-# ss_mod_tier3 <- proj_list_all[[3]]
-# ms_mod_tier3 <- proj_list_all[[3]]
 
 # - Catch
 catch_list <- list()
-catch_list[["SS"]] <- ss_mod_tier3$data_list$fsh_biom
-catch_list[["SS"]]$Projected_catch <- ss_mod_tier3$quantities$fsh_bio_hat
-catch_list[["SS"]] <- catch_list[["SS"]] %>%
-  select(-Fleet_code, - Species, - Month, - Selectivity_block, -Log_sd) %>%
-  pivot_wider(names_from = Fleet_name, values_from = c(Catch, Projected_catch)) %>%
-  as.data.frame()
+model_names_all <- c(paste0("SS ", model_names), 
+                     paste0("MS ", model_names))
+for(i in c(4:6, 10:12)){
+  catch_list[[model_names_all[i]]] <- proj_list_all[[i]]$data_list$fsh_biom
+  
+  catch_list[[model_names_all[i]]]$Catch[which(catch_list[[model_names_all[i]]]$Year > 2023)] <- proj_list_all[[i]]$quantities$fsh_bio_hat[which(catch_list[[model_names_all[i]]]$Year > 2023)]
+  
+  catch_list[[model_names_all[i]]] <- catch_list[[model_names_all[i]]] %>%
+    select(-Fleet_code, - Species, - Month, - Selectivity_block, -Log_sd) %>%
+    pivot_wider(names_from = Fleet_name, values_from = c(Catch)) %>%
+    as.data.frame()
+}
 
-writexl::write_xlsx(catch_list, path = "projected_catches.xlsx")
+writexl::write_xlsx(catch_list, path = "Results/Projections/GOA_CEATTLE_projected_catches.xlsx")
