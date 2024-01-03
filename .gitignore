@@ -4,3 +4,4 @@
 .Ruserdata
 *.RData
 GOA/Model runs/GOA_18.5.1/Models/Random_effects_models_3iter_w_hessian.7z
+*.rds
