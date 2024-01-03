@@ -367,6 +367,9 @@ plot_recruitment(c(om_list_ss, om_list_ms), incl_proj = TRUE,
 # - Model
 proj_list_all <- c(hcr_list, om_list_ss, om_list_ms)
 save(proj_list_all, file = "Models/GOA_23_mod_projections.RData")
+
+
+
 load(file = "Models/GOA_23_mod_projections.RData")
 
 
@@ -521,16 +524,16 @@ rm(mse_list);gc()
 # * Plot SSB ----
 ## FIX-M 
 # - Climate naive
-plot_ssb(c(OMs[[1]], OMs[[9]]), line_col = (c(rep(ms_col[3], 10), rep(ss_col[3], 10))), file = "Results/Projections/SSB/FixM_climate_naive", lwd = 1, ymax = c(4, 1.2, 0.5))
+plot_ssb(c(OMs[[1]], OMs[[9]]), line_col = (c(rep(ms_col[3], 10), rep(ss_col[3], 10))), file = "Results/Projections/SSB/FixM_climate_naive", lwd = 1, ymax = c(3, 1.2, 0.5))
 
 # - SSP126
-plot_ssb(c(OMs[[3]], OMs[[11]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), file = "Results/Projections/SSB/FixM_ssp126", lwd = 1, ymax = c(4, 1.2, 0.5))
+plot_ssb(c(OMs[[3]], OMs[[11]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), file = "Results/Projections/SSB/FixM_ssp126", lwd = 1, ymax = c(3, 1.2, 0.5))
 
 # - SSP245
-plot_ssb(c(OMs[[5]], OMs[[13]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), file = "Results/Projections/SSB/FixM_ssp245", lwd = 1, ymax = c(4, 1.2, 0.5))
+plot_ssb(c(OMs[[5]], OMs[[13]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), file = "Results/Projections/SSB/FixM_ssp245", lwd = 1, ymax = c(3, 1.2, 0.5))
 
 # - SPP585
-plot_ssb(c(OMs[[7]], OMs[[15]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), file = "Results/Projections/SSB/FixM_ssp585", lwd = 1, ymax = c(4, 1.2, 0.5))
+plot_ssb(c(OMs[[7]], OMs[[15]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), file = "Results/Projections/SSB/FixM_ssp585", lwd = 1, ymax = c(3, 1.2, 0.5))
 
 
 ## Est-M 
