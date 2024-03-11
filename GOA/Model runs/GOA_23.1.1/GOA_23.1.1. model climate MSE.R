@@ -413,7 +413,13 @@ em_hcr_names <- c("SS_fixM_Tier3_EM", "SS_estM_Tier3_EM")
 source("Run_MSE_function.R", echo=TRUE)
 run_mse(system = "GOA1977", om_list = om_list[5:8], om_names = om_names[5:8], em_hcr_list = em_hcr_list, em_hcr_names = em_hcr_names, sampling_period = sampling_period, nsim = 10, cap = c(1, 0.17, 1))
 
-# * Load MSE ----
+
+## MSE Summary ----
+# * Load MSE
+model_names <- c("Climate naive", "SSP-126", "SSP-245", "SSP-585")
+om_names <- paste0(rep(c("SS-", "MS-"), each = 4), model_names)
+em_hcr_names <- c("SS_fixM_Tier3_EM", "SS_estM_Tier3_EM")
+
 mse_list <- list()
 ind <- 1
 for(om in 1:length(om_names)){
