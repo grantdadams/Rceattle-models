@@ -1,0 +1,401 @@
+"","Fleet_name","Fleet_code","MSE","Year","Catch"
+"1","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2091,439810.650697052
+"2","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2092,449131.886064908
+"3","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2093,442928.979977923
+"4","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2094,476909.613962481
+"5","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2095,469589.802607775
+"6","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2096,519133.521856982
+"7","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2097,613081.521498176
+"8","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2098,531666.713042218
+"9","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2099,430794.466396392
+"10","Pollock_total",8,"MS-Climate naive OM - SS_fixM_Tier3_EM",2100,434138.63092386
+"11","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2091,394535.923884445
+"12","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2092,378270.887473528
+"13","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2093,364937.084297746
+"14","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2094,436140.409173394
+"15","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2095,353807.464493308
+"16","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2096,369705.054000006
+"17","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2097,464268.995534648
+"18","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2098,405577.330471679
+"19","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2099,330311.208199156
+"20","Pollock_total",8,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2100,294137.23693723
+"21","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2091,13284.3470017815
+"22","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2092,10328.6253462956
+"23","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2093,11523.1168185296
+"24","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2094,14798.0298301653
+"25","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2095,29453.9902925776
+"26","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2096,35213.234512706
+"27","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2097,28775.6694887558
+"28","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2098,95252.3412730795
+"29","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2099,114587.50693054
+"30","Pollock_total",8,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2100,111871.391077505
+"31","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2091,58813.0498644439
+"32","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2092,46996.6357261505
+"33","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2093,25113.8708707103
+"34","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2094,27582.4402566212
+"35","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2095,30882.3813261299
+"36","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2096,33586.4732618152
+"37","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2097,40429.7000413384
+"38","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2098,81209.0501315555
+"39","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2099,72205.0509105391
+"40","Pollock_total",8,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2100,144464.590114561
+"41","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2091,237915.375897872
+"42","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2092,263294.296007837
+"43","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2093,266257.288074174
+"44","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2094,276628.164952374
+"45","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2095,276476.170077942
+"46","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2096,315675.692170826
+"47","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2097,352893.925776257
+"48","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2098,289537.63137173
+"49","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2099,256768.22024371
+"50","Pollock_total",8,"SS-Climate naive OM - SS_fixM_Tier3_EM",2100,256618.265787041
+"51","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2091,202983.531995704
+"52","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2092,207707.71982264
+"53","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2093,228704.069082037
+"54","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2094,232189.18444261
+"55","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2095,204648.585197495
+"56","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2096,243630.442529122
+"57","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2097,276146.973693474
+"58","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2098,230722.682187224
+"59","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2099,193667.010234003
+"60","Pollock_total",8,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2100,191315.620542813
+"61","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2091,38483.542246875
+"62","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2092,29535.3897795168
+"63","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2093,35250.7139991102
+"64","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2094,52030.8143027995
+"65","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2095,57848.0281098345
+"66","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2096,48308.9451588462
+"67","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2097,62019.1287587982
+"68","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2098,76560.5118826109
+"69","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2099,74324.0993965628
+"70","Pollock_total",8,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2100,70504.7958535579
+"71","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2091,93007.7672570244
+"72","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2092,94267.7225165576
+"73","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2093,90355.0545063771
+"74","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2094,93430.4889380163
+"75","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2095,85371.730330155
+"76","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2096,84996.6130836322
+"77","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2097,131496.315802135
+"78","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2098,127014.47805632
+"79","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2099,99725.2754390837
+"80","Pollock_total",8,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2100,109479.946314294
+"81","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2091,27659.9538125542
+"82","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2092,27378.148173987
+"83","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2093,27245.5426584412
+"84","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2094,26935.1062834594
+"85","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2095,26777.1629935171
+"86","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2096,26537.5250113153
+"87","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2097,26454.553234074
+"88","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2098,26142.1354748723
+"89","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2099,25991.1580118426
+"90","ATF_total",11,"MS-Climate naive OM - SS_fixM_Tier3_EM",2100,25460.2979380868
+"91","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2091,19814.405801643
+"92","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2092,20115.7349897345
+"93","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2093,20422.3886014367
+"94","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2094,20332.6687038566
+"95","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2095,20324.7207508612
+"96","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2096,19933.3392792733
+"97","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2097,19738.8264336242
+"98","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2098,19141.1849861319
+"99","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2099,18927.9155115014
+"100","ATF_total",11,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2100,18302.2380914645
+"101","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2091,15243.3656504943
+"102","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2092,14397.6727302224
+"103","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2093,14096.0746593685
+"104","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2094,13237.6597562442
+"105","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2095,12945.9224667674
+"106","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2096,12346.3863637071
+"107","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2097,12200.5098662349
+"108","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2098,11908.4936218697
+"109","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2099,11967.8590256891
+"110","ATF_total",11,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2100,12017.0383502733
+"111","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2091,12803.1396558366
+"112","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2092,12410.1796542585
+"113","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2093,12374.4144454591
+"114","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2094,11688.7020169173
+"115","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2095,11499.3223119796
+"116","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2096,10692.8522000927
+"117","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2097,10463.3031995447
+"118","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2098,9803.65835720567
+"119","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2099,9644.26210208555
+"120","ATF_total",11,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2100,9434.25426644321
+"121","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2091,25869.4273014625
+"122","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2092,25910.9764735412
+"123","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2093,25821.2682369874
+"124","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2094,25782.4765953324
+"125","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2095,25610.8165191381
+"126","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2096,25552.7262237924
+"127","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2097,25423.0585250877
+"128","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2098,25292.2868628692
+"129","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2099,25079.9587027588
+"130","ATF_total",11,"SS-Climate naive OM - SS_fixM_Tier3_EM",2100,24790.0529211012
+"131","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2091,16504.4276618415
+"132","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2092,16709.8316083631
+"133","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2093,17011.4999416137
+"134","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2094,17063.7722412991
+"135","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2095,17124.7772684086
+"136","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2096,16937.5979635251
+"137","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2097,16795.9537031045
+"138","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2098,16474.971804411
+"139","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2099,16306.400541174
+"140","ATF_total",11,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2100,15907.7264480638
+"141","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2091,13612.6110033497
+"142","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2092,13098.9197958363
+"143","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2093,12864.217242003
+"144","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2094,12296.0267638493
+"145","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2095,12019.9813459701
+"146","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2096,11505.9663863562
+"147","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2097,11321.5252340414
+"148","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2098,10960.1378554593
+"149","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2099,10930.9858004996
+"150","ATF_total",11,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2100,10781.2980097367
+"151","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2091,11035.3435043246
+"152","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2092,10808.3061849183
+"153","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2093,10787.5369934009
+"154","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2094,10408.552667096
+"155","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2095,10260.5269623746
+"156","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2096,9776.16020798394
+"157","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2097,9577.52649577007
+"158","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2098,9128.68869497045
+"159","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2099,8951.6368585503
+"160","ATF_total",11,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2100,8595.8739333438
+"161","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2091,18626.7341203751
+"162","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2092,20340.9913472066
+"163","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2093,21032.3575761605
+"164","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2094,19072.4086049917
+"165","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2095,17023.3813369448
+"166","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2096,15430.7542149653
+"167","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2097,15267.8662283279
+"168","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2098,16177.2998900409
+"169","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2099,16938.2072576324
+"170","Pcod_trawl",14,"MS-Climate naive OM - SS_fixM_Tier3_EM",2100,17070.4800832772
+"171","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2091,10497.8502530256
+"172","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2092,5279.81153545611
+"173","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2093,3616.75549660537
+"174","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2094,8901.01821849182
+"175","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2095,12430.0587200905
+"176","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2096,9897.09763238792
+"177","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2097,6991.82250841081
+"178","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2098,6784.9943010831
+"179","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2099,8955.62856786081
+"180","Pcod_trawl",14,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2100,8721.29580292695
+"181","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2091,4269.65665005542
+"182","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2092,2269.69182793035
+"183","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2093,631.441650311728
+"184","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2094,0
+"185","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2095,1541.11068306449
+"186","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2096,3288.51952546919
+"187","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2097,3253.36035708557
+"188","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2098,2814.45610894498
+"189","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2099,4492.55274900146
+"190","Pcod_trawl",14,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2100,7166.67955473087
+"191","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2091,285.483231949204
+"192","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2092,0
+"193","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2093,733.188615988684
+"194","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2094,953.613290825394
+"195","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2095,342.414699270651
+"196","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2096,257.306866938445
+"197","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"198","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"199","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2099,1537.07985708272
+"200","Pcod_trawl",14,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2100,5583.64815800532
+"201","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2091,22686.761944587
+"202","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2092,24594.8248670678
+"203","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2093,24225.7302635404
+"204","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2094,22783.2587866003
+"205","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2095,20885.2628397994
+"206","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2096,18989.4853572518
+"207","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2097,18583.3370819157
+"208","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2098,19139.7204648117
+"209","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2099,20221.5843414751
+"210","Pcod_trawl",14,"SS-Climate naive OM - SS_fixM_Tier3_EM",2100,19826.8833404427
+"211","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2091,13256.5645383378
+"212","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2092,10311.4607355605
+"213","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2093,10122.9769186285
+"214","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2094,11071.1700927693
+"215","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2095,13618.0518192887
+"216","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2096,10987.1106397676
+"217","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2097,9182.4344331992
+"218","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2098,9299.99606448377
+"219","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2099,10935.6234612661
+"220","Pcod_trawl",14,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2100,9882.71354618059
+"221","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2091,4831.88583932962
+"222","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2092,3407.09653735621
+"223","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2093,2536.97530647365
+"224","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2094,463.561330725399
+"225","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2095,3604.19451824593
+"226","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2096,5243.63581662707
+"227","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2097,4514.77491136098
+"228","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2098,4240.09292067295
+"229","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2099,5429.78954768003
+"230","Pcod_trawl",14,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2100,7702.16022313596
+"231","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2091,367.329149580826
+"232","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2092,1015.00810978323
+"233","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2093,2492.10099571351
+"234","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2094,2495.77906291242
+"235","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2095,2613.14566391753
+"236","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2096,307.844072194005
+"237","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"238","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"239","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2099,4942.09807879101
+"240","Pcod_trawl",14,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2100,7525.14518569391
+"241","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2091,18118.0694497083
+"242","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2092,19937.5423911097
+"243","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2093,20598.4346788208
+"244","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2094,18557.7566240337
+"245","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2095,16366.8047271927
+"246","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2096,15021.4653252802
+"247","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2097,14753.606617394
+"248","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2098,15573.604053123
+"249","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2099,16423.7215743419
+"250","Pcod_longline",15,"MS-Climate naive OM - SS_fixM_Tier3_EM",2100,16387.7417860795
+"251","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2091,10088.3153566106
+"252","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2092,4979.35924257628
+"253","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2093,3410.60799253024
+"254","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2094,8696.67605399833
+"255","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2095,12622.7767660083
+"256","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2096,9439.98251169984
+"257","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2097,6406.0002680891
+"258","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2098,6697.11612183704
+"259","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2099,9109.85741682313
+"260","Pcod_longline",15,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2100,8428.29104370626
+"261","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2091,4121.71394708654
+"262","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2092,2131.00700757569
+"263","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2093,580.099528411005
+"264","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2094,0
+"265","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2095,1514.44610032334
+"266","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2096,3086.16302512907
+"267","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2097,3002.10582697616
+"268","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2098,2703.9097621066
+"269","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2099,4401.15597389131
+"270","Pcod_longline",15,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2100,7082.43965207702
+"271","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2091,260.362058073769
+"272","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2092,0
+"273","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2093,699.561143462269
+"274","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2094,910.452524838219
+"275","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2095,322.471897957293
+"276","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2096,233.083428801191
+"277","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"278","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"279","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2099,1546.08439164156
+"280","Pcod_longline",15,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2100,5536.07205810682
+"281","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2091,21911.441736439
+"282","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2092,24109.5883448009
+"283","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2093,23558.1418494152
+"284","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2094,22054.2766065947
+"285","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2095,20254.5433718183
+"286","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2096,18380.4725868679
+"287","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2097,17696.2069557777
+"288","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2098,18444.073908122
+"289","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2099,19607.74033413
+"290","Pcod_longline",15,"SS-Climate naive OM - SS_fixM_Tier3_EM",2100,18919.4172375436
+"291","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2091,12659.7912518075
+"292","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2092,9890.10699621383
+"293","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2093,9667.64366457477
+"294","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2094,10716.8954588923
+"295","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2095,13741.3436717486
+"296","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2096,10532.3135697854
+"297","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2097,8517.85182164076
+"298","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2098,9132.00549235919
+"299","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2099,11004.9079581909
+"300","Pcod_longline",15,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2100,9445.50956874318
+"301","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2091,4738.32885252877
+"302","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2092,3243.51297760923
+"303","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2093,2392.24235698972
+"304","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2094,443.268274029444
+"305","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2095,3568.38537426147
+"306","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2096,4965.16442894298
+"307","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2097,4153.95666003245
+"308","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2098,4033.22991692511
+"309","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2099,5259.16412129814
+"310","Pcod_longline",15,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2100,7520.88702736744
+"311","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2091,344.354372218096
+"312","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2092,1000.58206103455
+"313","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2093,2341.5405849177
+"314","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2094,2374.08779200389
+"315","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2095,2403.1244360325
+"316","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2096,271.469033763552
+"317","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"318","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"319","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2099,4657.63785122285
+"320","Pcod_longline",15,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2100,7200.4068925452
+"321","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2091,24521.8427200579
+"322","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2092,27347.1847878588
+"323","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2093,28490.6165566863
+"324","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2094,25811.967973605
+"325","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2095,22608.7366404343
+"326","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2096,20492.9734251385
+"327","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2097,20365.4269969449
+"328","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2098,21320.2586933152
+"329","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2099,22557.0017898748
+"330","Pcod_pot",16,"MS-Climate naive OM - SS_fixM_Tier3_EM",2100,22553.4077877455
+"331","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2091,14371.8037575863
+"332","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2092,6637.29191063861
+"333","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2093,4651.16844793009
+"334","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2094,11667.8811075879
+"335","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2095,17709.1135355834
+"336","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2096,13848.7056739793
+"337","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2097,8555.49752347548
+"338","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2098,8580.60003214857
+"339","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2099,12958.1161071078
+"340","Pcod_pot",16,"MS-SSP-126 OM - SS_fixM_Tier3_EM",2100,12681.0854499568
+"341","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2091,5898.6047818287
+"342","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2092,3029.2394577218
+"343","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2093,755.511078567996
+"344","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2094,0
+"345","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2095,2096.60098688804
+"346","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2096,4403.00466244967
+"347","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2097,4002.86413903942
+"348","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2098,3567.53783189507
+"349","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2099,5946.33158313342
+"350","Pcod_pot",16,"MS-SSP-245 OM - SS_fixM_Tier3_EM",2100,9876.30274255051
+"351","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2091,356.179769793359
+"352","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2092,0
+"353","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2093,934.944870183014
+"354","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2094,1275.94333978126
+"355","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2095,447.86300251808
+"356","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2096,316.16424682427
+"357","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"358","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"359","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2099,2188.1836781815
+"360","Pcod_pot",16,"MS-SSP-585 OM - SS_fixM_Tier3_EM",2100,7614.8521087739
+"361","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2091,29402.0513347898
+"362","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2092,33044.7691678559
+"363","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2093,33007.8729634677
+"364","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2094,30629.787308979
+"365","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2095,27737.187740691
+"366","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2096,25277.5807358705
+"367","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2097,24254.139539434
+"368","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2098,24934.84510539
+"369","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2099,26746.9376496287
+"370","Pcod_pot",16,"SS-Climate naive OM - SS_fixM_Tier3_EM",2100,26036.8042243854
+"371","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2091,17770.6664374322
+"372","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2092,13332.3441956628
+"373","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2093,13285.1787267286
+"374","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2094,14344.592950675
+"375","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2095,19323.1222201276
+"376","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2096,15504.1098847155
+"377","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2097,11660.7531678914
+"378","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2098,11965.8928182757
+"379","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2099,15593.2274514805
+"380","Pcod_pot",16,"SS-SSP-126 OM - SS_fixM_Tier3_EM",2100,14003.5466192643
+"381","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2091,6775.71664086232
+"382","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2092,4631.9641015532
+"383","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2093,3281.51066312403
+"384","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2094,618.781186695351
+"385","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2095,4994.06554973152
+"386","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2096,7185.88775657761
+"387","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2097,5564.39574316159
+"388","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2098,5312.23024198073
+"389","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2099,7098.78773890084
+"390","Pcod_pot",16,"SS-SSP-245 OM - SS_fixM_Tier3_EM",2100,10479.7780006397
+"391","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2091,510.946521381403
+"392","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2092,1419.53394114382
+"393","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2093,3355.99702739186
+"394","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2094,3307.23446423139
+"395","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2095,3333.08192230404
+"396","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2096,369.873052034389
+"397","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2097,0
+"398","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2098,0
+"399","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2099,6439.44633055125
+"400","Pcod_pot",16,"SS-SSP-585 OM - SS_fixM_Tier3_EM",2100,9741.9491369384

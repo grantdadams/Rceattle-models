@@ -452,6 +452,8 @@ for(i in 1:length(mse_list)){
     
     # -- Get catch
     catch_list[[i]][[j]] <- OMs[[i]][[j]]$data_list$fsh_biom
+    OMs[[i]][[j]]$data_list$fsh_biom$MSE = names(mse_list)[i]
+    OMs[[i]][[j]]$data_list$fsh_biom$SIM = j
     
     catch_list[[i]][[j]]$Catch[which(catch_list[[i]][[j]]$Year > 2023)] <- OMs[[i]][[j]]$quantities$fsh_bio_hat[which(catch_list[[i]][[j]]$Year > 2023)]
     
@@ -496,17 +498,36 @@ t_col <- function(color, percent = 50, name = NULL) {
 source("plot catch.R")
 
 ## FIX-M 
+# - Get max catch
+fixm_catch_mods <- c(OMs[[1]], OMs[[9]], OMs[[3]], OMs[[11]], OMs[[5]], OMs[[13]], OMs[[7]], OMs[[15]])
+fixm_catch_mods <- do.call("rbind", lapply(fixm_catch_mods, function(x) x$data_list$fsh_biom))
+max_catch <- fixm_catch_mods %>%
+  group_by(Fleet_name, Fleet_code) %>%
+  summarise(MaxCatch = max(Catch)) %>%
+  arrange(Fleet_code)
+
 # - Climate naive
-plot_catch(c(OMs[[1]], OMs[[9]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), top_adj = 1.05, file = "Results/Projections/Catch/FixM_climate_naive", lwd = 0.5, width = 10)
+plot_catch(c(OMs[[1]], OMs[[9]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), top_adj = 1.05, file = "Results/Projections/Catch/FixM_climate_naive", lwd = 0.5, width = 10, ymax = max_catch$MaxCatch)
 
 # - SSP126
-plot_catch(c(OMs[[3]], OMs[[11]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp126", lwd = 0.5, width = 10)
+plot_catch(c(OMs[[3]], OMs[[11]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp126", lwd = 0.5, width = 10, ymax = max_catch$MaxCatch)
 
 # - SSP245
-plot_catch(c(OMs[[5]], OMs[[13]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp245", lwd = 0.5, width = 10)
+plot_catch(c(OMs[[5]], OMs[[13]]), line_col = c(rep(ss_col[3], 10), rep(ms_col[3], 10)), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp245", lwd = 0.5, width = 10, ymax = max_catch$MaxCatch)
 
 # - SPP585
-plot_catch(c(OMs[[7]], OMs[[15]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp585", lwd = 0.5, width = 10)
+plot_catch(c(OMs[[7]], OMs[[15]]), line_col = (c(rep(ss_col[3], 10), rep(ms_col[3], 10))), top_adj = 1.05, file = "Results/Projections/Catch/FixM_ssp585", lwd = 0.5, width = 10, ymax = max_catch$MaxCatch)
+
+
+mean_catch <- fixm_catch_mods %>%
+  filter(Year > 2090) %>%
+  group_by(Fleet_name, Fleet_code, MSE, Year) %>%
+  summarise(Catch = mean(Catch)) %>%
+  arrange(Fleet_code, MSE, Year)
+
+write.csv(mean_catch, "mean_catch.csv")
+
+
 
 
 ## Est-M 
