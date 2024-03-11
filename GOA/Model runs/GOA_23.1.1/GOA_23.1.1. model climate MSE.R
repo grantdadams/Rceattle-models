@@ -447,6 +447,9 @@ for(i in 1:length(mse_list)){
   
   for(j in 1:length(mse_list[[i]])){
     OMs[[i]][[j]] <- mse_list[[i]][[j]]$OM
+    OMs[[i]][[j]]$MSE = names(mse_list)[i]
+    OMs[[i]][[j]]$SIM = j
+    
     TEMs[[i]][[j]] <- mse_list[[i]][[j]]$EM[[length(mse_list[[i]][[j]]$EM)]]
 
     
@@ -526,6 +529,27 @@ mean_catch <- fixm_catch_mods %>%
   arrange(Fleet_code, MSE, Year)
 
 write.csv(mean_catch, "mean_catch.csv")
+
+
+
+fixm_catch_mods <- c(OMs[[1]], OMs[[9]], OMs[[3]], OMs[[11]], OMs[[5]], OMs[[13]], OMs[[7]], OMs[[15]])
+mse_names <- sapply(fixm_catch_mods, function(x) x$MSE)
+sim_names <- sapply(fixm_catch_mods, function(x) x$SIM)
+
+recs <- lapply(fixm_catch_mods, function(x) x$quantities$R[1,])
+for(i in 1:length(recs)){
+  recs[[i]] <- data.frame(Year = names(recs[[i]]), R = recs[[i]], MSE = mse_names[i], SIM = sim_names[i])
+}
+
+recs <- do.call("rbind", recs)
+
+mean_rec <- recs %>%
+  filter(Year > 2090) %>%
+  group_by(MSE, Year) %>%
+  summarise(MeanR = mean(R)) %>%
+  arrange(Year, MSE)
+
+write.csv(mean_rec, "mean_rec.csv")
 
 
 
