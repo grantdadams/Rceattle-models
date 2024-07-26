@@ -1,0 +1,26 @@
+#Females
+
+VonBertalanffy parameters Age-Length
+ model: size ~ Sinf * (1 - exp(-(K * (age - t0)))) 
+
+#Females
+SinfF=664.4564;K_F=0.1535;t0_F=-0.6253
+#Males
+
+SinfM=494.8802;K_M=0.2161;t0_M=-0.7776       
+
+CV of the variance of age-length relationship
+#Females
+CV=-0.0009789*Age+0.1224675
+#Males
+CV=-0.004508*Age+0.145396
+
+#Length-Weight relationship
+Weight=0.004312*Length^3.186
+#applies to males and females
+
+#Average weight at age should use average length at age from the VB relationship above.
+
+
+
+

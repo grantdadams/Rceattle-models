@@ -1,0 +1,204 @@
+#if !defined(_AKPLCSS_)
+#  define _AKPLCSS_
+
+class model_data : public ad_comm{
+  ofstream *   pad_evalout;
+  data_number q_in;
+  data_number q_phase;
+  data_int styr;
+  data_int endyr;
+  data_int styr_fut;
+  data_int endyr_fut;
+  data_int phase_F40;
+  data_number median_rec;
+  data_int nages;
+  data_int nselages;
+  data_int nselages_srv1;
+  data_int phase_logistic_sel;
+  data_int nlen;
+  data_int nobs_fish;
+  data_ivector yrs_fish;
+  data_matrix nsamples_fish;
+  data_int nobs_srv1;
+  data_ivector yrs_srv1;
+  data_int nobs_srv1_length;
+  data_ivector yrs_srv1_length;
+  data_matrix nsamples_srv1_length;
+  data_3array obs_p_srv1_length;
+  data_3array obs_p_fish;
+  data_vector catch_bio;
+  data_vector obs_srv1;
+  data_vector obs_srv1_sd;
+  data_matrix wt;
+  data_vector maturity;
+  data_3array lenage;
+  data_vector bottom_temps;
+  data_int nobs_srv1_age;
+  data_ivector yrs_srv1_age;
+  data_matrix nsamples_srv1_age;
+  data_3array obs_p_srv1_age;
+  data_int nobs_fish_age;
+  data_ivector yrs_fish_age;
+  data_matrix nsamples_fish_age;
+  data_3array obs_p_fish_age;
+  int styr_rec;
+  dvector cv_srv1;
+  int i;
+  int j;
+  int k;
+  int ii;
+  int m;
+  dvector obs_sexr;
+  dvector obs_sexr_srv1_2;
+  double obs_mean_sexr;
+  double obs_SD_sexr;
+  dvector pred_sexr;
+  ~model_data();
+  model_data(int argc,char * argv[]);
+  friend class model_parameters;
+};
+
+class model_parameters : public model_data ,
+  public function_minimizer
+{
+public:
+  ~model_parameters();
+  void preliminary_calculations(void);
+  void set_runtime(void);
+  static int mc_phase(void)
+  {
+    return initial_params::mc_phase;
+  }
+  static int mceval_phase(void)
+  {
+    return initial_params::mceval_phase;
+  }
+  static int hessian_phase(void)
+  {
+    return initial_params::in_hessian_phase;
+  }
+  static int sd_phase(void)
+  {
+    return initial_params::sd_phase;
+  }
+  static int current_phase(void)
+  {
+    return initial_params::current_phase;
+  }
+  static int last_phase(void)
+  {
+    return (initial_params::current_phase
+      >=initial_params::max_number_phases);
+  }
+  static prevariable& current_feval(void)
+  {
+    return *objective_function_value::pobjfun;
+  }
+private:
+  dvariable adromb(dvariable(model_parameters::*f)(const dvariable&), double a, double b, int ns)
+  {
+    using namespace std::placeholders;
+    _func func = std::bind(f, this, _1);
+    return function_minimizer::adromb(func, a, b, ns);
+  }
+  ivector integer_control_flags;
+  dvector double_control_flags;
+  param_init_bounded_number q1;
+  param_init_number alpha;
+  param_init_number beta;
+  param_init_number mean_log_rec;
+  param_init_bounded_dev_vector rec_dev;
+  param_init_number log_avg_fmort;
+  param_init_bounded_dev_vector fmort_dev;
+  param_init_bounded_number fish_slope_f;
+  param_init_bounded_number fish_sel50_f;
+  param_init_bounded_number fish_slope_m;
+  param_init_bounded_number fish_sel50_m;
+  param_init_bounded_number srv1_slope_f;
+  param_init_bounded_number srv1_sel50_f;
+  param_init_bounded_number srv1_slope_m;
+  param_init_bounded_number srv1_sel50_m;
+  param_init_bounded_number F40;
+  param_init_bounded_number F35;
+  param_init_bounded_number F30;
+  param_matrix sel;
+  param_matrix sel_srv1;
+  param_matrix popn;
+  param_matrix totn_srv1;
+  param_vector M;
+  param_vector temp1;
+  param_vector temp2;
+  param_vector explbiom;
+  param_vector pred_bio;
+  param_vector fspbio;
+  param_vector pred_srv1;
+  param_3array pred_p_fish;
+  param_3array pred_p_srv1_age;
+  param_3array pred_p_fish_age;
+  param_3array pred_p_srv1_len;
+  param_vector pred_catch;
+  param_3array natage;
+  param_3array catage;
+  param_3array Z;
+  param_3array F;
+  param_3array S;
+  param_vector fmort;
+  param_number rbar;
+  param_vector surv;
+  param_vector offset;
+  param_number rec_like;
+  param_number catch_like;
+  param_number sexr_like;
+  param_number age_like;
+  param_vector length_like;
+  param_number fish_age_like;
+  param_number fpen;
+  param_number surv1_like;
+  param_stddev_number endbiom;
+  param_stddev_number depletion;
+  param_number prior_function_value;
+  param_number likelihood_function_value;
+  objective_function_value obj_fun;
+  param_number tmp;
+  param_vector pred_sexr;
+  param_vector preds_sexr;
+  param_number sigmar;
+  param_number ftmp;
+  param_number SB0;
+  param_number SBF40;
+  param_number SBF35;
+  param_number SBF30;
+  param_number sprpen;
+  param_matrix Nspr;
+  param_3array nage_future;
+  param_matrix fspbiom_fut;
+  param_3array F_future;
+  param_3array Z_future;
+  param_3array S_future;
+  param_3array catage_future;
+  param_number avg_rec_dev_future;
+  param_vector avg_F_future;
+  param_stddev_matrix catch_future;
+  param_stddev_matrix future_biomass;
+  param_vector explbiom_fut;
+  param_number maxsel_fish;
+  param_number maxsel_srv1;
+  param_number mlike;
+  param_number qlike;
+  param_number flike;
+public:
+  virtual void userfunction(void);
+  virtual void report(const dvector& gradients);
+  virtual void final_calcs(void);
+  model_parameters(int sz,int argc, char * argv[]);
+  virtual void initializationfunction(void);
+  void get_selectivity(void);
+  void get_mortality(void);
+  void get_numbers_at_age(void);
+  void get_catch_at_age(void);
+  void Future_projections(void);
+  void compute_spr_rates(void);
+  void evaluate_the_objective_function(void);
+
+};
+#endif
