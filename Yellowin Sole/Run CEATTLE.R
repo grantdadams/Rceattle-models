@@ -2,13 +2,13 @@
 # model is a two sex, single-species model
 
 # DATA
-# - Fishery catch 
-# - Fishery age composition 
-# - Fishery weight-at-age 
-# - Survey biomass and standard error 
-# - Bottom temperature 
-# - Survey age composition 
-# - Catch-at-age methodology 
+# - Fishery catch
+# - Fishery age composition
+# - Fishery weight-at-age
+# - Survey biomass and standard error
+# - Bottom temperature
+# - Survey age composition
+# - Catch-at-age methodology
 # - Annual length-at-age and weight-at-age from surveys
 # - Age at maturity
 
@@ -23,7 +23,7 @@
 
 # Load data ----
 library(Rceattle)
-mydata_yfs <- Rceattle::read_data( file = "C:/Users/grant.adams/GitHub/yfs_ss3/Rceattle runs/Data/yfs_single_species_2022.xlsx")
+mydata_yfs <- Rceattle::read_data( file = "Data/yfs_single_species_2022.xlsx")
 mydata_yfs$estDynamics = 0
 mydata_yfs$srv_biom$Log_sd <- mydata_yfs$srv_biom$Log_sd/mydata_yfs$srv_biom$Observation
 mydata_yfs$fsh_biom$Catch <- mydata_yfs$fsh_biom$Catch*1000
@@ -41,7 +41,7 @@ bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
 
 # - Est female and male M
 bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,
-                                      inits = bridging_model_1$estimated_params, 
+                                      inits = bridging_model_1$estimated_params,
                                       file = NULL, # Don't save
                                       estimateMode = 0, # Estimate
                                       random_rec = FALSE, # No random recruitment
@@ -65,7 +65,7 @@ map$mapFactor$sel_inf <- factor(map$mapList$sel_inf)
 map$mapFactor$ln_sel_slp <- factor(map$mapList$ln_sel_slp)
 
 bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
-                                      inits = inits, 
+                                      inits = inits,
                                       map = map,
                                       file = NULL, # Don't save
                                       estimateMode = 0, # Estimate
@@ -75,7 +75,7 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                       phase = NULL,
                                       initMode = 2)
 
-# 
+#
 # bridging_model_re <- Rceattle::fit_mod(data_list = mydata_yfs,
 #                                       inits = bridging_model_1$estimated_params, # Initial parameters = 0
 #                                       file = NULL, # Don't save
