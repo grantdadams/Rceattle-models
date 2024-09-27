@@ -1,0 +1,43 @@
+"","quantity","RowOrder","Species","1. Norm by max","2. No norm","3. Norm by age"
+"1","Survey biomass",1,"EBS Arrowtooth flounder",124.78,124.78,129.43
+"2","Total catch",2,"EBS Arrowtooth flounder",-80.01,-80.01,-79.68
+"3","Age/length composition data",3,"EBS Arrowtooth flounder",2105.99,2105.99,2192.38
+"4","Non-parametric selectivity",4,"EBS Arrowtooth flounder",41.91,41.91,36.78
+"5","Selectivity deviates",5,"EBS Arrowtooth flounder",0,0,0
+"6","Selectivity normalization",6,"EBS Arrowtooth flounder",0,0,0
+"7","Catchability prior",7,"EBS Arrowtooth flounder",0,0,0
+"8","Catchability deviates",8,"EBS Arrowtooth flounder",0,0,0
+"9","Fishing mortality deviates",9,"EBS Arrowtooth flounder",7.06,7.06,7.72
+"10","Recruitment deviates",10,"EBS Arrowtooth flounder",34.69,34.69,35.17
+"11","Initial abundance deviates",11,"EBS Arrowtooth flounder",25.46,25.46,27.21
+"12","JNLL",12,"EBS Arrowtooth flounder",2259.88,2259.88,2349
+"13","SB0",13,"EBS Arrowtooth flounder",436896,436896,434946
+"14","meanR",14,"EBS Arrowtooth flounder",202524,202524,201620
+"15","Survey biomass",1,"EBS Cod",18.69,18.69,18.14
+"16","Total catch",2,"EBS Cod",-76.42,-76.42,-76.48
+"17","Age/length composition data",3,"EBS Cod",825.35,825.35,827.72
+"18","Non-parametric selectivity",4,"EBS Cod",19.5,19.5,23.91
+"19","Selectivity deviates",5,"EBS Cod",0,0,0
+"20","Selectivity normalization",6,"EBS Cod",0,0,0
+"21","Catchability prior",7,"EBS Cod",0,0,0
+"22","Catchability deviates",8,"EBS Cod",0,0,0
+"23","Fishing mortality deviates",9,"EBS Cod",9.38,9.38,9.34
+"24","Recruitment deviates",10,"EBS Cod",39.34,39.34,39.66
+"25","Initial abundance deviates",11,"EBS Cod",42.51,42.51,44.46
+"26","JNLL",12,"EBS Cod",878.35,878.35,886.75
+"27","SB0",13,"EBS Cod",587805,587806,586108
+"28","meanR",14,"EBS Cod",472325,472325,470961
+"29","Survey biomass",1,"EBS Pollock",602.16,601.98,600.75
+"30","Total catch",2,"EBS Pollock",-69.72,-69.69,-69.93
+"31","Age/length composition data",3,"EBS Pollock",1100.99,1102.63,1114.2
+"32","Non-parametric selectivity",4,"EBS Pollock",19.87,19.88,31.45
+"33","Selectivity deviates",5,"EBS Pollock",0,0,0
+"34","Selectivity normalization",6,"EBS Pollock",0,0,0
+"35","Catchability prior",7,"EBS Pollock",0,0,0
+"36","Catchability deviates",8,"EBS Pollock",0,0,0
+"37","Fishing mortality deviates",9,"EBS Pollock",4.09,4.09,4.02
+"38","Recruitment deviates",10,"EBS Pollock",41.54,41.54,41.61
+"39","Initial abundance deviates",11,"EBS Pollock",27.7,27.71,28.05
+"40","JNLL",12,"EBS Pollock",1726.65,1728.14,1750.16
+"41","SB0",13,"EBS Pollock",7806033,7806627,7791806
+"42","meanR",14,"EBS Pollock",29984737,29987018,29930088

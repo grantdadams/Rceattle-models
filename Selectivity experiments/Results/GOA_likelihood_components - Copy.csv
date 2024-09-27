@@ -1,0 +1,43 @@
+,quantity,RowOrder,Species,1. Norm by max,2. No norm,3. Norm by age
+1,Survey biomass,1,GOA Arrowtooth flounder,3.300231215,3.300231011,3.126133469
+2,Total catch,2,GOA Arrowtooth flounder,-87.14439723,-87.14439771,-87.14404974
+3,Age/length composition data,3,GOA Arrowtooth flounder,129.2686034,129.2685844,131.6547957
+4,Non-parametric selectivity,4,GOA Arrowtooth flounder,20.58282762,20.58284604,24.75438233
+5,Selectivity deviates,5,GOA Arrowtooth flounder,0,0,0
+6,Selectivity normalization,6,GOA Arrowtooth flounder,0,0,0
+7,Catchability prior,7,GOA Arrowtooth flounder,0,0,0
+8,Catchability deviates,8,GOA Arrowtooth flounder,0,0,0
+9,Recruitment deviates,9,GOA Arrowtooth flounder,0,0,0
+10,Initial abundance deviates,10,GOA Arrowtooth flounder,0,0,0
+11,Fishing mortality deviates,11,GOA Arrowtooth flounder,17.55270322,17.55270424,17.54119289
+12,JNLL,12,GOA Arrowtooth flounder,83.56,83.56,89.93
+13,SB0,13,GOA Arrowtooth flounder,1056876,1056876,1055737
+14,meanR,14,GOA Arrowtooth flounder,859237,859237,858311
+15,Survey biomass,1,GOA Cod,214.8365752,114.3670267,97.42685182
+16,Total catch,2,GOA Cod,-239.2452195,-238.6795949,-238.853295
+17,Age/length composition data,3,GOA Cod,2110.971831,2088.864588,2171.153726
+18,Non-parametric selectivity,4,GOA Cod,178.6378606,128.8608389,204.8026914
+19,Selectivity deviates,5,GOA Cod,0,0,0
+20,Selectivity normalization,6,GOA Cod,0,0,0
+21,Catchability prior,7,GOA Cod,0,0,0
+22,Catchability deviates,8,GOA Cod,0,0,0
+23,Recruitment deviates,9,GOA Cod,0,0,0
+24,Initial abundance deviates,10,GOA Cod,0,0,0
+25,Fishing mortality deviates,11,GOA Cod,123.7670656,123.4968878,124.9635429
+26,JNLL,12,GOA Cod,2388.97,2216.91,2359.49
+27,SB0,13,GOA Cod,449220,347358,383946
+28,meanR,14,GOA Cod,466905,361034,399062
+29,Survey biomass,1,GOA Pollock,108.789655,108.6839837,108.8096847
+30,Total catch,2,GOA Pollock,-87.11019857,-87.110528,-87.10977932
+31,Age/length composition data,3,GOA Pollock,218.6626854,218.7896756,218.792652
+32,Non-parametric selectivity,4,GOA Pollock,0,0,0
+33,Selectivity deviates,5,GOA Pollock,-97.98273179,-97.9938806,-98.06151369
+34,Selectivity normalization,6,GOA Pollock,2.65E-06,2.65E-06,2.62E-06
+35,Catchability prior,7,GOA Pollock,-1.38364656,-1.38364656,-1.38364656
+36,Catchability deviates,8,GOA Pollock,-170.2970867,-170.2970867,-170.2970867
+37,Recruitment deviates,9,GOA Pollock,150.3689661,149.4331721,149.4594717
+38,Initial abundance deviates,10,GOA Pollock,51.44903302,55.8731907,54.74962262
+39,Fishing mortality deviates,11,GOA Pollock,6.990188391,6.993424393,6.999005506
+40,JNLL,12,GOA Pollock,179.49,182.99,181.96
+41,SB0,13,GOA Pollock,468228,469266,468261
+42,meanR,14,GOA Pollock,5929203,5942338,5929611
