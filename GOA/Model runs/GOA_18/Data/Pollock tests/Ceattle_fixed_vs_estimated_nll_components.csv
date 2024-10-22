@@ -1,0 +1,12 @@
+,Survey1,Survey2,Survey3,Survey4,Survey5,Survey6,Fishery
+Survey biomass,7.222,1.234,8.383,0.332,-0.63,0.175,0
+Total catch,0,0,0,0,0,0,-0.493
+Age/length composition data,-0.854,0.185,-6.34,0,0,0.556,-4.148
+Non-parametric selectivity,0,-0.115,0,0,0,0.039,0
+Selectivity random walk deviates,0,0,0,0,0,0,-1.766
+Recruitment deviates,-0.315,0,0,0,0,0,0
+Initial abundance deviates,-0.58,0,0,0,0,0,0
+Fishing mortality deviates,0,0,0,0,0,0,1.473
+,,,,,,,
+,Difference in negative log-likelihood components of CEATTLE with fixed fisheries selectivity and estimed fisheries selectivity,,,,,,
+,Ceattle fixed nll - Ceattle estimate nll,,,,,,
