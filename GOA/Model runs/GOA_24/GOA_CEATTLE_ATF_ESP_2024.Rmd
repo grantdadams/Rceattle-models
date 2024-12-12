@@ -18,7 +18,7 @@ library(lubridate)
 # Load models and code
 source("ESP_Figure_Code.R")
 source("ESR_Figure_Code.R")
-load("Models/GOA_23_1_1_mod_list.RData")
+load("Models/GOA_24_mod_list.RData")
 
 # Get model objects for use below
 ceattle_esr_model <- mod_list_all[[3]]
@@ -190,7 +190,7 @@ for(i in c(1,3)){
          B_eaten = B_eaten,
          Ration = Ration
     )
-    ,paste0("Results/", spname, "ESP Indices.xlsx")
+    ,paste0("Results/GOA 2024 ", spname, " ESP Indices.xlsx")
     )
 }
 
@@ -233,7 +233,7 @@ write_xlsx(
                            `4+Total` = colSums(mod_list_all[[3]]$quantities$ration[2,1,4:21,1:length(years)]) + colSums(mod_list_all[[3]]$quantities$ration[2,2,4:21,1:length(years)])
        )
   )
-  ,"Results/ATF ESP Indices.xlsx")
+  ,"Results/GOA 2024 ATF ESP Indices.xlsx")
 
 
 
