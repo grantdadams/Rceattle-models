@@ -486,7 +486,7 @@
 
 #	old	schedule																																												
 #	init_age_comp	Flag	whether	initial	age	comp	independent	or	not	(0	#ERROR!	NOT)																																		
-1																																														
+0			# Grant change																																											
 #	Number	of	q	(catchability)	environmental	covariates	(by	number	of	surveys)																																				
 0																																														
 #	spawnmo																																													
