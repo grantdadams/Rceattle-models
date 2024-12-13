@@ -102,8 +102,16 @@ ESR_plot_biomass_consumed(mod_list_all[[3]], endyr = 2023)
 dev.off()
 
 # Figure 3: Time series of proportion of M2 from each predator species
-jpeg(file="Results/ESR_Fig3.jpg",height=3*sclr, width=4*sclr, units="in",res=350)
+jpeg(file="Results/ESR_Fig3 sp1.jpg",height=3*sclr, width=4*sclr, units="in",res=350)
 ESR_plot_propM(mod_list_all[[3]], age = 1, species = 1, sex = 1, endyr = 2023)
+dev.off()
+
+jpeg(file="Results/ESR_Fig3 sp2.jpg",height=3*sclr, width=4*sclr, units="in",res=350)
+ESR_plot_propM(mod_list_all[[3]], age = 1, species = 2, sex = 1, endyr = 2023)
+dev.off()
+
+jpeg(file="Results/ESR_Fig3 sp3.jpg",height=3*sclr, width=4*sclr, units="in",res=350)
+ESR_plot_propM(mod_list_all[[3]], age = 1, species = 3, sex = 1, endyr = 2023)
 dev.off()
 
 # Figure 4: Time series of annual ration
