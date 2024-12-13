@@ -8,7 +8,6 @@ setwd("Model runs/GOA_24/")
 ################################################
 mydata_pollock <- Rceattle::read_data( file = "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
 mydata_pollock$msmMode = 0
-mydata_pollock$srv_biom$Observation <- mydata_pollock$srv_biom$Observation * 1e6
 mydata_pollock$estDynamics = 0
 
 
@@ -21,7 +20,7 @@ pollock_base <- fit_mod(data_list = mydata_pollock,
                         random_rec = FALSE, # No random recruitment
                         msmMode = 0, # Single species mode
                         verbose = 1,
-                        initMode = 2,
+                        initMode = 1,
                         phase = "default")
 
 
@@ -29,6 +28,9 @@ pollock_base <- fit_mod(data_list = mydata_pollock,
 # Cod
 ################################################
 mydata_pcod <- Rceattle::read_data( file = "Data/GOA_24_pcod_single_species_1977-2024.xlsx")
+mydata_pcod$fleet_control <- mydata_pcod$fleet_control  %>%
+  mutate(Comp_loglike = 0,
+         Age_max_selected = NA)
 mydata_pcod$pmature[1,2:13] <- 2
 mydata_pcod$estDynamics[1] = 0
 # - Using same length comp data as 2023 because marginals werent output in 2024
@@ -56,6 +58,10 @@ mydata_atf$estDynamics = 0
 mydata_atf$srv_biom$Log_sd <- mydata_atf$srv_biom$Log_sd/mydata_atf$srv_biom$Observation
 mydata_atf$fleet_control$proj_F_prop <- c(1,1,1)
 
+mydata_atf$fleet_control <- mydata_atf$fleet_control  %>%
+  mutate(Comp_loglike = 0,
+         Age_max_selected = NA)
+
 # - Fit single-species models
 atf_base <- Rceattle::fit_mod(data_list = mydata_atf,
                               inits = NULL, # Initial parameters = 0
@@ -75,7 +81,7 @@ mydata_pollock$pmature <- mydata_pollock$pmature[,1:11]
 combined_data <-  combine_data(data_list1 = combine_data(data_list1 = mydata_pollock, data_list2 = mydata_atf), data_list2 =  mydata_pcod)
 combined_data$msmMode <- 0
 combined_data$styr <- 1977
-write_data(combined_data, file = "Data/GOA_24_data_1977_2023.xlsx")
+write_data(combined_data, file = "Data/GOA_24_data_1977_2024.xlsx")
 
 
 

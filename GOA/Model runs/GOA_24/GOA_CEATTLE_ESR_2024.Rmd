@@ -17,11 +17,11 @@ library(lubridate)
 
 # Load models and code
 source("ESR_Figure_Code.R")
-load("Models/GOA_23_1_1_mod_list.RData")
+load("Models/GOA_24_mod_list.RData")
 
 # Get model objects for use below
 ceattle_esr_model <- mod_list_all[[3]]
-years <- ceattle_esr_model$data_list$styr:2023
+years <- ceattle_esr_model$data_list$styr:2024
 thisYr <- years[length(years)]
 
 # Uncertainty of key parameters
@@ -93,22 +93,22 @@ sclr<-1
 
 # Figure 1: Time series of mortality
 jpeg(file="Results/ESR_Fig1.jpg",height=6*sclr, width=4*sclr, units="in",res=350)
-ESR_plot_M_age(mod_list_all[[3]], mod_list_all[[1]], age = 1, endyr = 2023)
+ESR_plot_M_age(mod_list_all[[3]], mod_list_all[[1]], age = 1, endyr = 2024)
 dev.off()
 
 # Figure 2: Time series of biomass consumed
 jpeg(file="Results/ESR_Fig2.jpg",height=6*sclr, width=4*sclr, units="in",res=350)
-ESR_plot_biomass_consumed(mod_list_all[[3]], endyr = 2023)
+ESR_plot_biomass_consumed(mod_list_all[[3]], endyr = 2024)
 dev.off()
 
 # Figure 3: Time series of proportion of M2 from each predator species
 jpeg(file="Results/ESR_Fig3.jpg",height=3*sclr, width=4*sclr, units="in",res=350)
-ESR_plot_propM(mod_list_all[[3]], age = 1, species = 1, sex = 1, endyr = 2023)
+ESR_plot_propM(mod_list_all[[3]], age = 1, species = 1, sex = 1, endyr = 2024)
 dev.off()
 
 # Figure 4: Time series of annual ration
 jpeg(file="Results/ESR_Fig4.jpg",height=6*sclr, width=4*sclr, units="in",res=350)
-ESR_plot_annual_ration(mod_list_all[[3]], minage = 4, endyr = 2023)
+ESR_plot_annual_ration(mod_list_all[[3]], minage = 4, endyr = 2024)
 dev.off()
 
 # Indices to share
@@ -122,13 +122,13 @@ write.csv(cbind(years,ceattle_esr_model$quantities$M[1,1,1,1:length(years)]),"Re
 
 ```			
 ## Multispecies model estimates of time-varying natural mortality in the GOA
-*Grant Adams$^1$, Kirstin K. Holsman$^{1,2}$, Pete Hulson$^3$, Cole Monnahan$^2$, Kalei Shotwell$^2$, Ian Stewart$^4$, and Andre Punt$^1$*
+*Grant Adams$^1$, Kirstin K. Holsman$^{1,2}$, Pete Hulson$^3$, Cole Monnahan$^1$, Kalei Shotwell$^1$*
 
-adamsgd@uw.edu
+grant.adams@noaa.gov
 
-$^1$School of Aquatic and Fishery Sciences, University of Washington, Seattle, WA, USA
+$^1$Resource Ecology and Fisheries Management Division, Alaska Fisheries Science Center, Seattle, WA, USA
 
-$^2$Resource Ecology and Fisheries Management Division, Alaska Fisheries Science Center, Seattle, WA, USA
+$^2$School of Aquatic and Fishery Sciences, University of Washington, Seattle, WA, USA
 
 $^3$Auke Bay Laboratories, Alaska Fisheries Science Center, Juneau, AK, USA
 
@@ -137,24 +137,24 @@ $^4$International Pacific Halibut Commission, Seattle, WA, USA.
 
 ## Summary statement:
 
-The climate-enhanced multispecies model (CEATTLE) for the Gulf of Alaska (GOA) estimates that natural mortality due to all sources has increased sightly for age-1 pollock and decreased slightly for arrowtooth flounder and is below the long-term mean. Age-1 natural mortality for Pacific cod has increased in recent  years, but remains below the long-term mean as well. Estimates of biomass consumed of pollock, Pacific cod, and arrowtooth flounder as prey across all ages is currently below the long term mean.
+The climate-enhanced multispecies model (CEATTLE) for the Gulf of Alaska (GOA) estimates that natural mortality due to all sources for age-1 pollock and arrowtooth flounder has increased in recent years, but remain below the long-term mean. However, natural mortality for age-1 Pacific cod has decreased slightly since 2023 and remains below the long-term mean. Estimates of biomass consumed of pollock, Pacific cod, and arrowtooth flounder as prey across all ages remains below the long term mean.
 
 
 ## Status and trends:  
 
-Estimated age-1 natural mortality (M) for walleye pollock, Pacific cod, and arrowtooth flounder peaked in `r peak_M_years[1]` for pollock, `r peak_M_years[4]` for Pacific cod, and `r peak_M_years[2]` for arrowtooth flounder (Fig. 1). Average age-1 M estimated by CEATTLE was greatest for pollock (`r round(avg_M[1],2)` yr$^{-1}$) and lower for Pacific cod (`r round(avg_M[4],2)` yr$^{-1}$) and arrowtooth (`r round(avg_M[2],2)` yr$^{-1}$ for females and `r round(avg_M[3],2)` yr$^{-1}$ for males). After increasing slightly in recent years, pollock age-1 M still remained lower in `r thisYr` at `r round(terminal_M[1],2)` yr$^{-1}$ relative to the long-term mean `r round(avg_M[1],2)` yr$^{-1}$ and the values used for single species assessment (age-1 M = 1.39; Fig. 1). Additionally, Pacific cod and arrowtooth flounder age-1 M were below the long-term mean after increasing and decreasing, respectively, in recent years (Fig. 1), but above the values used/estimated for the single species assessment of 0.46 yr$^{-1}$ (Pacific cod), 0.2 yr$^{-1}$ (arrowtooth females), and 0.35 yr$^{-1}$ (arrowtooth males), with total age-1 M at around `r round(terminal_M[4],2)` yr$^{-1}$ for Pacific cod `r round(terminal_M[2],2)` yr$^{-1}$ for arrowtooth females, and `r round(terminal_M[3],2)` yr$^{-1}$ for arrowtooth males. `r thisYr` age-1 M across species is `r min(prcnt_change)`% to `r max(prcnt_change)`% lower than in  peak years.
+Estimated age-1 natural mortality (M) for walleye pollock, Pacific cod, and arrowtooth flounder peaked in `r peak_M_years[1]` for pollock, `r peak_M_years[4]` for Pacific cod, and `r peak_M_years[2]` for arrowtooth flounder (Fig. 1). Average age-1 M estimated by CEATTLE was greatest for pollock (`r round(avg_M[1],2)` yr$^{-1}$) and lower for Pacific cod (`r round(avg_M[4],2)` yr$^{-1}$) and arrowtooth (`r round(avg_M[2],2)` yr$^{-1}$ for females and `r round(avg_M[3],2)` yr$^{-1}$ for males). After varying in recent years, pollock age-1 M increased in `r thisYr` to `r round(terminal_M[1],2)` yr$^{-1}$ and is currently below the long-term mean of `r round(avg_M[1],2)` yr$^{-1}$, but above the value used for single species assessment (age-1 M = 1.39; Fig. 1). Pacific cod age-1 M decreased slightly to `r round(terminal_M[4],2)` yr$^{-1}$ and remains below the long-term mean of `r round(avg_M[4],2)` yr$^{-1}$ (Fig. 1), but above the age-invariant values estimated in the single species assessment of 0.492 yr$^{-1}$. Similarly, arrowtooth flounder age-1 M remains below the long-term mean after increasing slightly in recent years (Fig. 1). However, arrowtooth age-1 M remains above the values used for the single species assessment of 0.2 yr$^{-1}$ (arrowtooth females) and 0.35 yr$^{-1}$ (arrowtooth males), with total age-1 M at around `r round(terminal_M[2],2)` yr$^{-1}$ for arrowtooth females and `r round(terminal_M[3],2)` yr$^{-1}$ for arrowtooth males. `r thisYr` age-1 M across species is `r min(prcnt_change)`% to `r max(prcnt_change)`% lower than in  peak years.
 
-On average `r avg_Age1_Beaten[1]` mt of age-1 pollock, `r avg_Age1_Beaten[3]` mt of age-1 Pacific cod, and `r avg_Age1_Beaten[2]` mt of age-1 arrowtooth flounder was consumed annually by species included in CEATTLE between 1977 and `r thisYr`. For `r thisYr`, we estimated `r terminal_Age1_Beaten[1]` mt of age-1 pollock, `r terminal_Age1_Beaten[4]` mt of age-1 Pacific cod, `r terminal_Age1_Beaten[2]` mt of age-1 arrowtooth females, and `r terminal_Age1_Beaten[3]` mt of age-1 arrowtooth males was consumed by species included in CEATTLE. Across all ages `r avg_Beaten[1]` mt of pollock, `r avg_Beaten[2]` mt of arrowtooth flounder, `r avg_Beaten[3]` mt of Pacific cod was consumed annually, on average, by species included in CEATTLE. The total biomass consumed of pollock as prey across all ages decreased in `r thisYr` compared to `r thisYr-1` (Fig. 2). The total biomass consumed of arrowtooth flounder and Pacific cod has decreased in recent years. However, the total biomass consumed as prey across all ages for all species is currently below the long term mean.
+On average `r avg_Age1_Beaten[1]` mt of age-1 pollock, `r avg_Age1_Beaten[3]` mt of age-1 Pacific cod, and `r avg_Age1_Beaten[2]` mt of age-1 arrowtooth flounder was consumed annually by species included in CEATTLE between 1977 and `r thisYr`. For `r thisYr`, we estimated `r terminal_Age1_Beaten[1]` mt of age-1 pollock, `r terminal_Age1_Beaten[4]` mt of age-1 Pacific cod, `r terminal_Age1_Beaten[2]` mt of age-1 arrowtooth females, and `r terminal_Age1_Beaten[3]` mt of age-1 arrowtooth males was consumed by species included in CEATTLE. Across all ages `r avg_Beaten[1]` mt of pollock, `r avg_Beaten[2]` mt of arrowtooth flounder, `r avg_Beaten[3]` mt of Pacific cod was consumed annually, on average, by species included in CEATTLE. The total biomass consumed of pollock and arrowtooth flounder as prey across all ages increased in `r thisYr` compared to `r thisYr-1` (Fig. 2). The total biomass consumed of Pacific cod has decreased in recent years. The total biomass consumed as prey across all ages for all species is currently below the long term mean.
 
 
 ## Factors influencing observed trends
 
-Temporal patterns in total natural mortality reflect annually varying changes in predation mortality by pollock, Pacific cod, Pacific halibut, and arrowtooth flounder that primarily impact age-1 fish (but also impact older age classes). Predation mortality at age-1 for all species in the model was primarily driven by arrowtooth flounder (Fig. 3) and arrowtooth flounder biomass has declined in recent years. Increases in biomass consumed of walleye pollock in 2022 relative to 2020 reflect elevated recruitment of age-1 pollock in 2021 that was available to the modelled predators. Combined annual predation demand (annual ration) of age-4+ pollock, Pacific cod, and arrowtooth flounder in `r thisYr` was `r round(sum(terminal_Ration)/1e6,2)` hundred thousand tons, down from the `r round(sum(avg_Ration)/1e6,2)` hundred thousand ton annual average (Fig. 4). 
+Temporal patterns in total natural mortality reflect annually varying changes in predation mortality by pollock, Pacific cod, Pacific halibut, and arrowtooth flounder that primarily impact age-1 fish (but also impact older age classes). Predation mortality at age-1 for all species in the model was primarily driven by arrowtooth flounder (Fig. 3) and arrowtooth flounder biomass has increased in recent years. Combined annual predation demand (annual ration) of age-4+ pollock, Pacific cod, and arrowtooth flounder in `r thisYr` was `r round(sum(terminal_Ration)/1e6,2)` hundred thousand tons, below the `r round(sum(avg_Ration)/1e6,2)` hundred thousand ton annual average (Fig. 4). 
 
 
 ## Implications: 
 
-We find evidence of continued below average predation mortality on age-1 pollock and arrowtooth flounder due to the species modelled in CEATTLE. Previous ecosystem modelling efforts have estimated that mortality of pollock is primarily driven by Pacific cod (16%), Pacific halibut (23%) and arrowtooth flounder (33%)(Gaichas et al., 2015). Declines in total predator biomass are contributing to an overall decline in total consumption and therefore reduced predation mortality. Between 1990 and 2010, relatively high natural mortality rates reflect patterns in annual demand for prey from arrowtooth flounder, whose biomass peaked during this time period. A strong recruitment of age-1 pollock in 2021 has led to an increase in biomass of pollock being consumed by predators. 
+We find evidence of increased predation mortality on age-1 pollock, Pacific cod, and arrowtooth flounder due to the species modelled in CEATTLE. Previous ecosystem modelling efforts have estimated that mortality of pollock is primarily driven by Pacific cod (16%), Pacific halibut (23%) and arrowtooth flounder (33%)(Gaichas et al., 2015). Recent increases in predator biomass are contributing to the increase in total consumption and therefore increased predation mortality. Between 1990 and 2010, relatively high natural mortality rates reflect patterns in annual demand for prey from arrowtooth flounder, whose biomass peaked during this time period. 
 
 
 ## Description of index: 
@@ -178,16 +178,16 @@ Stewart, I., Hicks, A., 2019. Assessment of the Pacific halibut (_Hippoglossus s
 
 ## Figures: 
 
-![Annual variation in natural mortality (**M1+M2**) of age-1 pollock (a), Pacific cod (b), and arrowtooth flounder (females and males) (c/d) from the single-species models (dashed line), and the multi-species models with temperature (points; solid line is a loess polynomial smoother indicating trends over time)](Results/ESR_Fig1.jpg)
+![Annual variation in natural mortality (**M1+M2**) of age-1 pollock (a), Pacific cod (b), and arrowtooth flounder (females and males) (c/d) from the single-species models (dashed line), and the multi-species models with temperature (points; solid line is a loess polynomial smoother indicating trends over time)](Results/ESR_Fig1.jpg){width=80%}
 
 
-![Multispecies estimates of biomass consumed as prey across all ages by all predators annually in the model of walleye pollock (a), Pacific cod (b), and arrowtooth flounder (c). Points represent annual estimates, gray lines indicate 1979-`r thisYr` mean estimates for each species, and the solid line is a 10 year (symmetric) loess polynomial smoother indicating trends over time.](Results/ESR_Fig2.jpg)
+![Multispecies estimates of biomass consumed as prey across all ages by all predators annually in the model of walleye pollock (a), Pacific cod (b), and arrowtooth flounder (c). Points represent annual estimates, gray lines indicate 1979-`r thisYr` mean estimates for each species, and the solid line is a 10 year (symmetric) loess polynomial smoother indicating trends over time.](Results/ESR_Fig2.jpg){width=80%}
 
 
-![Proportion of total predation mortality for age-1 pollock from pollock (solid), Pacific cod (dashed), and arrowtooth flounder (dotted) predators across years. Updated from Adams et al. 2022.](Results/ESR_Fig3.jpg)
+![Proportion of total predation mortality for age-1 pollock from pollock (solid), Pacific cod (dashed), and arrowtooth flounder (dotted) predators across years. Updated from Adams et al. 2022.](Results/ESR_Fig3.jpg){width=80%}
 
 
-![Multispecies estimates of annual ration (hundred thousand tons consumed per species per year) for adult (age 4 +) predators: pollock (a), Pacific cod (b), and arrowtooth flounder (c). Gray lines indicate 1979 -`r thisYr` mean estimates and 1 SD for each species; solid line is a 10 y (symmetric) loess polynomial smoother indicating trends in ration over time.](Results/ESR_Fig4.jpg)
+![Multispecies estimates of annual ration (hundred thousand tons consumed per species per year) for adult (age 4 +) predators: pollock (a), Pacific cod (b), and arrowtooth flounder (c). Gray lines indicate 1979 -`r thisYr` mean estimates and 1 SD for each species; solid line is a 10 y (symmetric) loess polynomial smoother indicating trends in ration over time.](Results/ESR_Fig4.jpg){width=80%}
 
 
 

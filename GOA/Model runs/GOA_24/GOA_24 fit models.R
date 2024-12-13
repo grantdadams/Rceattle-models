@@ -1,9 +1,18 @@
 library(Rceattle)
 library(readxl)
 library(dplyr)
-setwd("Model runs/GOA_24.1.1/")
+setwd("Model runs/GOA_24/")
 
-combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023.xlsx")
+# Manually add in diet data
+combined_data <- read_data(file = "Data/GOA_24_data_1977_2024.xlsx")
+combined_data$UobsWtAge <- combined_data$UobsWtAge %>%
+  dplyr::filter(Prey != 4) %>%
+  dplyr::filter(Pred != 4) %>%
+  dplyr::mutate(
+    Stomach_proportion_by_weight = as.numeric(Stomach_proportion_by_weight),
+    Sample_size = as.numeric(Sample_size)
+  ) %>%
+  as.data.frame()
 
 # - Est single-species fixed M
 ss_mod <- Rceattle::fit_mod(data_list = combined_data,
@@ -19,13 +28,13 @@ ss_mod <- Rceattle::fit_mod(data_list = combined_data,
 
 # - Est single-species estimate M
 ssm <- Rceattle::fit_mod(data_list = combined_data,
-                         inits = NULL, # Initial parameters = 0
+                         inits = ss_mod$estimated_params, # Initial parameters = 0
                          file = NULL, # Don't save
                          estimateMode = 0, # Estimate
                          random_rec = FALSE, # No random recruitment
                          msmMode = 0, # Single species mode
                          verbose = 1,
-                         phase = "default",
+                         phase = NULL,
                          M1Fun = build_M1(M1_model = c(1,2,1),
                                           M1_use_prior = FALSE,
                                           M2_use_prior = FALSE))
@@ -125,4 +134,4 @@ plot_b_eaten(mod_list_all)
 plot_recruitment(mod_list_all)
 
 # - Save
-save(mod_list_all, file = "Models/GOA_23_1_1_mod_list.RData")
+save(mod_list_all, file = "Models/GOA_24_mod_list.RData")

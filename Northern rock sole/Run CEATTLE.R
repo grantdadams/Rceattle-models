@@ -22,7 +22,7 @@
 
 # Load data ----
 library(Rceattle)
-mydata_nrs <- Rceattle::read_data( file = "Data/nrs_single_species_2022.xlsx")
+mydata_nrs <- Rceattle::read_data(file = "Data/nrs_single_species_2022.xlsx")
 mydata_nrs$estDynamics = 0
 mydata_nrs$srv_biom$Log_sd <- mydata_nrs$srv_biom$Log_sd/mydata_nrs$srv_biom$Observation
 mydata_nrs$fsh_biom$Catch <- mydata_nrs$fsh_biom$Catch*1000
@@ -46,7 +46,10 @@ bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       random_rec = FALSE, # No random recruitment
                                       msmMode = 0, # Single species mode
                                       verbose = 1,
-                                      M1Fun = build_M1(M1_model = c(2)),
+                                      M1Fun = build_M1(M1_model = c(2),
+                                                       M1_prior_mean = 0.15,
+                                                       M1_prior_sd = 0.2,
+                                                       M1_use_prior = TRUE),
                                       phase = NULL,
                                       initMode = 1)
 
@@ -87,7 +90,7 @@ SAFE2022_mod$quantities$biomassSSB[1,1:length(1975:2022)] <- read_excel("Data/20
 SAFE2022_mod$quantities$R[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
 
 # Plots ----
-plot_biomass(list(bridging_model_1, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
+plot_biomass(list(bridging_model_2, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
 plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
 plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
 
