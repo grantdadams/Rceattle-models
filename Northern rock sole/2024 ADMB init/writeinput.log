@@ -67,7 +67,7 @@ c3.stuff
 # nselages
 17
 # lambda
- 1 1 300 3 1 1 1 1 1 1
+ 1 1 300 -3 1 1 1 1 1 1
 # styr_sr
 1978
 # endyr_sr
@@ -83,7 +83,7 @@ c3.stuff
 # n_retro
 0
 # phase_male_sel_offset
-3
+-3
 # nyrs_fut
 10
 # fut_temp

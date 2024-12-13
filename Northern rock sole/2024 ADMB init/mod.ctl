@@ -75,7 +75,7 @@
 #lambda_catch
 300
 #lambda_fsh_selex_phase
-3
+-3
 #lambda_fsh_age
 1
 #lambda_surv_age
