@@ -101,12 +101,13 @@ inits$rec_pars[1,3] <- -5.50431745500 # log of Ricker beta
 rec_devs <- c(-2.45692567652, -1.49785743962, -1.64659009734, -1.78008020594, -1.88481094390, -1.93924940277, -2.09485973360, -2.27115772452, -1.65331981347, -1.54242661138, -0.894069168435, -0.760194387222, -0.638925825840, -0.540261731019, -0.0300465796724, 0.229857950581, -0.507347621810, -0.840967286673, -0.815068129719, -0.521952201825, 0.329938337209, -0.303737993698, 0.0523160286823, -0.0347619461127, 0.206799064485, 0.751336941136, 0.763875654546, 0.711783099478, 1.40177034685, 1.26099951684, 1.19112113099, 1.73238628386, 2.27487849792, 1.30855136420, 1.07756808993, 1.93346306900, 1.21475162052, 0.655040873314, 0.820133753142, 0.362230709609, 0.426943767813, 0.498291008449, 0.0416118407195, 0.556179479779, 0.312328130723, 1.03792766734, 1.49571453974, 1.64265433323, 1.44980137086, 1.34261593061, 1.55112053941, 0.327117875331, -0.888652988264, -1.04542470957, -1.34825255254, -1.07732151603, -0.865608319464, -0.891511649868, -1.21965343541, 0.148143285335, 0.667796956079, 0.783192193486, 0.596810400830, 0.549079006104, 0.495287785232, 0.0798638708910, -0.257040044088, -0.0332566646777, 5.05572366833e-05)
 inits$rec_dev[,1:50] <- rev(rev(rec_devs)[1:50])
 
+inits$init_dev[1,1:19] <- rec_devs[1:19]
 
 # log_avg_fmort:
 inits$ln_mean_F[2] <- -2.43909254911
 
 # fmort_dev:
-inits$F_dev <- c(1.76760591387, 2.49486881305, -0.151322844096, 0.138850026758, -0.724466883354, -0.906910708321, -1.00742062891, -0.714570077114, -0.284972206652, 0.727548357927, -0.548356409320, -0.422472115361, 0.163052514303, 0.863934881377, 0.631443216325, -0.163684118717, 0.497098454346, 0.529139893600, 0.437772376890, 0.536715062031, 0.490034870031, 0.500542529669, 1.45431037696, -0.127838254838, -0.124443387993, -0.0361534205427, -0.837635496603, -0.452947370751, -0.655406173268, -0.278815957393, -0.504616643519, -0.390099407232, -0.386530867443, 0.0820006799070, 0.0700711120291, 0.218578487877, 0.277944866343, 0.546415380137, 0.225297893174, 0.166812977404, 0.0737325346014, -0.0247913664914, -0.183665841256, -0.437344296030, -0.388580037423, -0.407885900093, -1.02662430346, -0.953953319914, -0.591294573238, -0.160968918736)
+inits$F_dev[2,] <- c(1.76760591387, 2.49486881305, -0.151322844096, 0.138850026758, -0.724466883354, -0.906910708321, -1.00742062891, -0.714570077114, -0.284972206652, 0.727548357927, -0.548356409320, -0.422472115361, 0.163052514303, 0.863934881377, 0.631443216325, -0.163684118717, 0.497098454346, 0.529139893600, 0.437772376890, 0.536715062031, 0.490034870031, 0.500542529669, 1.45431037696, -0.127838254838, -0.124443387993, -0.0361534205427, -0.837635496603, -0.452947370751, -0.655406173268, -0.278815957393, -0.504616643519, -0.390099407232, -0.386530867443, 0.0820006799070, 0.0700711120291, 0.218578487877, 0.277944866343, 0.546415380137, 0.225297893174, 0.166812977404, 0.0737325346014, -0.0247913664914, -0.183665841256, -0.437344296030, -0.388580037423, -0.407885900093, -1.02662430346, -0.953953319914, -0.591294573238, -0.160968918736)
 
 # sel_slope_fsh_f:
 inits$ln_sel_slp[1,2,1] <- log(0.967667897824)
@@ -148,7 +149,7 @@ inits$sel_inf[1,1,2] <- -0.153764605038
 
 fixed_model <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       inits = inits,
-                                      map = map,
+                                      map = NULL,
                                       file = NULL, # Don't save
                                       estimateMode = 3, # Do not estimate
                                       random_rec = FALSE, # No random recruitment
@@ -187,29 +188,22 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       phase = NULL,
                                       initMode = 1)
 
-#
-# bridging_model_re <- Rceattle::fit_mod(data_list = mydata_nrs,
-#                                       inits = bridging_model_1$estimated_params, # Initial parameters = 0
-#                                       file = NULL, # Don't save
-#                                       estimateMode = 0, # Estimate
-#                                       random_rec = TRUE, # No random recruitment
-#                                       msmMode = 0, # Single species mode
-#                                       verbose = 1,
-#                                       phase = NULL,
-#                                       initMode = 2)
-
 
 # - SAFE model
 library(readxl)
-SAFE2022_mod <- bridging_model_1
-SAFE2022_mod$quantities$biomass[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 4)$Est * 1000
-SAFE2022_mod$quantities$biomassSSB[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
-SAFE2022_mod$quantities$R[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
+SAFE2024_init_mod <- bridging_model_1
+SAFE2024_init_mod$quantities$biomass[1,1:length(1975:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 4)$Est * 1000
+SAFE2024_init_mod$quantities$biomassSSB[1,1:length(1975:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
+SAFE2024_init_mod$quantities$R[1,1:length(1975:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
+
+fixed_model$quantities$biomass <- fixed_model$quantities$biomass * 1000
+fixed_model$quantities$biomassSSB <- fixed_model$quantities$biomassSSB * 1000
+fixed_model$quantities$R <- fixed_model$quantities$R * 1000
 
 # Plots ----
-plot_biomass(list(bridging_model_2, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
-plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
-plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
+plot_biomass(list(fixed_model, SAFE2024_init_mod), model_names = c("CEATTLE fix", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
+plot_ssb(list(fixed_model, SAFE2024_init_mod), model_names = c("CEATTLE fix", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
+plot_recruitment(list(fixed_model, SAFE2024_init_mod), model_names = c("CEATTLE fix", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
 
 # dev.off()
 plot_selectivity(bridging_model_3)
