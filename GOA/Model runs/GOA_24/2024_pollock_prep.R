@@ -2,7 +2,7 @@ library(Rceattle)
 library(dplyr)
 library(tidyr)
 library(TMB)
-# setwd("Model runs/GOA_24")
+setwd("Model runs/GOA_24")
 
 # Load data ----
 pollock23 <- read_data("Data/GOA_23_pollock_single_species_1970-2023.xlsx")
@@ -90,7 +90,7 @@ pollock23$comp_data <- comp_data
 
 
 # * Index data ----
-head(pollock23$srv_biom)
+head(pollock23$index_data)
 srv1 <- data.frame(Fleet_code = 1, Year = safe24$input$dat$srvyrs1, Observation = 
                      safe24$input$dat$indxsurv1 * 1e6, Log_sd = safe24$input$dat$indxsurv_log_sd1)
 
@@ -104,14 +104,14 @@ srv3 <- data.frame(Fleet_code = 3, Year = safe24$input$dat$srvyrs3, Observation 
 srv6 <- data.frame(Fleet_code = 6, Year = safe24$input$dat$srvyrs6, Observation = 
                      safe24$input$dat$indxsurv6 * 1e6, Log_sd = safe24$input$dat$indxsurv_log_sd6)
 
-srv_biom <- pollock23$srv_biom %>%
+index_data <- pollock23$index_data %>%
   dplyr::filter(Fleet_code %in% c(1:3, 6)) %>%
   select(Fleet_name, Fleet_code, Species, Year, Month, Selectivity_block, Q_block) %>%
   left_join(do.call("rbind", list(srv1, srv2, srv3, srv6))) %>%
-  bind_rows(pollock23$srv_biom %>%
+  bind_rows(pollock23$index_data %>%
               dplyr::filter(!Fleet_code %in% c(1:3, 6)))
 
-pollock23$srv_biom <- srv_biom
+pollock23$index_data <- index_data
 
 
 # * WT ----
@@ -166,6 +166,9 @@ pollock23$Pyrs <- rbind(pollock23$Pyrs %>%
 
 
 # Fit base model ----
+pollock23$fleet_control <- pollock23$fleet_control %>%
+  rename(Index_sd_prior = Survey_sd_prior,
+         Estimate_index_sd = Estimate_survey_sd)
 pollock_base <- fit_mod(data_list = pollock23,
                         inits = NULL, # Initial parameters = 0
                         file = NULL, # Don't save
@@ -174,7 +177,8 @@ pollock_base <- fit_mod(data_list = pollock23,
                         msmMode = 0, # Single species mode
                         verbose = 1,
                         initMode = 1,
-                        phase = "default")
+                        phase = TRUE)
+
 
 # Fit dirichlet model ----
 pollock23$fleet_control$Comp_loglike <- 0
@@ -188,10 +192,11 @@ pollock_dm <- fit_mod(data_list = pollock23,
                       msmMode = 0, # Single species mode
                       verbose = 1,
                       initMode = 1,
-                      phase = "default")
+                      phase = TRUE)
 
 # Fix parameters ----
 pkinits <- build_params(pollock_dm$data_list)
+pkinits_old <- build_params(pollock_dm$data_list)
 yrs <- pollock_dm$data_list$styr:pollock_dm$data_list$endyr
 nyrs <- length(yrs)
 
@@ -199,7 +204,7 @@ nyrs <- length(yrs)
 pkinits$rec_pars[,1] = log(exp(safe24$parList$mean_log_recruit)*1e6) # Mean rec
 pkinits$rec_dev[,1:nyrs] <- safe24$parList$dev_log_recruit
 pkinits$init_dev[1,] <- safe24$parList$dev_log_recruit[1]
-pkinits$ln_rec_sigma <- log(safe24$parList$sigmaR)
+pkinits$R_ln_sd <- log(safe24$parList$sigmaR)
 
 # F
 pkinits$ln_mean_F[8] <- safe24$parList$mean_log_F
@@ -224,93 +229,96 @@ pkinits$sel_inf_dev[1,8,1,] <- safe24$parList$inf1_fsh_dev
 pkinits$sel_inf_dev[2,8,1,] <- safe24$parList$inf2_fsh_dev
 
 # Catchability
-pkinits$ln_srv_q[1:6] <- unlist(safe24$parList[c("log_q1_mean", "log_q2_mean", "log_q3_mean", "log_q4", "log_q5", "log_q6")])
+pkinits$index_ln_q[1:6] <- unlist(safe24$parList[c("log_q1_mean", "log_q2_mean", "log_q3_mean", "log_q4", "log_q5", "log_q6")])
 
-pkinits$ln_srv_q_dev[1,] <- safe24$parList$Ecov_exp
-pkinits$ln_srv_q_dev[2,] <- safe24$parList$log_q2_dev
-pkinits$ln_srv_q_dev[3,] <- safe24$parList$log_q3_dev
+pkinits$index_q_dev[1,] <- safe24$parList$Ecov_exp
+pkinits$index_q_dev[2,] <- safe24$parList$log_q2_dev
+pkinits$index_q_dev[3,] <- safe24$parList$log_q3_dev
 
 # - Rho
-pkinits$srv_q_rho[1] <- safe24$parList$transf_rho
-pkinits$srv_q_beta[1,1] <- safe24$parList$Ecov_beta
-pkinits$ln_sigma_srv_q[1] <- safe24$parList$log_Ecov_obs_sd
-pkinits$ln_sigma_time_varying_srv_q[1] <- safe24$parList$log_Ecov_sd
+pkinits$index_q_rho[1] <- safe24$parList$transf_rho
+pkinits$index_q_beta[1,1] <- safe24$parList$Ecov_beta
+pkinits$index_q_ln_sd[1] <- safe24$parList$log_Ecov_obs_sd
+pkinits$index_q_dev_ln_sd[1] <- safe24$parList$log_Ecov_sd
 
 # DM
 pkinits$comp_weights[c(1:3,6,8)] <- safe24$parList$log_DM_pars
 
 # * Fit fixed parameters ----
+pollock23$fleet_control$Age_max_selected[7] <- 3
+pollock23$fleet_control$Age_max_selected[8] <- 7
 pollock_fixed <- fit_mod(data_list = pollock23,
                          inits = pkinits, # Initial parameters = 0
                          file = NULL, # Don't save
                          estimateMode = 3, # Estimate
                          random_rec = TRUE, # No random recruitment
                          msmMode = 0, # Single species mode
-                         verbose = 1,
+                         verbose = 2,
                          initMode = 1,
                          random_q = 1,
-                         phase = NULL)
+                         phase = TRUE)
 
+
+# * Fit fixed parameters w/ pollock issues ----
 library(TMB)
-pollock23$fleet_control$Age_max_selected[8] <- 7
 pollock_fixed_wrong <- fit_mod(
   data_list = pollock23,
-  TMBfilename = "ceattle_v01_11_pk",
+  TMBfilename = "ceattle_v01_11_dev",
   inits = pkinits, # Initial parameters = 0
   file = NULL, # Don't save
-  estimateMode = 0, # Estimate
+  estimateMode = 3, # Estimate
   random_q = TRUE,
   random_rec = TRUE, # No random recruitment
   msmMode = 0, # Single species mode
-  verbose = 1,
+  verbose = 2,
   initMode = 1,
-  phase = "default"
+  phase = TRUE
 )
-
-pollock_fixed_wrong <- fit_mod(
-  data_list = pollock23,
-  TMBfilename = "ceattle_v01_11_pk",
-  inits = pollock_fixed_wrong$estimated_params, # Initial parameters = 0
-  file = NULL, # Don't save
-  estimateMode = 0, # Estimate
-  random_q = TRUE,
-  random_rec = TRUE, # No random recruitment
-  msmMode = 0, # Single species mode
-  verbose = 1,
-  initMode = 1,
-  phase = NULL
-)
-pkinits$ln_sel_slp
-pollock_fixed_wrong$quantities$ln_sel_slp
+# 
+# pollock_fixed_wrong <- fit_mod(
+#   data_list = pollock23,
+#   TMBfilename = "ceattle_v01_11_pk",
+#   inits = pollock_fixed_wrong$estimated_params, # Initial parameters = 0
+#   file = NULL, # Don't save
+#   estimateMode = 0, # Estimate
+#   random_q = TRUE,
+#   random_rec = TRUE, # No random recruitment
+#   msmMode = 0, # Single species mode
+#   verbose = 1,
+#   initMode = 1,
+#   phase = NULL
+# )
+pkinits$ln_sel_slp-pollock_fixed_wrong$quantities$ln_sel_slp
+pkinits$ln_sel_slp_dev[1,8,1,]-pollock_fixed_wrong$quantities$ln_sel_slp_dev[1,8,1,]
+pkinits$sel_inf_dev[1,8,1,]-pollock_fixed_wrong$quantities$sel_inf_dev[1,8,1,]
 
 # -- Selectivity
-pollock_fixed_wrong$quantities$sel[1,1,,1]
-safe24$rep$slctsrv1 # Good
+pollock_fixed_wrong$quantities$sel[1,1,,1]-safe24$rep$slctsrv1 # Good
 
-pollock_fixed_wrong$quantities$sel[2,1,,1]
-safe24$rep$slctsrv2
+pollock_fixed_wrong$quantities$sel[2,1,,1]-safe24$rep$slctsrv2
 
-pollock_fixed_wrong$quantities$sel[3,1,,1]
-safe24$rep$slctsrv3
+pollock_fixed_wrong$quantities$sel[3,1,,1]-safe24$rep$slctsrv3
 
-pollock_fixed_wrong$quantities$sel[6,1,,1]
-safe24$rep$slctsrv6
+pollock_fixed_wrong$quantities$sel[6,1,,1]-safe24$rep$slctsrv6
 
 ceattle_sel <- t(pollock_fixed_wrong$quantities$sel[8,1,,1:nyrs])
 ceattle_sel - safe24$rep$slctfsh
 
 # -- Mort
-pollock_fixed_wrong$quantities$F_spp[,1:nyrs]
-safe24$rep$F # Good
+pollock_fixed_wrong$quantities$F_spp[,1:nyrs]-safe24$rep$F # Good
+safe24$obj$env$map$inf1_fsh_mean
+safe24$obj$env$map$log_slp1_fsh_mean
+safe24$obj$env$map$inf2_fsh_dev
+safe24$obj$env$map$slp2_fsh_dev
 
 # -- Catchability
-safe24$rep$q1 - pollock_fixed_wrong$quantities$srv_q[1,]
+safe24$rep$q1 - pollock_fixed_wrong$quantities$index_q[1,]
 
-safe24$rep$q2 - pollock_fixed_wrong$quantities$srv_q[2,]
+safe24$rep$q2 - pollock_fixed_wrong$quantities$index_q[2,]
 
-safe24$rep$q3 - pollock_fixed_wrong$quantities$srv_q[3,]
+safe24$rep$q3 - pollock_fixed_wrong$quantities$index_q[3,]
 
-safe24$rep$q6 - pollock_fixed_wrong$quantities$srv_q[6,]
+safe24$rep$q6 - pollock_fixed_wrong$quantities$index_q[6,]
 
 
 # Loglike:
@@ -348,7 +356,7 @@ pollock_fixed_wrong$quantities$jnll_comp[1:13,-c(4,5,7)]
 # * Estimate
 pollock_est_wrong <- fit_mod(
   data_list = pollock23,
-  TMBfilename = "ceattle_v01_11_pk",
+  TMBfilename = "ceattle_v01_11_dev",
   inits = pkinits, # Initial parameters = 0
   file = NULL, # Don't save
   estimateMode = 0, # Estimate
@@ -357,7 +365,7 @@ pollock_est_wrong <- fit_mod(
   msmMode = 0, # Single species mode
   verbose = 1,
   initMode = 1,
-  phase = "default"
+  phase = TRUE
 )
 
 # * Estimate
@@ -369,19 +377,19 @@ pollock_est <- fit_mod(
   random_q = TRUE,
   random_rec = TRUE, # No random recruitment
   msmMode = 0, # Single species mode
-  verbose = 2,
-  initMode = 2,
-  phase = "default"
+  verbose = 1,
+  initMode = 1,
+  phase = FALSE
 )
 
 # Plot ----
 safe <- pollock_base
 nyrs <- length(1970:2024)
 safe$quantities$biomass[,1:nyrs] <- safe24$rep$Etotalbio * 1e6
-safe$quantities$biomassSSB[,1:nyrs] <- safe24$rep$Espawnbio * 1e6
+safe$quantities$ssb[,1:nyrs] <- safe24$rep$Espawnbio * 1e6
 safe$quantities$srv_bio_hat <- safe24$rep$Eindxsurv1 
 
-plot_biomass(list(safe, pollock_est_wrong), model_names = c("SAFE", "CEATTLE"))
-plot_index(pollock_base, model_names = 1:2)
+plot_biomass(list(safe, pollock_fixed_wrong, pollock_est_wrong), model_names = c("SAFE", "CEATTLE"))
+plot_index(pollock_fixed, model_names = 1:2)
 
 write_data(pollock23, "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
