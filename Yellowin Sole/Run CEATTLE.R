@@ -1,5 +1,7 @@
 # Code to run the bering and aleutian island yellowfin sole assessment in CEATTLE
 # model is a two sex, single-species model
+# uses dev_srr branch
+# https://github.com/grantdadams/Rceattle/tree/dev_srr
 
 # DATA
 # - Fishery catch
@@ -25,8 +27,8 @@
 library(Rceattle)
 mydata_yfs <- Rceattle::read_data( file = "Data/yfs_single_species_2022.xlsx")
 mydata_yfs$estDynamics = 0
-mydata_yfs$srv_biom$Log_sd <- mydata_yfs$srv_biom$Log_sd/mydata_yfs$srv_biom$Observation
-mydata_yfs$fsh_biom$Catch <- mydata_yfs$fsh_biom$Catch*1000
+mydata_yfs$index_data$Log_sd <- mydata_yfs$index_data$Log_sd/mydata_yfs$index_data$Observation
+mydata_yfs$catch_data$Catch <- mydata_yfs$catch_data$Catch*1000
 
 # - Fix M
 bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
@@ -36,7 +38,7 @@ bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                           random_rec = FALSE, # No random recruitment
                                           msmMode = 0, # Single species mode
                                           verbose = 1,
-                                          phase = "default",
+                                          phase = TRUE,
                                           initMode = 2)
 
 # - Est female and male M
@@ -48,7 +50,7 @@ bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                       msmMode = 0, # Single species mode
                                       verbose = 1,
                                       M1Fun = build_M1(M1_model = c(2)),
-                                      phase = NULL,
+                                      phase = TRUE,
                                       initMode = 2)
 
 # - Fix female M and estimate male M
@@ -72,7 +74,7 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                       random_rec = FALSE, # No random recruitment
                                       msmMode = 0, # Single species mode
                                       verbose = 1,
-                                      phase = NULL,
+                                      phase = FALSE,
                                       initMode = 2)
 
 #
@@ -91,7 +93,7 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
 library(readxl)
 SAFE2022_mod <- bridging_model_1
 SAFE2022_mod$quantities$biomass[1,1:length(1954:2022)] <- read_excel("C:/Users/grant.adams/GitHub/yfs_ss3/Rceattle runs/Data/2022_ADMB_estimate.xlsx", sheet = 4)$Est * 1000
-SAFE2022_mod$quantities$biomassSSB[1,1:length(1954:2022)] <- read_excel("C:/Users/grant.adams/GitHub/yfs_ss3/Rceattle runs/Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
+SAFE2022_mod$quantities$ssb[1,1:length(1954:2022)] <- read_excel("C:/Users/grant.adams/GitHub/yfs_ss3/Rceattle runs/Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
 SAFE2022_mod$quantities$R[1,1:length(1954:2022)] <- read_excel("C:/Users/grant.adams/GitHub/yfs_ss3/Rceattle runs/Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
 
 
