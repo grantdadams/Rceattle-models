@@ -35,9 +35,11 @@ bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                           estimateMode = 0, # Estimate
                                           random_rec = FALSE, # No random recruitment
                                           msmMode = 0, # Single species mode
-                                          verbose = 1,
+                                          verbose = 2,
                                           phase = TRUE,
                                           initMode = 2)
+bridging_model_1$quantities$jnll_comp
+bridging_model_1$quantities$index_hat
 
 # - Est female and male M
 bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,

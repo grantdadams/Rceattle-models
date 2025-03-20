@@ -80,7 +80,7 @@ wt_flt_5$Sex = 0
 # wt_flt_9$Sex = 0
 
 
-#  -- Biomass
+#  -- Biomass weight
 wt_flt_b <- mod0$wtatage[which(mod0$wtatage$fleet == 0),]
 wt_flt_b$Wt_name = "Pcod_biomass_begin"
 wt_flt_b$Wt_index = 6
@@ -108,14 +108,20 @@ wt_all = wt_all[,c("Wt_name","Wt_index","Species","Sex", "year",1:10)]
 wt_all <- wt_all[which(wt_all$year >= 1977 & wt_all$year <= 2024),]
 write.csv(wt_all, file = "Data/SAFE data/2024pcod_wtatage.csv")
 
-# Time series of biomass
+
+# Time series of biomass ----
 write.csv(mod0$timeseries, file = "Data/SAFE data/2024pcod_time_series.csv")
+
+
+# Time series of numbers at age ----
+# - We want middle based on when predation occurs
+write.csv(mod0$natage, file = "Data/SAFE data/2024pcod_natage.csv")
 
 
 # Age_length_key ---- 
 library(writexl)
-alkbegin <- t((as.data.frame(mod0$ALK[,,1]))) # Subseason 1 ALK (guessing its 
-alkmid <- t(as.data.frame(mod0$ALK[,,2])) # Subseason 1 ALK (guessing its 
+alkbegin <- t((as.data.frame(mod0$ALK[,,1]))) # Subseason 1 ALK 
+alkmid <- t(as.data.frame(mod0$ALK[,,2])) # Subseason 1 ALK (guessing we want this)
 
 # Reorganize
 alkbegin <- alkbegin[,ncol(alkbegin):1]
