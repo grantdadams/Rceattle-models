@@ -5,7 +5,7 @@ library(readxl)
 ################################################
 # Data
 ################################################
-hakedata <- Rceattle::read_data(file = "hake_yr24_241125.xlsx")
+hakedata <- Rceattle::read_data(file = "Data/hake_yr24_241125.xlsx")
 hakedata$fleet_control$Age_max_selected = NA
 hakedata$fleet_control$Comp_loglike = 0
 hakedata$styr <- 1966
@@ -52,7 +52,7 @@ hake_ss_ssr_dm <- fit_mod(data_list = hakedata,
                           msmMode = 0, # Single species mode
                           phase = TRUE,
                           recFun = build_srr(srr_fun = 2, # Beverton and holt with beta prior on steepness
-                                             srr_est_mode = 3, 
+                                             srr_est_mode = 3,
                                              srr_prior = 0.777,
                                              srr_prior_sd = 0.05
                           ),
@@ -82,7 +82,7 @@ hake_ss_dm_srr_M <- fit_mod(data_list = hakedata,
                             msmMode = 0, # Single species mode
                             phase = TRUE,
                             recFun = build_srr(srr_fun = 2,
-                                               srr_est_mode = 3, 
+                                               srr_est_mode = 3,
                                                srr_prior = 0.777,
                                                srr_prior_sd = 0.05
                             ),
@@ -101,7 +101,7 @@ hake_ss_dm_srr_Mre <- fit_mod(data_list = hakedata,
                               msmMode = 0, # Single species mode
                               phase = TRUE,
                               recFun = build_srr(srr_fun = 2,
-                                                 srr_est_mode = 3, 
+                                                 srr_est_mode = 3,
                                                  srr_prior = 0.777,
                                                  srr_prior_sd = 0.05
                               ),
@@ -119,7 +119,7 @@ hake_ss_dm_srr_M_init1 <- fit_mod(data_list = hakedata,
                                   msmMode = 0, # Single species mode
                                   phase = TRUE,
                                   recFun = build_srr(srr_fun = 2,
-                                                     srr_est_mode = 3, 
+                                                     srr_est_mode = 3,
                                                      srr_prior = 0.777,
                                                      srr_prior_sd = 0.05
                                   ),
