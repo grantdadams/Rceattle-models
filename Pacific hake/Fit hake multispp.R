@@ -1,7 +1,7 @@
 ################################################
 # Libraries
 ################################################
-devtools::install_github("grantdadams/Rceattle", ref = "dev")
+# devtools::install_github("grantdadams/Rceattle", ref = "dev")
 library(Rceattle)
 library(dplyr)
 library(readxl)
@@ -10,9 +10,9 @@ library(readxl)
 ################################################
 # Data
 ################################################
-old_hakedata <- Rceattle::read_data(file = "hake_intrasp_250207.xlsx")
+old_hakedata <- Rceattle::read_data(file = "Data/hake_intrasp_250207.xlsx")
 
-new_hakedata <- Rceattle::read_data(file = "NEW_ATF_hake_intrasp_250207.xlsx")
+new_hakedata <- Rceattle::read_data(file = "Data/NEW_ATF_hake_intrasp_250207.xlsx")
 
 ################################################
 # Fit initial model
