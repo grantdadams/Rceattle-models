@@ -27,7 +27,7 @@ hake_old <- Rceattle::fit_mod(data_list = old_hakedata,
                               verbose = 1,
                               msmMode = 0, # Single species mode
                               phase = TRUE,
-                              initMode = 2) # Fished start with init devs
+                              initMode = 3) # Fished start with init devs
 
 
 

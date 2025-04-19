@@ -1,7 +1,7 @@
 ################################################
 # Libraries
 ################################################
-devtools::install_github("grantdadams/Rceattle", ref = "dev-name-change") # New branch, will be merged into "dev"
+# devtools::install_github("grantdadams/Rceattle", ref = "dev-name-change") # New branch, will be merged into "dev"
 library(Rceattle)
 library(dplyr)
 library(readxl)
@@ -43,8 +43,8 @@ hake_ms$map$mapList$log_gam_a
 
 # Create a list with missing parameters (invented):
 # Set weight ratio parameters
-inits$log_gam_a = c(0, 0.3)  # Mean log weight ratio for ATF, 0 for other species (pred/prey)
-inits$log_gam_b = c(0, 0.2)  # Standard deviation of log weight ratio for ATF, 0 for other species
+inits$log_gam_a = c(0, log(0.7))  # Mean log weight ratio for ATF, 0 for other species (pred/prey)
+inits$log_gam_b = c(0, 0)  # Standard deviation of log weight ratio for ATF, 0 for other species
 
 # Set vulnerability matrix (log transformed)
 nspp <- 2  # ATF and hake
@@ -73,3 +73,4 @@ plot_b_eaten(list(hake_ss, hake_ms, hake_ls), model_names = c("Single-spp", "MSV
 
 # JNLL
 hake_ls$quantities$jnll_comp
+hake_ls$quantities$suitability[2,1,10,1:20,1:3]
