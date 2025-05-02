@@ -1,45 +1,45 @@
-# Code to run the bering and aleutian island yellowfin sole assessment in CEATTLE
+# Code to run the bering alaska plaice assessment in CEATTLE
 # model is a two sex, single-species model
 
 # DATA
-# - Fishery catch
-# - Fishery age composition
-# - Fishery weight-at-age
-# - Survey biomass and standard error
-# - Bottom temperature
-# - Survey age composition
-# - Catch-at-age methodology
-# - Annual length-at-age and weight-at-age from surveys
-# - Age at maturity
+# - Fishery
+# -- catch
+# -- age composition
+# -- length comps
+# -- weight-at-age
+# - Survey
+# -- biomass and standard error
+# -- age comps
 
 # MODEL
 # - Two sex
-# - Survey selectivity = sex-specific logistic
-# - Survey q = q * e^(B*Env Indices)
+# - Survey selectivity = sex-specific logistic (normalized based on max-across sexes for survey)
+# - Survey q = q
 # - Fishery selectivity = sex-specific logistic
-# - Empirical weight-at-age
-# - M = 0.12 for females, estimated for males
+# - Empirical weight-at-age (sex-specific, time-invariant)
+# - M = 0.13 for females, estimated for males
 
 # Load data ----
 library(Rceattle)
-mydata_yfs <- Rceattle::read_data( file = "Data/plaice_single_species_2021.xlsx")
-mydata_yfs$estDynamics = 0
-mydata_yfs$srv_biom$Log_sd <- mydata_yfs$srv_biom$Log_sd/mydata_yfs$srv_biom$Observation
-mydata_yfs$fsh_biom$Catch <- mydata_yfs$fsh_biom$Catch/1000
+mydata <- Rceattle::read_data( file = "Data/plaice_single_species_2021.xlsx")
+mydata$estDynamics = 0
+mydata$nsex = 2
+mydata$srv_biom$Log_sd <- mydata$srv_biom$Log_sd/mydata$srv_biom$Observation
+mydata$fsh_biom$Catch <- mydata$fsh_biom$Catch/1000
 
 # - Fix M
-bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
+bridging_model_1 <- Rceattle::fit_mod(data_list = mydata,
                                           inits = NULL, # Initial parameters = 0
                                           file = NULL, # Don't save
                                           estimateMode = 0, # Estimate
                                           random_rec = FALSE, # No random recruitment
                                           msmMode = 0, # Single species mode
                                           verbose = 1,
-                                          phase = "default",
+                                          phase = TRUE,
                                           initMode = 1)
 
 # # - Est female and male M
-# bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,
+# bridging_model_2 <- Rceattle::fit_mod(data_list = mydata,
 #                                       inits = bridging_model_1$estimated_params,
 #                                       file = NULL, # Don't save
 #                                       estimateMode = 0, # Estimate

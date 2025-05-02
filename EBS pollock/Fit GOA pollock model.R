@@ -9,6 +9,14 @@ library(dplyr)
 # Read in data ----
 mydata_pollock <- Rceattle::read_data( file = "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
 
+# All work on dev branch "850a55f" - delete old dev scripts and started on osa setup
+#e5924b4 Pyrs can have year = 0
+#delete random comments
+
+# Does not work
+# update retrospective bias to include forecast bias
+
+
 
 # - Fit single-species models
 pollock_base <- fit_mod(data_list = mydata_pollock,
@@ -49,7 +57,7 @@ pollock_estM_ricker <- fit_mod(data_list = mydata_pollock,
                                            srr_hat_styr = 1977, # Estimate starting 7 years after styr = 1970
                                            srr_hat_endyr = 2020
                         ),
-                        initMode = 1,       # Unfished equilibrium with init_dev's turned off
+                        initMode = 2,       # Unfished equilibrium with init_dev's turned off
                         phase = TRUE)       # Phase
 
 
