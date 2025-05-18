@@ -13,12 +13,30 @@ ebs_pollock$catch_data$Catch <- ebs_pollock$catch_data$Catch
 
 ebs_pollock$catch_data$Log_sd <- 0.05
 ebs_pollock$spawn_month = 3
-ebs_pollock$fleet_control$Fleet_type[5] <- 2 # Setting ATS age-1 data as survey
+ebs_pollock$fleet_control$Fleet_type[5:6] <- 2 # Setting ATS age-1 data as survey
 # ebs_pollock$fleet_control$Estimate_q[3] <- 0 # Bottom trawl q = mean(ob_bts)/mean(eb_bts)
 # ebs_pollock$fleet_control$Estimate_q[6] <- 3 # ATS_1 q = mfexp(mean(log(oa1_ats)-log(ea1_ats)));
 yrs <- ebs_pollock$styr:ebs_pollock$endyr
 ebs_pollock$age_error[1:15,3:17] <- diag(15) # Removing age error b/c turned off
 ebs_pollock$fleet_control$Time_varying_sel[1] <- 1
+
+# Adjust survey timing
+ebs_pollock$index_data <- ebs_pollock$index_data %>%
+  dplyr::mutate(Month = case_when(
+    Fleet_name == "BTS" ~ 6,
+    Fleet_name == "BTS_1" ~ 6,
+    Fleet_name == "ATS" ~ 6,
+    Fleet_name == "ATS_1" ~ 6,
+    Fleet_name == "AVO" ~ 0,
+    Fleet_name == "Fishery CPUE" ~ 0
+  ))
+
+
+ebs_pollock$comp_data <- ebs_pollock$comp_data %>%
+  dplyr::mutate(Month = case_when(
+    Fleet_name == "BTS" ~ 6,
+    Fleet_name == "ATS" ~ 6
+  ))
 
 # Initial fit ----
 pollock_base <- Rceattle::fit_mod(data_list = ebs_pollock,
