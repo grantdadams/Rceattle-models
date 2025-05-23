@@ -13,12 +13,14 @@ ebs_pollock$catch_data$Catch <- ebs_pollock$catch_data$Catch
 
 ebs_pollock$catch_data$Log_sd <- 0.05
 ebs_pollock$spawn_month = 3
-ebs_pollock$fleet_control$Fleet_type[5:6] <- 2 # Setting ATS age-1 data as survey
+ebs_pollock$fleet_control$Fleet_type[5] <- 2 # Setting ATS age-1 data as survey
 # ebs_pollock$fleet_control$Estimate_q[3] <- 0 # Bottom trawl q = mean(ob_bts)/mean(eb_bts)
 # ebs_pollock$fleet_control$Estimate_q[6] <- 3 # ATS_1 q = mfexp(mean(log(oa1_ats)-log(ea1_ats)));
 yrs <- ebs_pollock$styr:ebs_pollock$endyr
 ebs_pollock$age_error[1:15,3:17] <- diag(15) # Removing age error b/c turned off
 ebs_pollock$fleet_control$Time_varying_sel[1] <- 1
+ebs_pollock$fleet_control$Time_varying_sel[3] <- 0
+ebs_pollock$fleet_control$Sel_sd_prior[3] <- 0.1
 
 # Adjust survey timing
 ebs_pollock$index_data <- ebs_pollock$index_data %>%
@@ -50,6 +52,20 @@ pollock_base <- Rceattle::fit_mod(data_list = ebs_pollock,
                                   initMode = 4) # Fished equilibrium with init_dev's turned on
 plot_biomass(pollock_base)
 plot_f(pollock_base)
+
+
+# Initial fit ----
+pollock_re <- Rceattle::fit_mod(data_list = ebs_pollock,
+                                  inits = NULL, # Initial parameters = 0
+                                  file = NULL, # Don't save
+                                  estimateMode = 0, # Estimate
+                                  random_rec = TRUE, # No random recruitment
+                                random_sel = TRUE,
+                                msmMode = 0, # Single species mode
+                                  verbose = 1,
+                                  phase = FALSE,
+                                  initMode = 4) # Fished equilibrium with init_dev's turned on
+
 
 # Fixed selectivity ----
 fix_sel_dat <- ebs_pollock
@@ -149,8 +165,8 @@ fix_n$quantities$ssb <- fix_n$quantities$ssb# * 1000
 fix_n$quantities$R[1,1:length(yrs)] <- fix_n$data_list$NByageFixed$Age1# * 1000
 
 # Plot ----
-mod_list <- list(pollock_base, fixed_sel, fix_n, fixed_parms, SAFE2024_mod)
-mod_names <- c("CEATTLE est parms", "CEATTLE fix sel", "Fix N", "fix par", "ADMB")
+mod_list <- list(pollock_base, pollock_re, fixed_sel, fixed_parms, SAFE2024_mod)
+mod_names <- c("CEATTLE est parms", "RE", "CEATTLE fix sel", "fix par", "ADMB")
 
 plot_ssb(mod_list, model_names = mod_names)
 plot_recruitment(mod_list, model_names = mod_names)
