@@ -185,15 +185,15 @@ pollock_dm <- fit_mod(data_list = pollock23,
                       inits = NULL, # Initial parameters = 0
                       file = NULL, # Don't save
                       estimateMode = 3, # Estimate
-                      random_rec = FALSE, # No random recruitment
+                      random_rec = TRUE, # No random recruitment
                       msmMode = 0, # Single species mode
                       verbose = 1,
                       initMode = 1,
+                      random_q = FALSE,
                       phase = TRUE)
 
 # Fix parameters ----
 pkinits <- build_params(pollock_dm$data_list)
-pkinits_old <- build_params(pollock_dm$data_list)
 yrs <- pollock_dm$data_list$styr:pollock_dm$data_list$endyr
 nyrs <- length(yrs)
 
@@ -204,8 +204,7 @@ pkinits$init_dev[1,] <- safe24$parList$dev_log_recruit[1]
 pkinits$R_ln_sd <- log(safe24$parList$sigmaR)
 
 # F
-pkinits$ln_mean_F[8] <- safe24$parList$mean_log_F
-pkinits$F_dev[8,] <- safe24$parList$dev_log_F
+pkinits$ln_F[8,] <- safe24$parList$dev_log_F + safe24$parList$mean_log_F
 
 # Selectivity
 #1-(1/(1+exp(-exp(safe24$parList$log_slp2_srv1) * (1:10 - safe24$parList$inf2_srv1))))
@@ -242,8 +241,19 @@ pkinits$index_q_dev_ln_sd[1] <- safe24$parList$log_Ecov_sd
 pkinits$comp_weights[c(1:3,6,8)] <- safe24$parList$log_DM_pars
 
 # * Fit fixed parameters ----
-pollock23$fleet_control$Age_max_selected[7] <- 3
-pollock23$fleet_control$Age_max_selected[8] <- 7
+# check <- data.frame(Par = names(pkinits), Dim1 = NA, Dim2 = NA, DimMap = NA, Diff = NA, MapDiff = NA)
+# for(i in 1:length(pkinits)){
+#   parname <- names(pkinits)[i]
+#   
+#   check$Dim1[i] <- paste(dim(pkinits[[i]]), collapse = ", ")
+#   check$Dim2[i] <- paste(dim(start_par[[parname]]), collapse = ", ")
+#   check$DimMap[i] <- paste(dim(map$mapList[[parname]]), collapse = ", ")
+#   
+#   check$Diff[i] <- length(pkinits[[i]])  == length(start_par[[parname]])
+#   check$MapDiff[i] <- length(pkinits[[i]])  == length(map$mapList[[parname]])
+# }
+
+
 pollock_fixed <- fit_mod(data_list = pollock23,
                          inits = pkinits, # Initial parameters = 0
                          file = NULL, # Don't save
@@ -253,7 +263,8 @@ pollock_fixed <- fit_mod(data_list = pollock23,
                          verbose = 2,
                          initMode = 1,
                          random_q = 1,
-                         phase = TRUE)
+                         phase = TRUE
+                         )
 
 
 # * Fit fixed parameters w/ pollock issues ----
@@ -386,7 +397,7 @@ safe$quantities$biomass[,1:nyrs] <- safe24$rep$Etotalbio * 1e6
 safe$quantities$ssb[,1:nyrs] <- safe24$rep$Espawnbio * 1e6
 safe$quantities$srv_bio_hat <- safe24$rep$Eindxsurv1 
 
-plot_biomass(list(safe, pollock_fixed_wrong, pollock_est_wrong), model_names = c("SAFE", "CEATTLE"))
+plot_biomass(list(safe, pollock_fixed, pollock_est), model_names = c("SAFE", "CEATTLE", "Est"))
 plot_index(pollock_fixed, model_names = 1:2)
 
 write_data(pollock23, "Data/GOA_24_pollock_single_species_1970-2024.xlsx")

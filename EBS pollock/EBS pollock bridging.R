@@ -13,7 +13,7 @@ ebs_pollock$catch_data$Catch <- ebs_pollock$catch_data$Catch
 
 ebs_pollock$catch_data$Log_sd <- 0.05
 ebs_pollock$spawn_month = 3
-ebs_pollock$fleet_control$Fleet_type[5] <- 2 # Setting ATS age-1 data as survey
+ebs_pollock$fleet_control$Fleet_type[5:6] <- 2 # Setting ATS age-1 data as survey
 # ebs_pollock$fleet_control$Estimate_q[3] <- 0 # Bottom trawl q = mean(ob_bts)/mean(eb_bts)
 # ebs_pollock$fleet_control$Estimate_q[6] <- 3 # ATS_1 q = mfexp(mean(log(oa1_ats)-log(ea1_ats)));
 yrs <- ebs_pollock$styr:ebs_pollock$endyr
@@ -55,16 +55,16 @@ plot_f(pollock_base)
 
 
 # Initial fit ----
-pollock_re <- Rceattle::fit_mod(data_list = ebs_pollock,
-                                  inits = NULL, # Initial parameters = 0
-                                  file = NULL, # Don't save
-                                  estimateMode = 0, # Estimate
-                                  random_rec = TRUE, # No random recruitment
-                                random_sel = TRUE,
-                                msmMode = 0, # Single species mode
-                                  verbose = 1,
-                                  phase = FALSE,
-                                  initMode = 4) # Fished equilibrium with init_dev's turned on
+# pollock_re <- Rceattle::fit_mod(data_list = ebs_pollock,
+#                                 inits = NULL, # Initial parameters = 0
+#                                 file = NULL, # Don't save
+#                                 estimateMode = 0, # Estimate
+#                                 random_rec = TRUE, # No random recruitment
+#                                 random_sel = TRUE,
+#                                 msmMode = 0, # Single species mode
+#                                 verbose = 1,
+#                                 phase = FALSE,
+#                                 initMode = 4) # Fished equilibrium with init_dev's turned on
 
 
 # Fixed selectivity ----
@@ -79,33 +79,53 @@ fix_sel_dat$emp_sel <- rbind(fix_sel_dat$emp_sel,
                                              Fleet_name = "AVO"))
 
 fixed_sel <- Rceattle::fit_mod(data_list = fix_sel_dat,
-                                  inits = NULL, # Initial parameters = 0
-                                  file = NULL, # Don't save
-                                  estimateMode = 0, # Estimate
-                                  random_rec = FALSE, # No random recruitment
-                                  msmMode = 0, # Single species mode
-                                  verbose = 1,
-                                  phase = TRUE,
-                                  initMode = 4) # Unfished equilibrium with init_dev's turned on
+                               inits = NULL, # Initial parameters = 0
+                               file = NULL, # Don't save
+                               estimateMode = 0, # Estimate
+                               random_rec = FALSE, # No random recruitment
+                               msmMode = 0, # Single species mode
+                               verbose = 1,
+                               phase = TRUE,
+                               initMode = 4) # Unfished equilibrium with init_dev's turned on
 
 
 plot_biomass(fixed_sel)
 plot_f(fixed_sel)
 
 
+# Fixeds sel and q ----
+fix_sel_dat$fleet_control$Estimate_q <- 0
+fix_sel_dat$fleet_control$Q_prior[1] <- 0.101013734139  # CPUE
+fix_sel_dat$fleet_control$Q_prior[2] <- -8.18718928166  # - AVO
+fix_sel_dat$fleet_control$Q_prior[3] <- log(2.80831)    # BTS mean(ob_bts)/mean(eb_bts)
+fix_sel_dat$fleet_control$Q_prior[4] <- -0.615556187174 # - ATS
+fix_sel_dat$fleet_control$Q_prior[5] <- log(2.80831)    # - BTS_1
+fix_sel_dat$fleet_control$Q_prior[6] <- log(0.0716047)  # - ATS_1, q = mfexp(mean(log(oa1_ats)-log(ea1_ats)));
+fix_sel_dat$fleet_control$Q_prior <- exp(fix_sel_dat$fleet_control$Q_prior)
+
+fixed_sel_q <- Rceattle::fit_mod(data_list = fix_sel_dat,
+                                 inits = NULL, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 estimateMode = 0, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 verbose = 1,
+                                 phase = TRUE,
+                                 initMode = 4) # Unfished equilibrium with init_dev's turned on
+
 
 # Fixed N ----
 fix_n_dat <- fix_sel_dat
 fix_n_dat$estDynamics <- 1
 fix_n <- Rceattle::fit_mod(data_list = fix_n_dat,
-                                  inits = NULL, # Initial parameters = 0
-                                  file = NULL, # Don't save
-                                  estimateMode = 4, # Estimate
-                                  random_rec = FALSE, # No random recruitment
-                                  msmMode = 0, # Single species mode
-                                  verbose = 1,
-                                  phase = FALSE,
-                                  initMode = 4) # Unfished equilibri
+                           inits = NULL, # Initial parameters = 0
+                           file = NULL, # Don't save
+                           estimateMode = 4, # Estimate
+                           random_rec = FALSE, # No random recruitment
+                           msmMode = 0, # Single species mode
+                           verbose = 1,
+                           phase = FALSE,
+                           initMode = 4) # Unfished equilibri
 
 
 # Fixed parameters ----
@@ -115,7 +135,8 @@ inits <- fixed_sel$initial_params
 log_avgrec <- log(exp(9.82718578635))# * 1000)
 inits$rec_pars[1,1] <- log_avgrec
 log_avginit <- log(exp(4.81597738115))# * 1000) # adjust to Finit
-# exp(R0) = exp(Finit) * exp(Init)
+# exp(R0-Finit) = exp(Init)
+# exp(R0)/exp(Finit) = exp(Init)
 # exp(R0)/exp(Init) = exp(Finit)
 ln_Finit <- log(exp(log_avgrec)/exp(log_avginit))
 inits$ln_Finit[1] = ln_Finit
@@ -143,14 +164,14 @@ inits$index_ln_q[5] <- log(2.80831)    # - BTS_1
 inits$index_ln_q[6] <- log(0.0716047)  # - ATS_1, q = mfexp(mean(log(oa1_ats)-log(ea1_ats)));
 
 fixed_parms <- Rceattle::fit_mod(data_list = fix_sel_dat,
-                               inits = inits, # Initial parameters = 0
-                               file = NULL, # Don't save
-                               estimateMode = 4, # Estimate
-                               random_rec = FALSE, # No random recruitment
-                               msmMode = 0, # Single species mode
-                               verbose = 1,
-                               phase = TRUE,
-                               initMode = 4) # Unfished equilibrium with init_dev's turned on
+                                 inits = inits, # Initial parameters = 0
+                                 file = NULL, # Don't save
+                                 estimateMode = 4, # Estimate
+                                 random_rec = FALSE, # No random recruitment
+                                 msmMode = 0, # Single species mode
+                                 verbose = 1,
+                                 phase = TRUE,
+                                 initMode = 4) # Unfished equilibrium with init_dev's turned on
 
 
 
@@ -165,8 +186,8 @@ fix_n$quantities$ssb <- fix_n$quantities$ssb# * 1000
 fix_n$quantities$R[1,1:length(yrs)] <- fix_n$data_list$NByageFixed$Age1# * 1000
 
 # Plot ----
-mod_list <- list(pollock_base, pollock_re, fixed_sel, fixed_parms, SAFE2024_mod)
-mod_names <- c("CEATTLE est parms", "RE", "CEATTLE fix sel", "fix par", "ADMB")
+mod_list <- list(pollock_base, fixed_sel, fixed_sel_q, fixed_parms, SAFE2024_mod)
+mod_names <- c("CEATTLE est parms", "CEATTLE fix sel", "Se; and q", "fix par", "ADMB")
 
 plot_ssb(mod_list, model_names = mod_names)
 plot_recruitment(mod_list, model_names = mod_names)
