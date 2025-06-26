@@ -1,34 +1,40 @@
 library(Rceattle)
-library(readxl)
-library(dplyr)
 
 ################################################
 # Pollock
 ################################################
-mydata_pollock <- Rceattle::read_data( file = "Data/GOA_23_pollock_single_species_1970-2023.xlsx")
-mydata_pollock$msmMode = 0
-mydata_pollock$srv_biom$Observation <- mydata_pollock$srv_biom$Observation * 1e6
-mydata_pollock$estDynamics = 0
-
-
-mydata_pollock$endyr <- 2023
-mydata_pollock$styr <- 1977
+mydata_pollock <- Rceattle::read_data( file = "Data/Pollock_2023.xlsx")
 
 # - Fit single-species models
 pollock_base <- fit_mod(data_list = mydata_pollock,
                         inits = NULL, # Initial parameters = 0
                         file = NULL, # Don't save
                         estimateMode = 0, # Estimate
+                        random_q = FALSE,
                         random_rec = FALSE, # No random recruitment
                         msmMode = 0, # Single species mode
                         verbose = 1,
-                        initMode = 3,
-                        phase = TRUE)
+                        initMode = 1,
+                        loopnum = 4,
+                        newtonsteps = 4,
+                        control = list(eval.max=10000, iter.max=10000, trace=100),
+                        phase = FALSE)
 
-pk_tmb <- f2023fits[[2]]
+# SAFE model ----
+# Fixed initial age-structure and removed accumulation age
+load("Data/Pollock23.Rdata")
+safe <- pollock_base
+nyrs <- length(pollock_base$data_list$styr:pollock_base$data_list$endyr)
+safe$quantities$biomass[,1:nyrs] <- fit$rep$Etotalbio * 1e6
+safe$quantities$ssb[,1:nyrs] <- fit$rep$Espawnbio * 1e6
+safe$quantities$index_hat <- safe$quantities$index_hat / 1e6
+safe$quantities$index_hat[1:(nyrs*6)] <- c(fit$rep$Eindxsurv1, fit$rep$Eindxsurv2, fit$rep$Eindxsurv3, fit$rep$Eindxsurv4, fit$rep$Eindxsurv5, fit$rep$Eindxsurv6) * 1e6
 
-pk_tmb <- pollock_base
-pk_tmb$quantities$biomassSSB[,1:54] <- f2023fits[[2]]$rep$Espawnbio * 1e6
 
+# Plot ----
+mod_list <- list(pollock_base, safe)
+model_names <- c("CEATTLE", "SAFE")
 
-plot_ssb(list(pk_tmb, pollock_base), model_names = c("PK", "CE"))
+plot_biomass(mod_list, model_names = model_names)
+plot_ssb(mod_list, model_names = model_names)
+plot_index(mod_list, model_names = model_names)
