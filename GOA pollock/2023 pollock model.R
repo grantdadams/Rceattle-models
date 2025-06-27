@@ -12,7 +12,7 @@ pollock_base <- fit_mod(data_list = pollock23,
                         file = NULL, # Don't save
                         estimateMode = 0, # Estimate
                         random_q = FALSE,
-                        random_rec = TRUE, # No random recruitment
+                        random_rec = FALSE, # No random recruitment
                         msmMode = 0, # Single species mode
                         verbose = 1,
                         initMode = 1,
@@ -38,4 +38,4 @@ model_names <- c("CEATTLE", "SAFE")
 plot_biomass(mod_list, model_names = model_names)
 plot_ssb(mod_list, model_names = model_names)
 plot_recruitment(mod_list, model_names = model_names)
-# plot_index(mod_list, model_names = model_names)
+plot_index(mod_list, model_names = model_names)
