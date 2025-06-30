@@ -99,3 +99,10 @@ plot_ssb(mse3$Sim_1$EM, incl_proj = TRUE)
 plot_catch(mse3$Sim_1$EM, incl_proj = TRUE)
 plot_recruitment(mse3$Sim_1$EM, incl_proj = TRUE)
 
+
+# Query data ----
+# Extract data from terminal year of MSE that is used to fit the models
+mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$index_data # Survey index time-series
+mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$comp_data # Survey and fishery composition data
+mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$catch_data # Fishery catch time-series
+
