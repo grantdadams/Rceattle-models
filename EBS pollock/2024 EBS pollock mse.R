@@ -87,12 +87,20 @@ mse3 <- run_mse(om = pollock_om, em = pollock_em, nsim = 1, assessment_period = 
 
 
 # Plot MSEs ----
-# - Operating models
+# - Operating model SSB and SSB depletion
 plot_ssb(list(mse1$Sim_1$OM,
                   mse2$Sim_1$OM,
                   mse3$Sim_1$OM
 ),
 model_names = c("MSE1", "MSE2", "MSE3"))
+
+
+plot_depletionSSB(list(mse1$Sim_1$OM,
+              mse2$Sim_1$OM,
+              mse3$Sim_1$OM
+),
+model_names = c("MSE1", "MSE2", "MSE3"))
+
 
 # - Estimation models from MSE3
 plot_ssb(mse3$Sim_1$EM, incl_proj = TRUE)
