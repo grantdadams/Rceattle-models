@@ -18,7 +18,7 @@
 # Load libraries ----
 library(Rceattle) # https://github.com/grantdadams/Rceattle/tree/dev-name-change
 
-
+check = Sys.time()
 # Load data ----
 ebs_pollock <- Rceattle::read_data( file = "Data/bsp0.xlsx")
 ebs_pollock$estDynamics = 0
@@ -114,3 +114,5 @@ mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$index_data # Survey index time-se
 mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$comp_data # Survey and fishery composition data
 mse3$Sim_1$EM$`OM_Sim_1. EM_yr_2050`$data_list$catch_data # Fishery catch time-series
 
+
+runtime = Sys.time() - check
