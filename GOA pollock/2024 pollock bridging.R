@@ -216,13 +216,13 @@ pollock_base <- fit_mod(data_list = pollock23,
 
 
 # Fit dirichlet model ----
-pollock23$fleet_control$Comp_loglike <- 0
+pollock23$fleet_control$Comp_loglike <- 1
 pollock23$fleet_control$Estimate_q[1] <- 6
 pollock23$fleet_control$Time_varying_q[1] <- 1
 pollock_dm <- fit_mod(data_list = pollock23,
                       inits = NULL, # Initial parameters = 0
                       file = NULL, # Don't save
-                      estimateMode = 3, # Estimate
+                      estimateMode = 0, # Estimate
                       random_rec = FALSE, # No random recruitment
                       msmMode = 0, # Single species mode
                       verbose = 1,
@@ -242,8 +242,7 @@ pkinits$init_dev[1,] <- fit$parList$dev_log_recruit[1]
 pkinits$R_ln_sd <- log(fit$parList$sigmaR)
 
 # F
-pkinits$ln_mean_F[8] <- fit$parList$mean_log_F
-pkinits$F_dev[8,] <- fit$parList$dev_log_F
+pkinits$ln_F[8,] <- fit$parList$mean_log_F + fit$parList$dev_log_F
 
 # Selectivity
 #1-(1/(1+exp(-exp(fit$parList$log_slp2_srv1) * (1:10 - fit$parList$inf2_srv1))))
@@ -298,7 +297,7 @@ pollock_fixed <- fit_mod(data_list = pollock23,
 library(TMB)
 pollock_fixed_wrong <- fit_mod(
   data_list = pollock23,
-  TMBfilename = "ceattle_v01_11_dev",
+  TMBfilename = "src/ceattle_v01_11_pk23_ln",
   inits = pkinits, # Initial parameters = 0
   file = NULL, # Don't save
   estimateMode = 3, # Estimate
@@ -323,9 +322,9 @@ pollock_fixed_wrong <- fit_mod(
 #   initMode = 1,
 #   phase = NULL
 # )
-pkinits$ln_sel_slp-pollock_fixed_wrong$quantities$ln_sel_slp
-pkinits$ln_sel_slp_dev[1,8,1,]-pollock_fixed_wrong$quantities$ln_sel_slp_dev[1,8,1,]
-pkinits$sel_inf_dev[1,8,1,]-pollock_fixed_wrong$quantities$sel_inf_dev[1,8,1,]
+pkinits$ln_sel_slp-pollock_fixed_wrong$estimated_params$ln_sel_slp
+pkinits$ln_sel_slp_dev[1,8,1,]-pollock_fixed_wrong$estimated_params$ln_sel_slp_dev[1,8,1,]
+pkinits$sel_inf_dev[1,8,1,]-pollock_fixed_wrong$estimated_params$sel_inf_dev[1,8,1,]
 
 # -- Selectivity
 pollock_fixed_wrong$quantities$sel[1,1,,1]-fit$rep$slctsrv1 # Good
@@ -339,12 +338,10 @@ pollock_fixed_wrong$quantities$sel[6,1,,1]-fit$rep$slctsrv6
 ceattle_sel <- t(pollock_fixed_wrong$quantities$sel[8,1,,1:nyrs])
 ceattle_sel - fit$rep$slctfsh
 
+
 # -- Mort
 pollock_fixed_wrong$quantities$F_spp[,1:nyrs]-fit$rep$F # Good
-fit$obj$env$map$inf1_fsh_mean
-fit$obj$env$map$log_slp1_fsh_mean
-fit$obj$env$map$inf2_fsh_dev
-fit$obj$env$map$slp2_fsh_dev
+
 
 # -- Catchability
 fit$rep$q1 - pollock_fixed_wrong$quantities$index_q[1,]
@@ -356,42 +353,55 @@ fit$rep$q3 - pollock_fixed_wrong$quantities$index_q[3,]
 fit$rep$q6 - pollock_fixed_wrong$quantities$index_q[6,]
 
 
-# Loglike:
-# Fishery: 1 = catch, 2 = age-comp fishery, 3 = length-comp fishery,
-# Index 1 (Shelikof): 4 = index, 5 = age comp, 6 = length comp,
+# Check loglike: ----
+# Fishery: 1 = catch, 2 = age-comp fishery, 3 = length-comp fishery (NONE),
+# Index 1 (Shelikof): 4 = index, 5 = age comp, 6 = length comp (NONE),
 # Index 2 (Bottom trawl): 7 = index, 8 = age comp, 9 = length comp,
-# Index 3 (ADFG): 10 = survey index, 11 = age, 12 = length comp,
-# Index 4-5: 14 = age1 index, 15 = age2 index, UNUSED
-# Index 6 (Summer acoustic): 15 = index, 16 = age-comp, 17 = length-comp
+# Index 3 (ADFG): 11 = survey index, 12 = age, 13 = length comp (NONE),
+# Index 4-5: 14 = age1 index, 15 = age2 index,
+# Index 6 (Summer acoustic): 16 = index, 17 = age-comp, 17 = length-comp
 
 # Population: 18 = recruitment deviates
-# Penalties: 19 = Selectivity deviate, 20 = Catchability deviates, 21 = NA, 22 = BT q prior, 23 = Selectivity priors
-
-# Random effects: 24 = Q-devs for env process (process error), 25 = fit to environmental index
+# Penalties: 19 = Selectivity deviate, 21 = Catchability deviates, 19 & 22 = NA,
+# Priors: 23 = BT q prior, 23 = Selectivity priors
 
 safell <- -as.numeric(fit$rep$loglik)
 
-safe_jnll <- pollock_fixed_wrong$quantities$jnll_comp
-safe_jnll <- safe_jnll[1:13,-c(4,5,7)]
-safe_jnll[] <- 0
-safe_jnll[1,1:4] <- safell[c(4, 7, 10, 15)]
-safe_jnll[2,5] <- safell[1]
-safe_jnll[3,1:5] <- safell[c(5, 8, 11, 16 , 2)] + safell[c(5, 8, 11, 16 , 2)+1]
-safe_jnll[11,1] <- safell[18]
-safe_jnll[6,5] <- safell[19] # Selectivity deviate
-safe_jnll[9,3] <- safell[20]
-safe_jnll[8,1] <- safell[22] # BT prio
-safe_jnll[8,1] <- safell[24]
-safe_jnll[9,1] <- safell[25]
+nll_comp <- pollock_fixed$quantities$jnll_comp[-c(1,9),-7]
+nll_comp <- apply(nll_comp, 2, as.numeric)
+rownames(nll_comp) <- rownames(pollock_fixed$quantities$jnll_comp[-c(1,9),])
+colnames(nll_comp) <- c(paste0("Index", 1:6), "Fishery")
 
-safe_jnll
-pollock_fixed_wrong$quantities$jnll_comp[1:13,-c(4,5,7)]
+safe_jnll <- nll_comp
+safe_jnll[] <- 0
+
+# Index data
+safe_jnll[1,1:6] <- safell[c(4, 7, 11, 14:16)]
+
+# Catch data
+safe_jnll[2,7] <- safell[1]
+
+# Comp data
+safe_jnll[3,c(1:3,6:7)] <- safell[c(5, 8, 12, 17 , 2)] + safell[c(6, 9, 13, 17 , 3)] * c(1,1,1,0,1)
+
+
+safe_jnll[10,1] <- safell[18]# Rec dev
+safe_jnll[5,7] <- safell[19] # Fishery selectivity deviates
+safe_jnll[7,1] <- safell[21] # Catchability deviates (Survey 1 and 3)
+safe_jnll[6,2] <- safell[23] # BT q prior N(0.85, 0.1)
+nll_comp[7,1] <- sum(nll_comp[7,])
+nll_comp[7,2:7] <- 0
+
+
+safe_jnll[-c(11:18),]
+nll_comp[-c(11:18),]
+
 
 
 # * Estimate
 pollock_est_wrong <- fit_mod(
   data_list = pollock23,
-  TMBfilename = "ceattle_v01_11_dev",
+  TMBfilename = "src/ceattle_v01_11_pk23_ln",
   inits = pkinits, # Initial parameters = 0
   file = NULL, # Don't save
   estimateMode = 0, # Estimate
@@ -420,11 +430,15 @@ pollock_est <- fit_mod(
 # Plot ----
 safe <- pollock_base
 nyrs <- length(1970:2024)
+nyrs <- length(pollock_base$data_list$styr:pollock_base$data_list$endyr)
 safe$quantities$biomass[,1:nyrs] <- fit$rep$Etotalbio * 1e6
 safe$quantities$ssb[,1:nyrs] <- fit$rep$Espawnbio * 1e6
-safe$quantities$srv_bio_hat <- fit$rep$Eindxsurv1
+safe$quantities$index_hat <- safe$quantities$index_hat / 1e6
+safe$quantities$index_hat[1:(nyrs*6)] <- c(fit$rep$Eindxsurv1, fit$rep$Eindxsurv2, fit$rep$Eindxsurv3, fit$rep$Eindxsurv4, fit$rep$Eindxsurv5, fit$rep$Eindxsurv6) * 1e6
 
-plot_biomass(list(safe, pollock_fixed_wrong, pollock_est_wrong), model_names = c("SAFE", "CEATTLE"))
+safe$quantities$catch_hat[1:54] - fit$rep$cattot
+
+plot_biomass(list(safe, pollock_base), model_names = c("SAFE", "CEATTLE"))
 plot_index(pollock_fixed, model_names = 1:2)
 
 write_data(pollock23, "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
