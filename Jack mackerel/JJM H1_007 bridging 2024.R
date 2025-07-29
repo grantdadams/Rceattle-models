@@ -1,7 +1,4 @@
-# Code to run the bering and aleutian island yellowfin sole assessment in CEATTLE
-# model is a two sex, single-species model
-# uses dev_srr branch
-# https://github.com/grantdadams/Rceattle/tree/dev_srr
+# uses dev-name-change branch
 
 # Load data ----
 library(Rceattle)
