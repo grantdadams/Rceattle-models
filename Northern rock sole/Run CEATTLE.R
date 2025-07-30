@@ -1,8 +1,6 @@
 # Code to run the bering northern rock sole assessment in CEATTLE
 # https://github.com/afsc-assessments/BSAI_NRS/tree/main (2022 alldata)
 # model is a two sex, single-species model
-# uses dev_srr branch
-# https://github.com/grantdadams/Rceattle/tree/dev_srr
 
 # DATA
 # - Fishery catch
@@ -82,7 +80,7 @@ SAFE2022_mod$quantities$ssb[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB
 SAFE2022_mod$quantities$R[1,1:length(1975:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
 
 # Plots ----
-plot_biomass(list(bridging_model_2, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
+plot_biomass(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
 plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
 plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
 
