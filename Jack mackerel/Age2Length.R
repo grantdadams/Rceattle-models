@@ -36,3 +36,5 @@ for(i in 1:nages){
     }
     pdf[i,] = pdf[i,]/sum(pdf[i,])
 }
+
+write.csv(pdf, file = "JJM_pdf.csv")
