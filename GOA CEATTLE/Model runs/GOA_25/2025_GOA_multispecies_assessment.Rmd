@@ -171,7 +171,7 @@ for(mode in c("Multispecies","Singlespecies")){
 Alaska Fisheries Science Center, National Marine Fisheries Service, NOAA, 7600 Sand Point Way N.E., Seattle, Washington 98115  
 
 
-**Suggested citation:** _Holsman, K. K., J. Ianelli,  K. Shotwell, S. Barbeaux, K. Aydin, G. Adams, K. Kearney, A. Sulc, S Wassermann (`r thisYr`) Climate-enhanced multispecies stock assessment for walleye pollock, Pacific cod, and arrowtooth flounder in the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK._
+**Suggested citation:**  _Adams, G., K. K. Holsman, K. Shotwell (`r thisYr`) Climate-enhanced multispecies stock assessment for walleye pollock, Pacific cod, and arrowtooth flounder in the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK._
 
 \pagebreak
 
@@ -217,19 +217,13 @@ This is a three species stock assessment for walleye pollock (*Gadus chalcogramm
 
 -   Predation natural mortality is age specific and annually varying (M2). Estimated residual (non-predation) natural mortality (M1) is age specific but not-annually varying and differs slightly from current assessments for each species (see Table 3 below).
 -   Predator overlap index is set to 1 for all species (i.e., all prey are available to all predators).
--   Data and model parameterization are based on the `r thisYr` SAFE report
+-   Data and model parameterization are based on the `r thisYr` SAFE report.
 -   Projections to derive ABC include a sequential method for determining universal climate-naive B0, and include the constraint that $\mathrm{SSB}_F>0.35\mathrm{SSB}_0$ for all years in the projection.
 
 ## Key `r thisYr` updates
 
--   Survey biomass and harvest from the NEBS and SEBS were updated through `r thisYr`.
+-   Survey biomass and harvest from the GOA were updated through `r thisYr`.
 -   Survey biomass and age or length composition were updated using data available from the NMFS bottom trawl survey and fishery observer database `r thisYr`.
--   Bottom temperature and other variables from the `r thisYr` BERING10K operational hindcast using the 30 layer model (K20) was updated through `r thisYr`.
--   Residual natural mortality ($\mathrm{M1}_{ij}$) for ages 1-4 of all three species was set to the mean of the total natural mortality from the multispecies assessment for years 1979 - `r thisYr`. Natural mortality for older Pacific cod was set to 0.38 for to match the Pacific cod stock assessment (Thompson et al. 2018).
--   The newest set of ACLIM high resolution climate projections for the Bering sea (Hermann et al, 2021, Cheng et al. 2021) were used to drive projections and derive $F_{target}$ and ABC under climate effects. This includes a broader suite of scenarios from High carbon mitigation (ssp126) to low carbon mitigation scenarios (ssp585).
--   Climate effects on recruitment were included in the projection model suite for `r thisYr`, sensu Holsman et al. 2020.
--   More detailed information was included for temperature specific weight at age and climate-driven recruitment.
--   Estimated of annual biomass of key prey species eaten (NEBS and SEBS combined) were produced for species outside of the assessment (e.g., _"Opilio"_) based on model estimates of ration (kg eaten/pred) and abundance.
 
 ------------------------------------------------------------------------
 

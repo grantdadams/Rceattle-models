@@ -8,3 +8,5 @@ GOA/Model runs/GOA_18.5.1/Models/Random_effects_models_3iter_w_hessian.7z
 *.o
 *.so
 *.dll
+ADMB_models/.DS_Store
+.DS_Store
