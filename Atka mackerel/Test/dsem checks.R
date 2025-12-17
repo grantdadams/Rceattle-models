@@ -63,7 +63,7 @@ mydata_atka$sigma_rec_prior <- 0.4723773
 Rceattle_atka <- Rceattle::fit_mod(
   data_list = mydata_atka,
   inits = NULL, # Initial parameters = 0
-  file = NULL, # Don't save
+  file = paste("dnc", Sys.time()), # Don't save
   estimateMode = 0, # Estimate
   random_rec = TRUE, # No random recruitment
   msmMode = 0, # Single species mode
@@ -80,15 +80,22 @@ Rceattle_atka <- Rceattle::fit_mod(
 )
 
 
-# SAFE model ----
-library(readxl)
-SAFE2022_mod <- Rceattle_atka
-SAFE2022_mod$quantities$biomass[1,1:length(1977:2023)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 4)$Est
-SAFE2022_mod$quantities$ssb[1,1:length(1977:2023)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est
-SAFE2022_mod$quantities$R[1,1:length(1977:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
+load("~/Documents/GitHub/Rceattle-models/Atka mackerel/DSEM 2025-08-30 10:21:42.514091.RData")
+dsem <- mod_objects
+load("~/Documents/GitHub/Rceattle-models/Atka mackerel/DSEM 2025-08-30 10:45:59.159801.RData")
+dsem_newer <- mod_objects
+load("~/Documents/GitHub/Rceattle-models/Atka mackerel/DNC 2025-08-30 10:18:45.823446.RData")
+dnc <- mod_objects
+plot_biomass(list(dsem, dsem_newer, dnc, Rceattle_atka), model_names = 1:4)
 
+check <- data.frame(Param = names(Rceattle_atka$estimated_params), par = NA, dim = NA, length = NA, map = NA)
 
-plot_biomass(list(Rceattle_atka, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
-plot_ssb(list(Rceattle_atka, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
-plot_recruitment(list(Rceattle_atka, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
+for(i in 1:nrow(check)){
+  parname <- names(Rceattle_atka$estimated_params)[i]
+
+  check$par[i] <- sum(Rceattle_atka$estimated_params[[parname]] !=  mod_objects$estimated_params[[parname]])
+  check$map[i] <- sum(as.character(Rceattle_atka$map$mapFactor[[parname]]) !=  as.character(mod_objects$map$mapFactor[[parname]]), na.rm = TRUE)
+  check$dim[i] <- sum(dim(Rceattle_atka$estimated_params[[parname]]) !=  dim(mod_objects$estimated_params[[parname]]))
+  check$length[i] <- length(as.numeric(Rceattle_atka$estimated_params[[parname]])) ==  length(as.numeric(mod_objects$estimated_params[[parname]]))
+}
 

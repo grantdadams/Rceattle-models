@@ -10,7 +10,8 @@ library(readxl)
 ################################################
 # Data
 ################################################
-new_hakedata <- Rceattle::read_data(file = "Data/NEW_ATF_hake_intrasp_250207.xlsx")
+new_hakedata <- Rceattle::read_data(file = "Data/102525_hake_sbf_atf.xlsx")
+new_hakedata$diet_data[] <- NA
 
 
 # Single-species
@@ -20,8 +21,8 @@ hake_ss <- Rceattle::fit_mod(data_list = new_hakedata,
                              estimateMode = 0,
                              verbose = 1,
                              msmMode = 0, # Single species mode
-                             phase = TRUE,
-                             initMode = 3) # Fished start with init devs
+                             phase = FALSE,
+                             initMode = 2) # Fished start with init devs
 
 
 # MSVPA multi-species
