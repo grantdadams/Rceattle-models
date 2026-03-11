@@ -13,7 +13,7 @@ library(readxl)
 # Data
 ################################################
 old_hakedata <- Rceattle::read_data(file = "Data/hake_intrasp_250207.xlsx")
-new_hakedata <- Rceattle::read_data(file = "Data/GRANT_ATF_hake_intrasp_250207.xlsx")
+new_hakedata <- Rceattle::read_data(file = "Data/2024_hake_ATF.xlsx")
 
 ################################################
 # Fit initial model

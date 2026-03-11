@@ -23,7 +23,7 @@ ss_run$quantities$jnll #2217.028 (dev-CAAL 2217.028)(different from before becau
 
 ms_run <- Rceattle::fit_mod(data_list = SBF_ATF_hakedata,
                             inits = ss_run$estimated_params, # Initial parameters from single species ests
-                            M1Fun = build_M1(M1_model = 0,  #do not estimate mortality!
+                            M1Fun = build_M1(M1_model = 1,  # Estimate M1
                                              updateM1 = FALSE,
                                              M1_use_prior = FALSE,
                                              M2_use_prior = FALSE),
@@ -81,45 +81,127 @@ map$mapFactor$log_phi <- factor(map$mapList$log_phi)
 # Turn of DM pars
 map$mapList$diet_comp_weights[2:3] <- 2:3
 map$mapFactor$diet_comp_weights <- factor(map$mapList$diet_comp_weights)
-
-# Turn on M?
-
-# Load from hake-tes
-load(file = "run_ms_CSL_MestDM.Rdata")
-for(i in 1:length(names(inits))){
-    if(names(inits)[i] %in% names(run_ms_CSL_Mest$estimated_params)){
-        inits[[i]][] <- run_ms_CSL_Mest$estimated_params[[(names(inits)[i])]]
-    }
-}
-gc()
-
-# Run
-fix_params <- Rceattle::fit_mod(data_list = test_data,
-                                inits = inits, # Initial parameters from single species ests
-                                M1Fun = build_M1(M1_model = 1, # Note that because a map is provided that turns off M, M wont be estimated
-                                                 updateM1 = FALSE,
-                                                 M1_use_prior = FALSE,
-                                                 M2_use_prior = FALSE),
-                                file = NULL, # Don't save
-                                estimateMode = 3, # Dont estimate
-                                niter = 3, # 3 iterations around population and predation dynamics
-                                random_rec = FALSE, # No random recruitment
-                                msmMode = 1, # MSVPA based
-                                loopnum = 5,
-                                phase = FALSE,
-                                suitMode = c(0, 4, 4), # empirical + LN suitability
-                                initMode = 2,
-                                verbose = 1)
-
-run_ms_CSL_Mest$quantities$jnll_comp #2713.201 (dev-CAAL 2229.05) w/ DM 2676.533
-sum(fix_params$quantities$jnll_comp)
-
-run_ms_CSL_Mest$quantities$vulnerability
-fix_params$quantities$vulnerability
-
-sum(run_ms_CSL_Mest$quantities$suitability-fix_params$quantities$suitability)
+#
+# for(i in 1:length(names(inits))){
+#     if(names(inits)[i] %in% names(dev_hake$estimated_params)){
+#         inits[[i]][] <- dev_hake$estimated_params[[(names(inits)[i])]]
+#     }
+# }
 
 
-# Time without ADREPORTing suitability
-run_ms_CSL_Mest$run_time # 10.72899 () w/ DM 10.56313 mins
-#save(run_ms_CSL_Mest, file = "run_ms_CSL_MestDM.Rdata")
+# Fit using Hake-test, save, then fit using dev-CAAL and compare.
+dev_iter2 <- Rceattle::fit_mod(data_list = test_data,
+                                     inits = inits, # Initial parameters from MSVPA
+                                     map = map,
+                                     M1Fun = build_M1(M1_model = 1,
+                                                      M1_use_prior = FALSE,
+                                                      M2_use_prior = FALSE),
+                                     file = NULL, # Don't save
+                                     estimateMode = 0, # Fix
+                                     niter = 3, # 5 iterations around population and predation dynamics
+                                     random_rec = FALSE, # No random recruitment
+                                     msmMode = 1, # MSVPA based
+                                     loopnum = 5,
+                                     phase = TRUE,
+                                     suitMode = c(0, 4, 4), # empirical + LN suitability
+                                     initMode = 2,
+                                     verbose = 1)
+
+
+dev_iter2 <- Rceattle::fit_mod(data_list = dev_iter2$data_list,
+                               inits = dev_iter2$estimated_params, # Initial parameters from MSVPA
+                               map = dev_iter2$map,
+                               M1Fun = build_M1(M1_model = 1,
+                                                M1_use_prior = FALSE,
+                                                M2_use_prior = FALSE),
+                               file = NULL, # Don't save
+                               estimateMode = 0, # Fix
+                               niter = 3, # 1 iterations around population and predation dynamics
+                               random_rec = FALSE, # No random recruitment
+                               msmMode = 1, # MSVPA based
+                               loopnum = 5,
+                               suitMode = c(0, 4, 4), # empirical + LN suitability
+                               initMode = 2,
+                               verbose = 1)
+
+# save(run_ms_CSL_2iter, file = "run_ms_CSL_2iter.Rdata")
+
+
+# Load from hake-test and compare
+load(file = "run_ms_CSL_2iter.Rdata")
+dev_hake <- mod_objects
+dev_caal <- dev_iter2
+
+sum(dev_hake$quantities$jnll_comp[-c(1, 9),]) # w/ DM 2676.533 (dev-CAAL 2676.534)
+sum(dev_caal$quantities$jnll_comp) #2713.201 (dev-CAAL 2229.05) w/ DM 2676.533
+
+
+round(dev_hake$quantities$jnll_comp[-c(1, 9),] - dev_caal$quantities$jnll_comp[-4,], 8)
+
+nyrs <- length(test_data$styr:test_data$endyr)
+
+# Recruitment
+testthat::expect_equal(as.numeric(dev_caal$quantities$R[,nyrs]),
+                       as.numeric(dev_hake$quantities$R[, nyrs]))
+testthat::expect_equal(as.numeric(dev_caal$quantities$biomass[,nyrs]),
+                       as.numeric(dev_hake$quantities$biomass[,nyrs]), tolerance = 1e-6)
+
+
+# Suitability
+testthat::expect_equal(exp(dev_caal$estimated_params$log_gam_a),
+                       exp(dev_hake$estimated_params$log_gam_a))
+testthat::expect_equal(exp(dev_caal$estimated_params$log_gam_b),
+                       exp(dev_hake$estimated_params$log_gam_b))
+testthat::expect_equal(as.numeric(dev_caal$quantities$vulnerability),
+                       as.numeric(dev_hake$quantities$vulnerability))
+testthat::expect_equal(as.numeric(dev_caal$quantities$suitability[,,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$suitability[,,,,1:nyrs]))
+testthat::expect_equal(as.numeric(dev_caal$quantities$suit_other[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$suit_other[,,,1:nyrs]))
+
+# M2
+testthat::expect_equal(as.numeric(dev_caal$quantities$M2_at_age[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$M2_at_age[,,,1:nyrs]), tolerance = 1e-6)
+
+# Ration
+testthat::expect_equal(as.numeric(dev_caal$quantities$consumption_at_age[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$consumption_at_age[,,,1:nyrs]))
+
+# N
+testthat::expect_equal(as.numeric(dev_caal$quantities$N_at_age[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$N_at_age[,,,1:nyrs]))
+
+# AvgN
+testthat::expect_equal(as.numeric(dev_caal$quantities$avgN_at_age[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$avgN_at_age[,,,1:nyrs]))
+
+# Avail food
+testthat::expect_equal(as.numeric(dev_caal$quantities$avail_food[,,,1:nyrs]),
+                       as.numeric(dev_hake$quantities$avail_food[,,,1:nyrs]))
+
+# Selectivity
+testthat::expect_equal(as.numeric(dev_caal$quantities$sel_at_age),
+                       as.numeric(dev_hake$quantities$sel))
+
+# F
+testthat::expect_equal(as.numeric(dev_caal$quantities$F_flt_age),
+                       as.numeric(dev_hake$quantities$F_flt_age))
+
+# Q
+testthat::expect_equal(as.numeric(dev_caal$quantities$index_q),
+                       as.numeric(dev_hake$quantities$index_q))
+
+# Expected and observed diet
+order_hake <- order(dev_hake$data_list$diet_data$Pred,
+               dev_hake$data_list$diet_data$Prey,
+               dev_hake$data_list$diet_data$Pred_age,
+               dev_hake$data_list$diet_data$Prey_age,
+               dev_hake$data_list$diet_data$Year)
+order_caal <- order(dev_caal$data_list$diet_data$Pred,
+                    dev_caal$data_list$diet_data$Prey,
+                    dev_caal$data_list$diet_data$Pred_age,
+                    dev_caal$data_list$diet_data$Prey_age,
+                    dev_caal$data_list$diet_data$Year)
+testthat::expect_equal(as.numeric(dev_caal$quantities$diet_hat[order_caal,2]),
+                       as.numeric(dev_hake$quantities$diet_hat[order_hake,2]))
+
