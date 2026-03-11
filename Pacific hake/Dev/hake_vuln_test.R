@@ -117,8 +117,7 @@ sum(fix_params$quantities$jnll_comp)
 run_ms_CSL_Mest$quantities$vulnerability
 fix_params$quantities$vulnerability
 
-run_ms_CSL_Mest$quantities$vulnerability
-fix_params$quantities$vulnerability
+sum(run_ms_CSL_Mest$quantities$suitability-fix_params$quantities$suitability)
 
 
 # Time without ADREPORTing suitability
