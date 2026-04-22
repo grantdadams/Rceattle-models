@@ -1,7 +1,5 @@
 # Code to run the bering and aleutian island yellowfin sole assessment in CEATTLE
 # model is a two sex, single-species model
-# uses dev_srr branch
-# https://github.com/grantdadams/Rceattle/tree/dev_srr
 
 # DATA
 # - Fishery catch
@@ -77,17 +75,6 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                       phase = FALSE,
                                       initMode = 2)
 
-#
-# bridging_model_re <- Rceattle::fit_mod(data_list = mydata_yfs,
-#                                       inits = bridging_model_1$estimated_params, # Initial parameters = 0
-#                                       file = NULL, # Don't save
-#                                       estimateMode = 0, # Estimate
-#                                       random_rec = TRUE, # No random recruitment
-#                                       msmMode = 0, # Single species mode
-#                                       verbose = 1,
-#                                       phase = NULL,
-#                                       initMode = 2)
-
 
 # - SAFE model
 library(readxl)
@@ -100,6 +87,3 @@ SAFE2022_mod$quantities$R[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_e
 plot_biomass(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
 plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
 plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
-
-dev.off()
-plot_selectivity(bridging_model_3)

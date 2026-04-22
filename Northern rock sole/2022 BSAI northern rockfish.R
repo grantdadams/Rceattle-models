@@ -84,5 +84,3 @@ plot_biomass(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "S
 plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
 plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
 
-# dev.off()
-plot_selectivity(bridging_model_3)

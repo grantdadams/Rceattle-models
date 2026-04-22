@@ -1,3 +1,4 @@
+# Uses "master" branch
 library(Rceattle)
 library(dplyr)
 library(tidyr)

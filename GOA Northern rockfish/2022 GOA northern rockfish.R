@@ -31,7 +31,7 @@ comp_samp <- comp_samp %>%
   group_by(Fleet_name) %>%
   mutate(
     nmulti = sqrt(Nhauls * Nsamp),
-    nmulti = nmulti/max(nmulti) * 100
+    nmulti = nmulti/max(nmulti)
   )
 
 mydata$comp_data$Sample_size <- comp_samp$nmulti
@@ -79,7 +79,7 @@ SAFE2022_mod$quantities$biomass[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_e
 SAFE2022_mod$quantities$ssb[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$SSB
 SAFE2022_mod$quantities$R[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$Recruitment
 
-
+# - Plot
 plot_biomass(list(model1, model2, SAFE2022_mod), model_names = c("CEATTLE fix M", "CEATTLE est M", "ADMB"))
 plot_ssb(list(model1, model2, SAFE2022_mod), model_names = c("CEATTLE fix M", "CEATTLE est M", "ADMB"))
 
