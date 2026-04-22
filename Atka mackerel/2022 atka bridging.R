@@ -1,7 +1,7 @@
 # Code to run the atka mackerel assessment in CEATTLE
 # model is a single sex, single-species model
-# uses "dev-name-change" branch of Rceattle
-
+# uses master branch
+# https://github.com/grantdadams/Rceattle/tree/master
 
 # DATA
 # - Fishery catch

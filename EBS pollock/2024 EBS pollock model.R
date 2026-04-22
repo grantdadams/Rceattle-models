@@ -1,5 +1,6 @@
 # Code to run the bering sea pollock model in CEATTLE
 # model is a single sex, single-species model
+library(Rceattle)
 
 # DATA
 # - Fishery catch
@@ -67,7 +68,7 @@ pollock_base <- Rceattle::fit_mod(data_list = ebs_pollock,
                                           initMode = 2) # Unfished equilibrium with init_dev's turned on
 
 # - Estimate age-invariant M
-pollock_estM <- fit_mod(data_list = mydata_pollock,
+pollock_estM <- fit_mod(data_list = ebs_pollock,
                         inits = NULL,       # Initial parameters = 0
                         file = NULL,        # Don't save
                         estimateMode = 0,   # Estimate
@@ -80,7 +81,7 @@ pollock_estM <- fit_mod(data_list = mydata_pollock,
 
 
 # - Estimate age-invariant M and Ricker SRR
-pollock_estM_ricker <- fit_mod(data_list = mydata_pollock,
+pollock_estM_ricker <- fit_mod(data_list = ebs_pollock,
                                inits = NULL,       # Initial parameters = 0
                                file = NULL,        # Don't save
                                estimateMode = 0,   # Estimate
@@ -102,15 +103,9 @@ pollock_estM_ricker <- fit_mod(data_list = mydata_pollock,
 # - SAFE model
 #FIXME: NEED to get from Jim
 library(readxl)
-SAFE2022_mod <- bridging_model_1
-SAFE2022_mod$quantities$biomass[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 4)$Est * 1000
-SAFE2022_mod$quantities$biomassSSB[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
-SAFE2022_mod$quantities$R[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
+SAFE2024_mod <- pollock_base
+SAFE2024_mod$quantities$ssb[1,1:length(1964:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 3)$Est
+SAFE2024_mod$quantities$R[1,1:length(1964:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 2)$Est
 
-
-plot_biomass(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
-plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
-plot_recruitment(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
-
-dev.off()
-plot_selectivity(bridging_model_3)
+plot_ssb(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
+plot_recruitment(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)

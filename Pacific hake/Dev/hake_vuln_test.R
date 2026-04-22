@@ -107,6 +107,10 @@ dev_iter2 <- Rceattle::fit_mod(data_list = test_data,
                                      initMode = 2,
                                      verbose = 1)
 
+gr <- dev_iter2$obj$gr()
+pars <- dev_iter2$obj$par
+check <- data.frame(names = names(par), par = par, gr = gr[1,])
+
 
 dev_iter2 <- Rceattle::fit_mod(data_list = dev_iter2$data_list,
                                inits = dev_iter2$estimated_params, # Initial parameters from MSVPA

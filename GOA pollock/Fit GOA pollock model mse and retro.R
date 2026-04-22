@@ -22,7 +22,7 @@ pacman::p_load(dplyr,
                knitr,
                doParallel)
 devtools::install_github("kaskr/TMB_contrib_R/TMBhelper")
-remotes::install_github("grantdadams/Rceattle", ref = "dev_srr") # dev_srr branch is most up to date
+remotes::install_github("grantdadams/Rceattle", ref = "dev") # dev_srr branch is most up to date
 
 
 # Load libraries ----
@@ -33,7 +33,7 @@ library(dplyr)
 
 # Read in data ----
 # - The data can be modified in excel or R
-mydata_pollock <- Rceattle::read_data( file = "GOA_24_pollock_single_species_1970-2024.xlsx")
+mydata_pollock <- Rceattle::read_data( file = "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
 
 
 # FIT HINDCASTS ----

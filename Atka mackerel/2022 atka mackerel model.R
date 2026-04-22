@@ -1,5 +1,6 @@
 # Code to run the atka mackerel assessment in CEATTLE
-# model is a single sex, single-species model
+# model is a single sex, single-species mode
+# uses "dev" branch
 
 # DATA
 # - Fishery catch
@@ -32,30 +33,31 @@ mydata_atka$index_data$Log_sd <- mydata_atka$index_data$Log_sd/mydata_atka$index
 # Adjust months (AMAK does month - 1)
 mydata_atka$spawn_month <- 7
 mydata_atka$index_data$Month <- 6.5
-mydata_atka$Pyrs <- mydata_atka$Pyrs %>%
+mydata_atka$ration_data <- mydata_atka$ration_data %>%
   dplyr::filter(Sex == 1) %>%
   dplyr::mutate(Sex = 0 )
 
 # Prior for q
-mydata_atka$fleet_control$Estimate_q[1] <- 2   # Estimate with prior
+mydata_atka$fleet_control$Catchability[1] <- 2   # Estimate with prior
 mydata_atka$fleet_control$Q_prior[1] <- 1      # Prior mean
 mydata_atka$fleet_control$Q_sd_prior[1] <- 0.2 # SD of prior
 
 # Add in time-varying fishery sel
 mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
   dplyr::mutate(Sel_curve_pen1 = Time_varying_sel,
-                Sel_curve_pen2 = Sel_sd_prior,
+                Sel_curve_pen2 = Time_varying_sel_sd_prior,
                 Time_varying_sel = c(0,1),
-                Sel_sd_prior = c(0, 0.35),
+                Time_varying_sel_sd_prior = c(0, 0.35),
                 Sel_curve_pen1 = 1/(2 * Sel_curve_pen1^2), # AMAK conversion (TODO, convert CEATTLE to variance)
                 Sel_curve_pen2 = 1/Sel_curve_pen2^2)  %>%  # AMAK conversion
-  dplyr::relocate(Sel_curve_pen1, .after = Nselages) %>%
+  dplyr::relocate(Sel_curve_pen1, .after = N_sel_bins) %>%
   dplyr::relocate(Sel_curve_pen2, .after = Sel_curve_pen1)
 
 # Selectivity normalization ages for survey
-mydata_atka$fleet_control$Age_max_selected[1] <- 4
-mydata_atka$fleet_control$Age_max_selected_upper <- NA
-mydata_atka$fleet_control$Age_max_selected_upper[1] <- 10
+mydata_atka$fleet_control$Bin_max_selected <- NA
+mydata_atka$fleet_control$Bin_max_selected[1] <- 4
+mydata_atka$fleet_control$Bin_max_selected_upper <- NA
+mydata_atka$fleet_control$Bin_max_selected_upper[1] <- 10
 
 
 # Fit model ----

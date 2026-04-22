@@ -20,4 +20,4 @@ pacman::p_load(dplyr,
                knitr,
                doParallel)
 devtools::install_github("kaskr/TMB_contrib_R/TMBhelper")
-remotes::install_github("grantdadams/Rceattle", ref = "dev-name-change")
+remotes::install_github("grantdadams/Rceattle", ref = "dev")

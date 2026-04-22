@@ -24,8 +24,8 @@ library(Rceattle)
 mydata <- Rceattle::read_data( file = "Data/plaice_single_species_2021.xlsx")
 mydata$estDynamics = 0
 mydata$nsex = 2
-mydata$srv_biom$Log_sd <- mydata$srv_biom$Log_sd/mydata$srv_biom$Observation
-mydata$fsh_biom$Catch <- mydata$fsh_biom$Catch/1000
+mydata$index_data$Log_sd <- mydata$index_data$Log_sd/mydata$index_data$Observation
+mydata$catch_data$Catch <- mydata$catch_data$Catch/1000
 
 # - Fix M
 bridging_model_1 <- Rceattle::fit_mod(data_list = mydata,
@@ -56,9 +56,9 @@ bridging_model_1 <- Rceattle::fit_mod(data_list = mydata,
 library(readxl)
 SAFE2022_mod <- bridging_model_1
 safe_data <- read_excel("Data/2021_ADMB_estimate.xlsx", sheet = 1)
-SAFE2022_mod$quantities$biomass[1,1:length(1975:2021)] <- safe_data$Biomass
-SAFE2022_mod$quantities$biomassSSB[1,1:length(1975:2021)] <- safe_data$SSB
-SAFE2022_mod$quantities$R[1,1:length(1975:2021)] <- safe_data$R
+SAFE2022_mod$quantities$biomass[1,1:length(1975:2021)] <- safe_data$Biomass/1000
+SAFE2022_mod$quantities$ssb[1,1:length(1975:2021)] <- safe_data$SSB/1000
+SAFE2022_mod$quantities$R[1,1:length(1975:2021)] <- safe_data$R/1000
 
 
 plot_biomass(list(bridging_model_1, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)

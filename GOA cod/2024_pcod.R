@@ -1,3 +1,6 @@
+# Code to run approximation of 2024 Gulf of Alaska cod model
+# Uses "dev" version of Rceattle
+
 library(Rceattle)
 library(readxl)
 library(dplyr)
@@ -22,7 +25,7 @@ cod_base <- Rceattle::fit_mod(data_list = cod_caal,
                               phase = TRUE)
 
 # - Growth
-cod_caal$fleet_control$Selectivity <- cod_caal$fleet_control$Selectivity + 5
+cod_caal$fleet_control$Selectivity_dimension <- "Length"
 cod_growth <- Rceattle::fit_mod(data_list = cod_caal,
                               inits = NULL, # Initial parameters = 0
                               file = NULL, # Don't save
@@ -37,4 +40,15 @@ cod_growth <- Rceattle::fit_mod(data_list = cod_caal,
                               phase = TRUE)
 
 
-plot_biomass(list(cod_base, cod_growth))
+# - Compare
+X2024pcod_time_series <- read.csv("Data/2024pcod_time_series.csv")
+years <- cod_caal$styr:cod_caal$endyr
+safe2024 <- cod_base
+safe2024$quantities$biomass[,1:length(years)] <- X2024pcod_time_series %>% filter(Yr %in% years) %>% pull(Bio_all)
+safe2024$quantities$ssb[,1:length(years)] <- X2024pcod_time_series %>% filter(Yr %in% years) %>% pull(SpawnBio)
+safe2024$quantities$R[,1:length(years)] <- X2024pcod_time_series %>% filter(Yr %in% years) %>% pull(Recruit_0)
+
+# - Plot
+plot_biomass(list(cod_base, cod_growth, safe2024), model_names = c("Base", "Growth", "SAFE"))
+plot_ssb(list(cod_base, cod_growth, safe2024), model_names = c("Base", "Growth", "SAFE"))
+plot_recruitment(list(cod_base, cod_growth, safe2024), model_names = c("Base", "Growth", "SAFE"))
