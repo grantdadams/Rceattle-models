@@ -1,3 +1,0 @@
-# Sablefish assessment work folder
-
-In case this makes sense...
