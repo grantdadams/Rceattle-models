@@ -1,6 +1,7 @@
 # Code to run the bering sea pollock model in CEATTLE
 # model is a single sex, single-species model
 library(Rceattle)
+library(dplyr)
 
 # DATA
 # - Fishery catch
@@ -55,6 +56,8 @@ ebs_pollock$comp_data <- ebs_pollock$comp_data %>%
     Fleet_name == "ATS" ~ 6
   ))
 
+# - Look at the data
+plot_data(ebs_pollock)
 
 # - Fix M
 pollock_base <- Rceattle::fit_mod(data_list = ebs_pollock,

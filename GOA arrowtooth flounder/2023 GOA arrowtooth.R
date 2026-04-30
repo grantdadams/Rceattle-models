@@ -12,6 +12,9 @@ mydata_atf$estDynamics = 0
 mydata_atf$index_data$Log_sd <- mydata_atf$index_data$Log_sd/mydata_atf$index_data$Observation
 mydata_atf$fleet_control$proj_F_prop <- c(1,1,1)
 
+# - Plot data
+plot_data(mydata_atf)
+
 
 # Single-species models ----
 # - Fit single-species models and no fishing
