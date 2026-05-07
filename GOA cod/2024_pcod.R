@@ -9,6 +9,8 @@ library(dplyr)
 # Cod
 ################################################
 cod_caal <- read_data(file = "Data/GOA_24_pcod_single_species_1977-2024_w_CAAL.xlsx")
+cod_caal$maturity[,-1] <- 1
+
 
 
 # - Fit empirical waa model
@@ -30,7 +32,7 @@ cod_growth <- Rceattle::fit_mod(data_list = cod_caal,
                               inits = NULL, # Initial parameters = 0
                               file = NULL, # Don't save
                               estimateMode = 0, # Estimate
-                              growthFun = build_growth(growth_model = 1),
+                              growthFun = build_growth(fun = "vonBertalanffy"),
                               M1Fun = build_M1(M1_model = 1,
                                                M1_use_prior = FALSE,
                                                M2_use_prior = FALSE),

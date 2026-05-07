@@ -24,6 +24,7 @@
 
 # Load data ----
 library(Rceattle)
+library(dplyr)
 library(TMB)
 mydata_atka <- Rceattle::read_data( file = "Data/atka_single_species_2022.xlsx")
 mydata_atka$estDynamics = 0

@@ -20,6 +20,7 @@
 # Load data ----
 # https://github.com/grantdadams/Rceattle/tree/dev_srr
 library(Rceattle)
+library(dplyr)
 mydata <- Rceattle::read_data( file = "Data/goa_northern_single_species_2022.xlsx")
 mydata$estDynamics = 0
 mydata$index_data$Log_sd <- sqrt(log(1 + (mydata$index_data$Log_sd^2) / (mydata$index_data$Observation^2)))

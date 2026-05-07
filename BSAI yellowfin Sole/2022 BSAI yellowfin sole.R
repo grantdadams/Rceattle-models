@@ -30,39 +30,55 @@ mydata_yfs$catch_data$Catch <- mydata_yfs$catch_data$Catch*1000
 
 # - Fix M
 bridging_model_1 <- Rceattle::fit_mod(data_list = mydata_yfs,
-                                          inits = NULL, # Initial parameters = 0
-                                          file = NULL, # Don't save
-                                          estimateMode = 0, # Estimate
-                                          random_rec = FALSE, # No random recruitment
-                                          msmMode = 0, # Single species mode
-                                          verbose = 1,
-                                          phase = TRUE,
-                                          initMode = 2)
-
-# - Est female and male M
-bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,
-                                      inits = bridging_model_1$estimated_params,
+                                      inits = NULL, # Initial parameters = 0
                                       file = NULL, # Don't save
                                       estimateMode = 0, # Estimate
                                       random_rec = FALSE, # No random recruitment
                                       msmMode = 0, # Single species mode
                                       verbose = 1,
-                                      M1Fun = build_M1(M1_model = c(2)),
                                       phase = TRUE,
                                       initMode = 2)
 
+# - Est female and male M
+bridging_model_2 <- Rceattle::fit_mod(data_list = mydata_yfs,
+                                      file = NULL, # Don't save
+                                      estimateMode = 0, # Estimate
+                                      random_rec = FALSE, # No random recruitment
+                                      msmMode = 0, # Single species mode
+                                      verbose = 1,
+                                      M1Fun = build_M1(M1_model = "sex_specific",
+                                                       linkages =  list(
+                                                         log_M1 = linkage_spec(
+                                                           formula = ~ 1,
+                                                           by      = ~ species + sex,
+                                                           init  = list(
+                                                             "(Intercept)" = log(0.12) # Both sexes
+                                                           ),
+                                                           priors  = list("(Intercept)" = list(
+                                                             # Species 1: different tightness per sex.
+                                                             `1` = list(`1` = normal(log(0.12), 0.00001))
+                                                           )
+                                                           )
+                                                         )
+                                                       )
+                                      ),
+                                      phase = TRUE,
+                                      initMode = 2)
+bridging_model_2$quantities$M1_at_age[1,,1,1]
+
 # - Fix female M and estimate male M
 inits <- bridging_model_1$estimated_params
-map <- build_map(data_list = bridging_model_2$data_list, params = inits)
-map$mapList$ln_M1[1,1,] <- NA
-map$mapFactor$ln_M1 <- factor(map$mapList$ln_M1)
+map <- build_map(data_list = bridging_model_1$data_list, params = inits)
+map$mapList$log_M1[1,2,] <- 1
+inits$log_M1[1,1,] <- log(0.12)
+map$mapFactor$log_M1 <- factor(map$mapList$log_M1)
 
 # -- Fix selectivity for survey to be sex-invariant
 map$mapList$sel_inf[1,1,] <- 1
-map$mapList$ln_sel_slp[1,1,] <- 1
+map$mapList$log_sel_slp[1,1,] <- 1
 
 map$mapFactor$sel_inf <- factor(map$mapList$sel_inf)
-map$mapFactor$ln_sel_slp <- factor(map$mapList$ln_sel_slp)
+map$mapFactor$log_sel_slp <- factor(map$mapList$log_sel_slp)
 
 bridging_model_3 <- Rceattle::fit_mod(data_list = mydata_yfs,
                                       inits = inits,
@@ -82,7 +98,6 @@ SAFE2022_mod <- bridging_model_1
 SAFE2022_mod$quantities$biomass[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 4)$Est * 1000
 SAFE2022_mod$quantities$ssb[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 3)$Est * 1000
 SAFE2022_mod$quantities$R[1,1:length(1954:2022)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 2)$Est * 1000
-
 
 plot_biomass(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))
 plot_ssb(list(bridging_model_3, SAFE2022_mod), model_names = c("CEATTLE", "SAFE"))

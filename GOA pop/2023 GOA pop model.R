@@ -1,4 +1,4 @@
-# Code to run the GOA pop assessment approximation in CEATTLE
+# Code to run the GOA pop assessment approximation in CEATTLE (revisit)
 # https://github.com/noaa-afsc/goa_pop/tree/a4538de11cacc7e1071558a2eb40286507a38c63/2024
 
 # DATA
