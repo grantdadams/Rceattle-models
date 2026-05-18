@@ -5,37 +5,6 @@ setwd("Model runs/GOA_25/")
 
 # Manually add in diet data
 combined_data <- read_data(file = "Data/GOA_25_data_1977_2025.xlsx")
-combined_data$diet_data <- combined_data$diet_data %>%
-  dplyr::filter(Prey != 4) %>%
-  dplyr::filter(Pred != 4) %>%
-  dplyr::filter(!(Pred = 3 & Pred_age > 10)) %>%
-  dplyr::filter(!(Prey = 3 & Prey_age > 10)) %>%
-  dplyr::mutate(
-    Stomach_proportion_by_weight = as.numeric(Stomach_proportion_by_weight),
-    Sample_size = as.numeric(Sample_size)
-  ) %>%
-  as.data.frame()
-
-# Copy 2024 weights to 2025
-terminal_weight <- combined_data$weight %>%
-  dplyr::group_by(Wt_index, Wt_name, Sex) %>%
-  dplyr::arrange(Year) %>%
-  dplyr::slice(n()) %>%
-  dplyr::mutate(Year = 2025)
-
-combined_data$weight <- rbind(combined_data$weight, terminal_weight) %>%
-  dplyr::arrange(Wt_index, Sex, Year)
-
-
-# Copy 2024 Pyrs to 2025
-terminal_pyrs <- combined_data$Pyrs %>%
-  dplyr::group_by(Species, Sex) %>%
-  dplyr::arrange(Year) %>%
-  dplyr::slice(n()) %>%
-  dplyr::mutate(Year = 2025)
-
-combined_data$Pyrs <- rbind(combined_data$Pyrs, terminal_pyrs) %>%
-  dplyr::arrange(Species, Sex, Year)
 
 
 # - Est single-species fixed M
