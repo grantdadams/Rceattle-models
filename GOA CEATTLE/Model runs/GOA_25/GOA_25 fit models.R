@@ -5,7 +5,7 @@ setwd("Model runs/GOA_25/")
 
 # Manually add in diet data
 combined_data <- read_data(file = "Data/GOA_25_data_1977_2025.xlsx")
-
+plot_data(combined_data)
 
 # - Est single-species fixed M
 ss_mod <- Rceattle::fit_mod(data_list = combined_data,
@@ -16,6 +16,7 @@ ss_mod <- Rceattle::fit_mod(data_list = combined_data,
                             msmMode = 0, # Single species mode
                             verbose = 1,
                             phase = TRUE)
+summary(ss_mod)
 
 
 
@@ -31,6 +32,7 @@ ssm <- Rceattle::fit_mod(data_list = combined_data,
                          M1Fun = build_M1(M1_model = c(1,2,1),
                                           M1_use_prior = FALSE,
                                           M2_use_prior = FALSE))
+summary(ssm)
 
 
 # - Est multi-species
@@ -47,6 +49,7 @@ ms_mod <- Rceattle::fit_mod(data_list = combined_data,
                             M1Fun = build_M1(M1_model = c(1,2,1),
                                              M1_use_prior = FALSE,
                                              M2_use_prior = FALSE))
+summary(ms_mod)
 
 
 
