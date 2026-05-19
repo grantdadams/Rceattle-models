@@ -18,24 +18,9 @@
 # - M = estimated with prior
 
 # Load data ----
-# https://github.com/grantdadams/Rceattle/tree/dev_srr
 library(Rceattle)
 library(dplyr)
-mydata <- Rceattle::read_data( file = "Data/goa_northern_single_species_2022.xlsx")
-mydata$estDynamics = 0
-mydata$index_data$Log_sd <- sqrt(log(1 + (mydata$index_data$Log_sd^2) / (mydata$index_data$Observation^2)))
-yrs <- mydata$styr:mydata$endyr
-
-# Adjust sample sizes
-comp_samp <- read.csv("Data/2022 SAFE sample sizes.csv")
-comp_samp <- comp_samp %>%
-  group_by(Fleet_name) %>%
-  mutate(
-    nmulti = sqrt(Nhauls * Nsamp),
-    nmulti = nmulti/max(nmulti)
-  )
-
-mydata$comp_data$Sample_size <- comp_samp$nmulti
+mydata <- Rceattle::read_data( file = "Data/2022_GOA_northern_rockfish.xlsx")
 
 
 

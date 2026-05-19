@@ -6,7 +6,7 @@ library(TMB)
 
 # Load data ----
 pollock24 <- read_data("Data/GOA_24_pollock_single_species_1970-2024.xlsx")
-
+load("Data/2024pollock.Rdata")
 
 # Fit base model ----
 pollock_base <- fit_mod(data_list = pollock24,
