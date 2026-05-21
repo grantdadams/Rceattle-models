@@ -32,16 +32,52 @@ USE_SS3_INITIAL_NATAGE <- TRUE
 cod_caal <- read_data(file = RCEATTLE_DATA)
 
 # Block-M workaround (binary linkage covariate on log_M1):
-#   M(yr) = exp(log_M_base + beta * post2014(yr))
-cod_caal$env_data <- merge(cod_caal$env_data,
-                           data.frame(
-                             Year     = cod_caal$styr:cod_caal$endyr,
-                             post2014 = as.integer((cod_caal$styr:cod_caal$endyr) >= 2014)
-                           )
+#   M(yr) = exp(log_M_base + beta * m_block(yr))
+#
+# SS3 block design 4 from the ctl is [start=2014, end=2016] — the M block
+# applies ONLY during 2014-2016 (the marine heatwave period). After 2016, M
+# reverts to base. Our previous "post2014" indicator (year >= 2014) was wrong:
+# it kept M=0.817 forever, causing biomass to collapse starting in 2018.
+# Fixed: indicator = 1 only when year is in [2014, 2016]. Name kept as
+# "post2014" for downstream column lookup compatibility — but it really
+# means "in the 2014-2016 M-block window".
+#
+# IMPORTANT: use all = TRUE (outer join). cod_caal$env_data may not span the
+# full model period (e.g., CFSR_2022 starts in 1979 for this Pcod model).
+# With the default inner join, missing years drop out of env_data → Rceattle
+# builds linkage_X from a too-short env_data → positional indexing shifts the
+# block transition EARLIER than it should (M jumped at 2012 instead of 2014).
+m_block_yrs <- ctllist_ss3$Block_Design[[4]]  # [2014, 2016] for Pcod 2024
+cat(sprintf("\nM block 4 from ctl spans years %d-%d\n",
+            m_block_yrs[1], m_block_yrs[2]))
+cod_caal$env_data <- merge(
+  cod_caal$env_data,
+  data.frame(
+    Year     = cod_caal$styr:cod_caal$endyr,
+    post2014 = as.integer((cod_caal$styr:cod_caal$endyr) >= m_block_yrs[1] &
+                          (cod_caal$styr:cod_caal$endyr) <= m_block_yrs[2])
+  ),
+  by = "Year", all = TRUE
 )
+# Fill any pre-1979 NA's in other env columns (e.g., CFSR_2022) so the merged
+# env_data has no NA's downstream. Forward-fill from the first non-NA value
+# is fine since these covariates aren't used outside the M linkage.
+for (col in setdiff(colnames(cod_caal$env_data), c("Year", "post2014"))) {
+  v <- cod_caal$env_data[[col]]
+  if (any(is.na(v))) {
+    first_nonNA <- v[which(!is.na(v))[1]]
+    v[is.na(v)] <- first_nonNA
+    cod_caal$env_data[[col]] <- v
+  }
+}
+cod_caal$env_data <- cod_caal$env_data[order(cod_caal$env_data$Year), ]
 M1_block <- build_M1(
   M1_model = 1, M1_use_prior = FALSE, M2_use_prior = FALSE,
-  linkages = list(log_M1 = linkage_spec(formula = ~ post2014, by = ~ species))
+  # `- 1` drops the stats::model.matrix() intercept column. Without it the
+  # design matrix has [(Intercept), post2014], and beta_linkage[1] multiplies
+  # the all-ones intercept column — shifting M in EVERY year (we observed
+  # M = 0.817 in 1977 and 2014 instead of 0.493 → 0.817).
+  linkages = list(log_M1 = linkage_spec(formula = ~ post2014 - 1, by = ~ species))
 )
 
 
@@ -113,8 +149,12 @@ init_from_ss3_par <- function(parlist, inits, data_list, fleet_meta, years_hind,
   }
 
   # --- 3a. Natural mortality ---
-  M_base <- get_par(parlist$MG_parms, "NatM_uniform_Fem_GP_1$")
-  M_blk  <- get_par(parlist$MG_parms, "NatM_uniform_Fem_GP_1_BLK")
+  # SS3 3.30 label is "NatM_p_1_Fem_GP_1" (not "NatM_uniform_..."). The block
+  # parameter appears as "NatM_p_1_Fem_GP_1_BLK4repl_2014" in this model.
+  # The earlier "_uniform_" pattern silently missed both rows, leaving M
+  # constant at 0.493 instead of dropping to ~0.376 post-2014.
+  M_base <- get_par(parlist$MG_parms, "NatM_p_1_Fem_GP_1$")
+  M_blk  <- get_par(parlist$MG_parms, "NatM_p_1_Fem_GP_1_BLK")
   if (!is.null(M_base) && "log_M1" %in% names(inits)) {
     inits$log_M1[] <- log(M_base)
     cat(sprintf("M1 base set to %.4f (log = %.4f)\n", M_base, log(M_base)))
@@ -425,6 +465,49 @@ init_from_ss3_par <- function(parlist, inits, data_list, fleet_meta, years_hind,
 #     for age > 0 (ages 2..nages in 1-indexed terms). For the recruit age
 #     (age 1 = slot 0), N is still driven by R_init * exp(rec_dev[0]).
 # ============================================================================
+# Initialize log_F[fleet, year] from SS3's ts file (columns "F:_1", "F:_2", ...).
+# Under estimateMode = 3, Rceattle holds log_F at the initial value — but only if
+# we set it explicitly. Otherwise Rceattle's default initializer (Pope's-derived
+# from catches) leaves log_F at values that drift from SS3's F as biomass diverges,
+# producing the compounding-error pattern we saw (1.0 -> 0.13 over 47 years).
+init_log_F_from_ss3 <- function(inits, ts_ss3, fleet_meta, years_hind) {
+  if (!"log_F" %in% names(inits)) {
+    warning("log_F not in inits — cannot pin Rceattle F to SS3 values")
+    return(inits)
+  }
+  log_F <- inits$log_F  # dim should be (n_fishery, nyrs) or (n_fleet, nyrs)
+  ts_sub <- ts_ss3[match(years_hind, ts_ss3$Yr), ]
+
+  # read.csv mangles "F:_1" -> "F._1" under check.names = TRUE. Resolve the
+  # actual F column for each fleet using a regex on the SS3 ts column names.
+  ts_f_cols <- grep("^F[._:]_[0-9]+$|^F\\.\\._[0-9]+$|^F\\._[0-9]+$",
+                    colnames(ts_sub), value = TRUE)
+  if (length(ts_f_cols) == 0) {
+    warning("No SS3 F:_n columns detected in ts file — log_F not pinned.")
+    return(inits)
+  }
+  cat(sprintf("  Detected ts_ss3 F columns: %s\n", paste(ts_f_cols, collapse = ", ")))
+
+  for (i in seq_len(nrow(fleet_meta))) {
+    if (fleet_meta$fleet_type[i] != "Fishery") next
+    if (fleet_meta$ss3_num[i] > length(ts_f_cols)) {
+      warning(sprintf("Fleet %s (ss3_num=%d) exceeds detected F columns (%d)",
+                      fleet_meta$name[i], fleet_meta$ss3_num[i], length(ts_f_cols)))
+      next
+    }
+    f_col <- ts_f_cols[fleet_meta$ss3_num[i]]
+    f_vec <- as.numeric(ts_sub[[f_col]])
+    f_vec[is.na(f_vec) | f_vec <= 0] <- 1e-9  # floor for log(0) safety
+    log_F[i, seq_along(years_hind)] <- log(f_vec)
+    cat(sprintf("  log_F[%s] <- log(ts_ss3$%s): F yr1=%.4g, F mid=%.4g, F last=%.4g\n",
+                fleet_meta$name[i], f_col,
+                f_vec[1], f_vec[length(f_vec) %/% 2], tail(f_vec, 1)))
+  }
+  inits$log_F <- log_F
+  inits
+}
+
+
 init_state_from_ss3_natage <- function(inits, ss3_rep, styr, nages, sex_ratio = 1.0) {
   # Age-class alignment (verified empirically):
   #   Rceattle slot 1 = SS3 age 0  (R[1977] = N[1,1977] = SS3 Recruit_0[1977])
@@ -545,17 +628,39 @@ for (i in seq_len(nrow(fleet_meta))) {
 # ============================================================================
 ss3_rep <- r4ss::SS_output(dir = SS3_DIR, verbose = FALSE, printstats = FALSE)
 
-# ageselex Factors: "Asel"  = pre-retention age selectivity (used to scale F_full).
-#                   "Asel2" = post-retention. Identical to Asel when no retention.
+# ageselex Factors (SS3 3.30):
+#   "Asel"  = INPUT age-based selectivity. For LENGTH-BASED selectivity
+#             (sel_type 24, DoubleNormal-Size) these are placeholders —
+#             often 1.0 across all ages — NOT the realized selectivity.
+#   "Asel2" = REALIZED age-based selectivity, derived by integrating the
+#             length-based selectivity over the age->length distribution.
+#             This is what SS3 actually uses to compute F at age.
+# Pcod 2024 uses length-based DoubleNormal (Size_DblN_*), so we MUST use
+# "Asel2". Using "Asel" gave sel=1.0 for all ages > 0, applying full F to
+# age-1 fish that SS3 doesn't catch (sel for 15cm fish ≈ 0.001 in reality).
 asel <- ss3_rep$ageselex %>%
-  dplyr::filter(Factor == "Asel",
+  dplyr::filter(Factor == "Asel2",
                 Yr %in% years_hind,
                 Fleet %in% fleet_meta$ss3_num)
 
 a_min <- cod_ss3$minage[1]
 a_max <- a_min + cod_ss3$nages[1] - 1
-age_cols_ss3 <- as.character(a_min:a_max)
-stopifnot(all(age_cols_ss3 %in% colnames(asel)))
+# IMPORTANT: SS3 ageselex columns start at age "0" (recruits). Rceattle slot 1
+# corresponds to SS3 age 0 (verified via R[1977] = SS3 Recruit_0[1977]). So we
+# need to pull SS3 columns "0":"nages-1" into Comp_1..Comp_nages, NOT
+# "1":"nages" — that would shift the entire fleet selectivity by one age
+# class, applying F to the wrong cohort and causing compounding biomass drift.
+sel_age_cols <- as.character(0:(a_max - 1))
+# Old buggy line preserved as documentation:
+# age_cols_ss3 <- as.character(a_min:a_max)
+age_cols_ss3 <- sel_age_cols  # keep the name for backward compatibility downstream
+sel_available <- intersect(sel_age_cols, colnames(asel))
+if (length(sel_available) < length(sel_age_cols)) {
+  cat(sprintf("WARN: SS3 ageselex missing cols. Have [%s]; need [%s].\n",
+              paste(grep("^[0-9]+$", colnames(asel), value = TRUE), collapse = ","),
+              paste(sel_age_cols, collapse = ",")))
+}
+stopifnot(all(sel_age_cols %in% colnames(asel)))
 
 build_emp_sel_row <- function(fleet_code, sp, sex, yr, sel_vec, fleet_name) {
   out <- data.frame(
@@ -663,8 +768,94 @@ for (s in seq_len(n_wt_slots)) {
   }
 }
 cod_ss3$weight <- do.call(rbind, wt_rows)
+cod_ss3$pop_wt_index <- 1
+cod_ss3$ssb_wt_index <- 2
+cod_ss3$fleet_control$Weight_index <- 3:7
 cat(sprintf("cod_ss3$weight built: %d rows across %d WAA slots, %d years\n",
             nrow(cod_ss3$weight), n_wt_slots, length(years_hind)))
+
+
+# ----------------------------------------------------------------------------
+# 4c.1  Plus-group WAA correction.
+#       Rceattle slot nages holds (SS3 age nages-1 + SS3 plus group at age nages).
+#       The previous WAA setup used only SS3 age nages-1 weight (6.012). The
+#       correct value is the year-by-year weighted average using SS3 natage.
+# ----------------------------------------------------------------------------
+ss3_waa_age <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1) %>% dplyr::arrange(int_Age) %>%
+  dplyr::select(int_Age, Wt_Beg)
+waa_at <- function(age) {
+  v <- ss3_waa_age %>% dplyr::filter(int_Age == age) %>% dplyr::pull(Wt_Beg)
+  if (length(v) == 0) NA_real_ else v[1]
+}
+waa_nm1  <- waa_at(cod_ss3$nages[1] - 1)
+waa_plus <- waa_at(cod_ss3$nages[1])
+
+plus_waa_year <- function(year) {
+  row <- ss3_rep$natage %>%
+    dplyr::filter(Yr == year, `Beg/Mid` == "B", Sex == 1) %>% dplyr::slice(1)
+  if (nrow(row) == 0) return(waa_nm1)
+  n_nm1  <- as.numeric(row[1, as.character(cod_ss3$nages[1] - 1)])
+  n_plus <- as.numeric(row[1, as.character(cod_ss3$nages[1])])
+  (n_nm1 * waa_nm1 + n_plus * waa_plus) / max(n_nm1 + n_plus, 1e-10)
+}
+
+plus_col <- paste0("Age", cod_ss3$nages[1])
+for (yr in years_hind) {
+  w <- plus_waa_year(yr)
+  for (sname in c("Pop_WAA", "SSB_WAA")) {
+    idx <- which(cod_ss3$weight$Wt_name == sname & cod_ss3$weight$Year == yr)
+    if (length(idx)) cod_ss3$weight[idx, plus_col] <- w
+  }
+}
+cat(sprintf("Plus-group WAA override: yr 1977 = %.4f, yr 2024 = %.4f (vs raw %.4f)\n",
+            plus_waa_year(1977), plus_waa_year(2024), waa_nm1))
+
+
+# ============================================================================
+# 4d. Maturity ogive from SS3 endgrowth (replaces all-"2" stub)
+#     Rceattle: mature_females(sp, age) = maturity(sp, age) * sex_ratio(sp, age)
+#     Pcod sex_ratio = 0.5 by default. To make mature_females = SS3_mat,
+#     set maturity = SS3_mat / sex_ratio.
+#     Age convention: Rceattle slot k = SS3 age k-1.
+# ============================================================================
+ss3_len_mat <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1) %>% dplyr::arrange(int_Age) %>%
+  dplyr::select(int_Age, Len_Mat)
+mat_at <- function(age) {
+  v <- ss3_len_mat %>% dplyr::filter(int_Age == age) %>% dplyr::pull(Len_Mat)
+  if (length(v) == 0) NA_real_ else v[1]
+}
+
+mat_vec <- numeric(cod_ss3$nages[1])
+for (k in 1:(cod_ss3$nages[1] - 1)) {
+  v <- mat_at(k - 1)
+  mat_vec[k] <- if (is.na(v)) 0 else v
+}
+# Plus group: weighted by N at styr (proxy for the steady-state mix)
+nat_styr <- ss3_rep$natage %>%
+  dplyr::filter(Yr == cod_ss3$styr, `Beg/Mid` == "B", Sex == 1) %>% dplyr::slice(1)
+n_nm1   <- as.numeric(nat_styr[1, as.character(cod_ss3$nages[1] - 1)])
+n_plus  <- as.numeric(nat_styr[1, as.character(cod_ss3$nages[1])])
+mat_nm1 <- mat_at(cod_ss3$nages[1] - 1)
+mat_plus_val <- mat_at(cod_ss3$nages[1])
+mat_vec[cod_ss3$nages[1]] <-
+  (n_nm1 * mat_nm1 + n_plus * mat_plus_val) / max(n_nm1 + n_plus, 1e-10)
+
+# Divide by sex_ratio so that mature_females = mat_vec after C++ multiplication
+sr_row <- cod_ss3$sex_ratio[1, paste0("Age", 1:cod_ss3$nages[1])]
+sr_val <- as.numeric(sr_row[1])
+if (is.na(sr_val) || sr_val == 0) sr_val <- 0.5
+cod_ss3$maturity[1, paste0("Age", 1:cod_ss3$nages[1])] <- mat_vec / sr_val
+# Zero out trailing NA-named columns from the original stub if present
+extra_cols <- setdiff(colnames(cod_ss3$maturity),
+                     c("Species", paste0("Age", 1:cod_ss3$nages[1])))
+if (length(extra_cols)) cod_ss3$maturity[1, extra_cols] <- NA
+
+cat(sprintf("\nMaturity ogive set (sex_ratio = %.2f used as divisor):\n", sr_val))
+print(data.frame(Slot = 1:cod_ss3$nages[1],
+                 SS3_mat_fraction = mat_vec,
+                 Rce_maturity_set = mat_vec / sr_val))
 
 # initMode must be set BEFORE fit_mod() so the parameter structure (init_dev
 # sizing and map) is built correctly. "FreeParams" lets us inject SS3 natage
@@ -681,7 +872,7 @@ mod0 <- Rceattle::fit_mod(
   file         = NULL,
   estimateMode = 3,
   initMode     = if (USE_SS3_INITIAL_NATAGE) "FreeParams" else "NonEquilibrium",
-  growthFun    = build_growth(fun = 1),
+  growthFun    = build_growth(fun = 0),  # empirical WAA: uses cod_ss3$weight
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -712,6 +903,18 @@ if (USE_SS3_INITIAL_NATAGE) {
   )
 }
 
+# Pin log_F to SS3's per-year F values (per fishery fleet). Without this,
+# Rceattle's default log_F init drifts from SS3 as biomass diverges, producing
+# the compounding-error feedback loop.
+ts_ss3_for_F <- read.csv(TS_FILE)
+cat("\nlog_F initialization from SS3 ts file:\n")
+inits <- init_log_F_from_ss3(
+  inits      = inits,
+  ts_ss3     = ts_ss3_for_F,
+  fleet_meta = fleet_meta,
+  years_hind = years_hind
+)
+
 
 # ============================================================================
 # 6.  Model runs
@@ -724,7 +927,7 @@ cod_ss3_fixed <- Rceattle::fit_mod(
   file         = NULL,
   estimateMode = 3,
   initMode     = if (USE_SS3_INITIAL_NATAGE) "FreeParams" else "NonEquilibrium",
-  growthFun    = build_growth(fun = 1),
+  growthFun    = build_growth(fun = 0),  # empirical WAA: uses cod_ss3$weight
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -732,13 +935,34 @@ cod_ss3_fixed <- Rceattle::fit_mod(
   phase        = FALSE
 )
 
+# ============================================================================
+# 6b. Growth validation — does Rceattle's VB growth reproduce SS3's WAA?
+#     This is the same model as cod_ss3_fixed but with growthFun = 1
+#     (vonBertalanffy) instead of "empirical". If WAA matches SS3 endgrowth
+#     within 1e-3, the bridge no longer needs the empirical WAA injection.
+# ============================================================================
+cod_ss3_vb <- Rceattle::fit_mod(
+  data_list    = cod_ss3,
+  inits        = inits,
+  file         = NULL,
+  estimateMode = 3,
+  initMode     = if (USE_SS3_INITIAL_NATAGE) "FreeParams" else "NonEquilibrium",
+  growthFun    = build_growth(fun = 1),  # vonBertalanffy
+  M1Fun        = M1_block,
+  random_rec   = FALSE,
+  msmMode      = 0,
+  verbose      = 1,
+  phase        = FALSE
+)
+
+
 # Model B: Estimate from SS3 starting values
 cod_ss3_est <- Rceattle::fit_mod(
   data_list    = cod_ss3,
   inits        = NULL,
   file         = NULL,
   estimateMode = 0,
-  growthFun    = build_growth(fun = 1),
+  growthFun    = build_growth(fun = 0),  # empirical WAA: uses cod_ss3$weight
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -775,7 +999,7 @@ safe2024$quantities$R[, 1:length(years_hind)] <-
 
 
 # ============================================================================
-# 8.  Relative-error diagnostics vs SS3
+# 8.  Relative-error diagnostics vs SS3----
 # ============================================================================
 ss3_R   <- ts_ss3 %>% filter(Yr %in% years_hind) %>% pull(Recruit_0)
 ss3_ssb <- ts_ss3 %>% filter(Yr %in% years_hind) %>% pull(SpawnBio)
@@ -803,7 +1027,7 @@ diag_errors(cod_ss3_est,   "cod_ss3_est")
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# 8b.0  Sanity checks — did the bridge actually wire up correctly?
+# 8b.0  Sanity checks — did the bridge actually wire up correctly?----
 # ----------------------------------------------------------------------------
 cat("\n=== Bridge sanity check ===\n")
 cat("Rceattle initMode in fit output (need integer 0 if FreeParams):\n")
@@ -819,6 +1043,40 @@ print(head(parlist$MG_parms[, c("INIT", "ESTIM")], 12))
 cat("\nGrowth reference ages from ctllist:\n")
 cat(sprintf("  Growth_Age_for_L1 = %s\n", ctllist_ss3$Growth_Age_for_L1 %||% NA))
 cat(sprintf("  Growth_Age_for_L2 = %s\n", ctllist_ss3$Growth_Age_for_L2 %||% NA))
+
+# M-block sanity: was the post-2014 transition picked up by the SS3 grep?
+# Spawn month — SSB Year-1 ratio of 0.917 with M=0.493 implies Rceattle is
+# using ~3 months of mortality while SS3 spawns ~1 month in. Verify and align.
+cat("\nSpawn month check:\n")
+ss3_spawn_seas <- ctllist_ss3$spawn_seas %||% NA
+cat(sprintf("  cod_ss3$spawn_month       = %s\n", cod_ss3$spawn_month %||% "NULL"))
+cat(sprintf("  ctllist_ss3$spawn_seas    = %s (SS3 ctl value)\n", ss3_spawn_seas))
+cat(sprintf("  Rceattle internal spawn_month = %s\n",
+            cod_ss3_fixed$data_list$spawn_month %||% "NULL"))
+
+cat("\nM-block wiring:\n")
+m_base_logged <- exp(cod_ss3_fixed$estimated_params$log_M1[1, 1, 1])
+cat(sprintf("  log_M1[1,1] = %.4f  =>  M_base = %.4f (expect 0.493)\n",
+            cod_ss3_fixed$estimated_params$log_M1[1, 1,1], m_base_logged))
+if ("beta_linkage" %in% names(cod_ss3_fixed$estimated_params)) {
+  b1 <- cod_ss3_fixed$estimated_params$beta_linkage[1]
+  cat(sprintf("  beta_linkage[1] = %.4f  =>  M_post2014 = %.4f (expect ~0.376)\n",
+              b1, m_base_logged * exp(b1)))
+} else {
+  cat("  beta_linkage not in params — M block not active\n")
+}
+cat("\nM_at_age year 1 vs year 38 (post-2014, should drop):\n")
+if ("M_at_age" %in% names(cod_ss3_fixed$quantities)) {
+  cat(sprintf("  yr 1 (1977): %s\n",
+              paste(sprintf("%.4f",
+                cod_ss3_fixed$quantities$M_at_age[1, 1, , 1]), collapse = ", ")))
+  yr_2014 <- which(years_hind == 2014)
+  if (length(yr_2014)) {
+    cat(sprintf("  yr %d (2014): %s\n", yr_2014,
+                paste(sprintf("%.4f",
+                  cod_ss3_fixed$quantities$M_at_age[1, 1, , yr_2014]), collapse = ", ")))
+  }
+}
 cat(sprintf("emp_sel rows: %d (expect %d = %d fleets x %d years)\n",
             nrow(cod_ss3_fixed$data_list$emp_sel),
             nrow(fleet_meta) * length(years_hind),
@@ -853,7 +1111,7 @@ print(r_tbl)
 
 
 # ----------------------------------------------------------------------------
-# 8b.1  Selectivity-at-age comparison (slot is $sel_at_age, not $sel)
+# 8b.1  Selectivity-at-age comparison (slot is $sel_at_age, not $sel) ----
 # ----------------------------------------------------------------------------
 cat("\n--- Rceattle quantities slot probe ---\n")
 print(grep("sel|wt|weight|N_at|biomass",
@@ -867,8 +1125,10 @@ rce_sel <- cod_ss3_fixed$quantities$sel_at_age  # (fleet, sex, age, year)
 sel_compare <- list()
 for (i in seq_len(nrow(fleet_meta))) {
   ss3_num <- fleet_meta$ss3_num[i]
+  # Compare against Asel2 (realized age sel from length-based eq) — matches
+  # what we inject and what SS3 actually uses for F at age.
   ss3_sub <- ss3_rep$ageselex %>%
-    dplyr::filter(Factor == "Asel", Fleet == ss3_num, Yr %in% years_hind)
+    dplyr::filter(Factor == "Asel2", Fleet == ss3_num, Yr %in% years_hind)
 
   for (yi in seq_along(years_hind)) {
     yr <- years_hind[yi]
@@ -899,7 +1159,7 @@ print(sel_compare %>% dplyr::group_by(Fleet) %>%
 
 
 # ----------------------------------------------------------------------------
-# 8b.2  Weight-at-age comparison ($weight_hat)
+# 8b.2  Weight-at-age comparison ($weight_hat) ----
 #       weight_hat[i, sex, age, yr]: i=1..nspp = start-of-year pop WAA,
 #                                    i=nspp+1..2*nspp = SSB WAA,
 #                                    i=2*nspp+1.. = per-fleet WAA
@@ -932,7 +1192,7 @@ if (!is.null(ss3_rep$endgrowth) && nrow(ss3_rep$endgrowth) > 0) {
 
 
 # ----------------------------------------------------------------------------
-# 8b.3  Initial age structure comparison (year 1)
+# 8b.3  Initial age structure comparison (year 1) ----
 #       If biomass is 4x off but R is only 35% off, the divergence is most
 #       likely cumulative — driven by wrong initial N-at-age in year 1.
 # ----------------------------------------------------------------------------
@@ -961,7 +1221,156 @@ cat(sprintf("Initial N max rel err: %.2e\n", max(n1_tbl$RelErr)))
 
 
 # ----------------------------------------------------------------------------
-# 8b.4  Direct biomass / SSB comparison — diagnose the 97% mean error.
+# 8b.GROWTH  VB growth validation — does Rceattle's parametric model ----
+#            reproduce SS3 WAA to 1e-3?
+# ----------------------------------------------------------------------------
+cat("\n=== Growth validation: VB-derived WAA vs SS3 endgrowth ===\n")
+
+# Print every numeric column SS3 emits per integer age (Sex=1).
+# This reveals what SD column names actually look like in this r4ss output.
+cat("\nSS3 endgrowth columns:\n")
+print(colnames(ss3_rep$endgrowth))
+
+ss3_grow <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1, int_Age %in% 0:nages_pcod) %>%
+  dplyr::arrange(int_Age) %>%
+  dplyr::select(int_Age, dplyr::any_of(c("Len_Beg", "Len_Mid", "Wt_Beg", "Wt_Mid",
+                                         "SD_Mid", "SD_Beg", "CV_Beg", "CV_Mid")))
+cat("\nSS3 endgrowth per int_Age (target values for Rceattle VB):\n")
+print(ss3_grow)
+
+# Compare Rceattle VB-fitted weight_hat to SS3 endgrowth Wt_Beg
+# Rceattle slot k = SS3 age k-1, so compare:
+#   rce_waa_vb[k] (slot k, year 1)  vs  ss3_grow$Wt_Beg[k] (int_Age = k-1)
+rce_waa_vb <- as.numeric(cod_ss3_vb$quantities$weight_hat[1, 1, , 1])
+
+# Build paired comparison
+ss3_wt_beg <- ss3_grow$Wt_Beg
+n_ss3 <- length(ss3_wt_beg)
+ss3_aligned <- numeric(nages_pcod)
+ss3_aligned[1:min(nages_pcod, n_ss3)] <- ss3_wt_beg[1:min(nages_pcod, n_ss3)]
+if (n_ss3 >= nages_pcod + 1) {
+  # Plus group: combine SS3 ages (nages-1) and nages by N-weighting (year 1)
+  n_at_age_yr1 <- rce_N1
+  w_age_nm1 <- ss3_wt_beg[nages_pcod]      # SS3 age nages-1
+  w_age_max <- ss3_wt_beg[nages_pcod + 1]  # SS3 plus group
+  # For slot nages = sum of N at age (nages-1) + plus group, the weighted WAA is:
+  plus_n <- rce_N1[nages_pcod]
+  ss3_aligned[nages_pcod] <- w_age_max  # SS3 plus-group weight (Rceattle slot 10)
+}
+
+vb_compare <- data.frame(
+  Slot         = 1:nages_pcod,
+  SS3_age      = 0:(nages_pcod - 1),
+  Rceattle_VB  = rce_waa_vb,
+  SS3_Wt_Beg   = ss3_aligned,
+  AbsErr       = rce_waa_vb - ss3_aligned,
+  RelErr       = abs(rce_waa_vb - ss3_aligned) / pmax(abs(ss3_aligned), 1e-10)
+)
+cat("\nVB-fitted WAA vs SS3 (Rceattle slot k = SS3 age k-1):\n")
+print(vb_compare)
+cat(sprintf("\nVB WAA max rel err: %.2e  mean: %.2e  (target ≤ 1e-3)\n",
+            max(vb_compare$RelErr), mean(vb_compare$RelErr)))
+
+# Also report what params Rceattle used (for tuning reference)
+cat("\nRceattle VB params used:\n")
+cat(sprintf("  log_K   = %.4f  =>  K = %.4f\n",
+            cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 1],
+            exp(cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 1])))
+cat(sprintf("  log_L1  = %.4f  =>  L1 = %.4f (at Rceattle minage=%d)\n",
+            cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 2],
+            exp(cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 2]),
+            cod_ss3$minage[1]))
+cat(sprintf("  log_Linf= %.4f  =>  Linf = %.4f\n",
+            cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 3],
+            exp(cod_ss3_vb$estimated_params$log_growth_pars[1, 1, 3])))
+if ("growth_log_sd" %in% names(cod_ss3_vb$estimated_params)) {
+  cat(sprintf("  log_SD_young = %.4f  =>  SD_y = %.4f\n",
+              cod_ss3_vb$estimated_params$growth_log_sd[1, 1, 1],
+              exp(cod_ss3_vb$estimated_params$growth_log_sd[1, 1, 1])))
+  cat(sprintf("  log_SD_old   = %.4f  =>  SD_o = %.4f\n",
+              cod_ss3_vb$estimated_params$growth_log_sd[1, 1, 2],
+              exp(cod_ss3_vb$estimated_params$growth_log_sd[1, 1, 2])))
+}
+cat(sprintf("  W-L alpha = %.6g, beta = %.4f\n",
+            cod_ss3_vb$data_list$alpha_wt_len[1] %||%
+              cod_ss3_vb$estimated_params$weight_length_pars[1, 1] %||% NA,
+            cod_ss3_vb$data_list$beta_wt_len[1] %||%
+              cod_ss3_vb$estimated_params$weight_length_pars[1, 2] %||% NA))
+
+# What Rceattle computes for length-at-age (compare to SS3 Len_Beg)
+cat("\nRceattle length-at-age (year 1) vs SS3 Len_Beg:\n")
+rce_len <- as.numeric(cod_ss3_vb$quantities$length_hat[1, 1, , 1])
+ss3_len <- ss3_grow$Len_Beg
+ss3_len_aligned <- numeric(nages_pcod)
+ss3_len_aligned[1:min(nages_pcod, length(ss3_len))] <-
+  ss3_len[1:min(nages_pcod, length(ss3_len))]
+print(data.frame(
+  Slot     = 1:nages_pcod,
+  SS3_age  = 0:(nages_pcod - 1),
+  Rce_Len  = rce_len,
+  SS3_Len  = ss3_len_aligned,
+  RelErr   = abs(rce_len - ss3_len_aligned) /
+             pmax(abs(ss3_len_aligned), 1e-10)
+))
+
+
+# ----------------------------------------------------------------------------
+# 8b.3b  Year 2 (1978) N-at-age — does N propagation match SS3?
+#        Year 1 matches to 1e-6 by construction (we injected it).
+#        If year 2 matches, biomass drift comes from WAA used in calc.
+#        If year 2 doesn't match, the forward N propagation is wrong.
+# ----------------------------------------------------------------------------
+rce_N2 <- as.numeric(cod_ss3_fixed$quantities$N_at_age[1, 1, , 2])
+ss3_natage2 <- ss3_rep$natage %>%
+  dplyr::filter(Yr == years_hind[2], `Beg/Mid` == "B", Sex == 1) %>%
+  dplyr::slice(1)
+ss3_N2_raw <- as.numeric(ss3_natage2[1, as.character(0:nages_pcod)])
+ss3_N2 <- c(ss3_N2_raw[1:(nages_pcod - 1)],
+            ss3_N2_raw[nages_pcod] + ss3_N2_raw[nages_pcod + 1])
+
+cat(sprintf("\nYear 2 (%d) N-at-age comparison:\n", years_hind[2]))
+n2_tbl <- data.frame(
+  Slot     = 1:nages_pcod,
+  SS3      = ss3_N2,
+  Rceattle = rce_N2,
+  Ratio    = rce_N2 / pmax(ss3_N2, 1e-10),
+  RelErr   = abs(rce_N2 - ss3_N2) / pmax(abs(ss3_N2), 1e-10)
+)
+print(n2_tbl)
+cat(sprintf("Year 2 N max rel err: %.2e\n", max(n2_tbl$RelErr)))
+
+# Hand-derive year 2 N from year 1 + Z to localize propagation error.
+# C++: N[slot k+1, yr+1] = N[slot k, yr] * exp(-Z[slot k, yr])
+# Plus group: N[plus, yr+1] = N[plus-1, yr]*exp(-Z[plus-1]) + N[plus, yr]*exp(-Z[plus])
+cat("\n--- Hand-derived year 2 N (using Rceattle Z) ---\n")
+if ("Z_at_age" %in% names(cod_ss3_fixed$quantities)) {
+  z1 <- as.numeric(cod_ss3_fixed$quantities$Z_at_age[1, 1, , 1])
+  cat(sprintf("Rceattle Z (yr 1) by slot: %s\n",
+              paste(sprintf("%.4f", z1), collapse = ", ")))
+  # Build year 2 N from year 1 N and Z
+  manual_n2 <- numeric(nages_pcod)
+  # Slot 1 in year 2 = R[1978]
+  manual_n2[1] <- as.numeric(cod_ss3_fixed$quantities$R[1, 2])
+  # Slots 2..nages-1: shifted survival
+  for (k in 2:(nages_pcod - 1)) {
+    manual_n2[k] <- rce_N1[k - 1] * exp(-z1[k - 1])
+  }
+  # Plus group
+  manual_n2[nages_pcod] <- rce_N1[nages_pcod - 1] * exp(-z1[nages_pcod - 1]) +
+                          rce_N1[nages_pcod]     * exp(-z1[nages_pcod])
+  cat("Hand-derived year 2 N from year 1 N and Z:\n")
+  print(data.frame(Slot = 1:nages_pcod,
+                   Manual = manual_n2,
+                   Rceattle_N2 = rce_N2,
+                   RelErr = abs(manual_n2 - rce_N2) / pmax(abs(rce_N2), 1e-10)))
+} else {
+  cat("Z_at_age not in quantities — skipping hand-derived check\n")
+}
+
+
+# ----------------------------------------------------------------------------
+# 8b.4  Direct biomass / SSB comparison — diagnose the 97% mean error. ----
 #       Confirms unit alignment AND whether the error is in year 1 or
 #       accumulates over time.
 # ----------------------------------------------------------------------------
@@ -982,6 +1391,151 @@ bio_tbl <- data.frame(
   SSB_Ratio = c(head(ssb_rce / ssb_ss3, 5), tail(ssb_rce / ssb_ss3, 5))
 )
 print(bio_tbl)
+
+# Year-by-year ratio sweep to localize WHEN divergence starts.
+# Early years (1977-1981) currently match to 1e-5; late years (2020+) drift
+# to 0.32. We need to see where the breakdown begins.
+cat("\n--- Bio_Ratio every 3 years (year-of-onset diagnostic) ---\n")
+sweep_idx <- seq(1, length(years_hind), by = 3)
+sweep_tbl <- data.frame(
+  Year      = years_hind[sweep_idx],
+  Bio_SS3   = bio_ss3[sweep_idx],
+  Bio_Rce   = bio_rce[sweep_idx],
+  Bio_Ratio = bio_rce[sweep_idx] / bio_ss3[sweep_idx],
+  SSB_SS3   = ssb_ss3[sweep_idx],
+  SSB_Rce   = ssb_rce[sweep_idx],
+  SSB_Ratio = ssb_rce[sweep_idx] / ssb_ss3[sweep_idx]
+)
+print(sweep_tbl)
+
+# F-by-year comparison with both Rce AND SS3 columns side-by-side.
+# read.csv converts "F:_1" -> "F._1" via check.names=TRUE, so resolve the
+# actual column name pattern first.
+cat("\n--- F by fleet, every 5 years (Rce vs SS3) ---\n")
+# Find the actual F columns regardless of how read.csv mangled them
+ts_f_cols <- grep("^F[._:]_[0-9]+$|^F\\.\\._[0-9]+$|^F\\._[0-9]+$",
+                  colnames(ts_ss3), value = TRUE)
+cat(sprintf("Detected ts_ss3 F-column names: %s\n",
+            paste(ts_f_cols, collapse = ", ")))
+if ("F_flt" %in% names(cod_ss3_fixed$quantities) && length(ts_f_cols) > 0) {
+  f_yrs <- seq(1, length(years_hind), by = 5)
+  ts_idx <- match(years_hind[f_yrs], ts_ss3$Yr)
+  for (i in seq_len(nrow(fleet_meta))) {
+    if (fleet_meta$fleet_type[i] != "Fishery") next
+    # Match the i-th fishery to the i-th F column (in fleet order)
+    if (fleet_meta$ss3_num[i] > length(ts_f_cols)) next
+    f_col <- ts_f_cols[fleet_meta$ss3_num[i]]
+    rce_vals <- as.numeric(cod_ss3_fixed$quantities$F_flt[i, f_yrs])
+    ss3_vals <- as.numeric(ts_ss3[[f_col]])[ts_idx]
+    if (length(ss3_vals) != length(rce_vals)) {
+      cat(sprintf("  %s: skipping (ss3 col '%s' returned %d vals, need %d)\n",
+                  fleet_meta$name[i], f_col, length(ss3_vals), length(rce_vals)))
+      next
+    }
+    f_check <- data.frame(Year = years_hind[f_yrs],
+                          Rce = rce_vals, SS3 = ss3_vals,
+                          Diff = rce_vals - ss3_vals)
+    cat(sprintf("\n%s (vs ts_ss3$%s):\n", fleet_meta$name[i], f_col))
+    print(f_check)
+  }
+}
+
+
+# ----------------------------------------------------------------------------
+# 8b.7  Localize the breakpoint — what changes between 2010 and 2013?
+# ----------------------------------------------------------------------------
+cat("\n--- M_at_age year-by-year, 2010-2016 (M block transition zone) ---\n")
+breakpoint_yrs <- 2010:2016
+b_idx <- match(breakpoint_yrs, years_hind)
+b_idx <- b_idx[!is.na(b_idx)]
+m_vec <- sapply(b_idx, function(yi) cod_ss3_fixed$quantities$M_at_age[1, 1, 5, yi])
+m_trace <- data.frame(Year = years_hind[b_idx], M_age5 = m_vec)
+print(m_trace)
+
+# Look up the post2014 indicator from whatever shape env data ended up in.
+env_dl <- cod_ss3_fixed$data_list
+cat("\nenv_data / env_index slot shape probe:\n")
+for (nm in c("env_data", "env_index", "linkage_X")) {
+  if (!is.null(env_dl[[nm]])) {
+    cat(sprintf("  %s: ", nm)); print(utils::head(env_dl[[nm]], 3))
+  }
+}
+
+cat("\n--- env_data post2014 around transition (raw input cod_ss3$env_data) ---\n")
+if (!is.null(cod_ss3$env_data) && "post2014" %in% colnames(cod_ss3$env_data)) {
+  print(cod_ss3$env_data %>%
+        dplyr::filter(Year %in% breakpoint_yrs) %>%
+        dplyr::select(Year, post2014))
+} else {
+  cat("  cod_ss3$env_data missing 'post2014' column. Columns: ",
+      paste(colnames(cod_ss3$env_data %||% data.frame()), collapse = ", "), "\n")
+}
+
+cat("\n--- F (trawl/LL) and Z (age 5) year-by-year 2008-2024 (extended) ---\n")
+detail_yrs <- 2014:2024
+d_idx <- match(detail_yrs, years_hind)
+d_idx <- d_idx[!is.na(d_idx)]
+ts_d_idx <- match(years_hind[d_idx], ts_ss3$Yr)
+get_ss3_F <- function(ss3_num) {
+  if (length(ts_f_cols) >= ss3_num) as.numeric(ts_ss3[[ts_f_cols[ss3_num]]])[ts_d_idx]
+  else rep(NA_real_, length(d_idx))
+}
+detail_tbl <- data.frame(
+  Year        = years_hind[d_idx],
+  F_trawl_Rce = sapply(d_idx, function(yi) cod_ss3_fixed$quantities$F_flt[1, yi]),
+  F_trawl_SS3 = get_ss3_F(1),
+  F_LL_Rce    = sapply(d_idx, function(yi) cod_ss3_fixed$quantities$F_flt[2, yi]),
+  F_LL_SS3    = get_ss3_F(2),
+  Z_age5_Rce  = sapply(d_idx, function(yi) cod_ss3_fixed$quantities$Z_at_age[1, 1, 5, yi]),
+  Bio_ratio   = bio_rce[d_idx] / bio_ss3[d_idx]
+)
+print(detail_tbl)
+
+
+# ----------------------------------------------------------------------------
+# 8b.8  Breakpoint-2 localization (2016-2024)
+#       Bio is 0.9998 in 2016 and 0.52 by 2019. Something activates in
+#       2017 or 2018 that we haven't captured. Candidates:
+#         (a) Another SS3 selectivity block (trawl typically has multiple blocks)
+#         (b) A second M block we missed in the ctl
+#         (c) Per-year WAA changing in SS3 but constant in our setup
+#       Print year-by-year ratio + all relevant inputs around the breakpoint.
+# ----------------------------------------------------------------------------
+cat("\n--- Year-by-year Bio_Ratio 2014-2024 ---\n")
+bp2_yrs <- 2014:2024
+bp2_idx <- match(bp2_yrs, years_hind)
+bp2_idx <- bp2_idx[!is.na(bp2_idx)]
+bp2_tbl <- data.frame(
+  Year       = years_hind[bp2_idx],
+  Bio_SS3    = bio_ss3[bp2_idx],
+  Bio_Rce    = bio_rce[bp2_idx],
+  Ratio      = bio_rce[bp2_idx] / bio_ss3[bp2_idx],
+  R_SS3      = ss3_R[bp2_idx],
+  R_Rce      = as.numeric(cod_ss3_fixed$quantities$R[1, bp2_idx]),
+  M_age5_Rce = sapply(bp2_idx, function(yi) cod_ss3_fixed$quantities$M_at_age[1, 1, 5, yi])
+)
+print(bp2_tbl)
+
+# Check whether Rceattle's selectivity changed between 2016 and 2018 for any fleet
+cat("\n--- Sel-at-age (trawl) year-by-year, peak detection ---\n")
+sel_evolution <- data.frame(Year = bp2_yrs)
+for (a in 1:nages_pcod) {
+  sel_evolution[[paste0("Age", a)]] <-
+    sapply(bp2_idx, function(yi) cod_ss3_fixed$quantities$sel_at_age[1, 1, a, yi])
+}
+print(round(sel_evolution, 4))
+
+# Check the ctl for any additional blocks we might have missed
+cat("\n--- All SS3 ctl block design entries ---\n")
+if (!is.null(ctllist_ss3$Block_Design)) {
+  cat(sprintf("N_Block_Designs: %s\n", ctllist_ss3$N_Block_Designs %||% NA))
+  for (i in seq_along(ctllist_ss3$Block_Design)) {
+    cat(sprintf("  Block design %d: %s\n", i,
+                paste(ctllist_ss3$Block_Design[[i]], collapse = ", ")))
+  }
+}
+cat("\n--- All MG_parms rows (incl. block params we may have missed) ---\n")
+print(parlist$MG_parms[, c("INIT", "ESTIM")])
 
 # Compute year-1 biomass manually from N and WAA to cross-check:
 n1_vec   <- as.numeric(cod_ss3_fixed$quantities$N_at_age[1, 1, , 1])
@@ -1004,8 +1558,88 @@ for (i in 1:dim(cod_ss3_fixed$quantities$weight_hat)[1]) {
 cat(sprintf("\ncod_ss3$weight rows: %d\n",
             if (is.null(cod_ss3$weight)) 0L else nrow(cod_ss3$weight)))
 if (!is.null(cod_ss3$weight) && nrow(cod_ss3$weight) > 0) {
-  cat("First few rows:\n"); print(head(cod_ss3$weight))
+  cat("Unique Wt_name / Wt_index pairs:\n")
+  print(unique(cod_ss3$weight[, c("Wt_name", "Wt_index")]))
 }
+
+
+# ----------------------------------------------------------------------------
+# 8b.5  F diagnostic — locate the biomass collapse. ----
+#       SS3 ts file shows F:_1, F:_2, F:_3 in 1977 = ~0.003, ~0.009, 0. Total
+#       F ~ 0.012 → Z ~ 0.5 → biomass should DECAY by ~40%/yr from M alone.
+#       Rceattle is losing 84% yr 1->2, implying Z ~ 1.8. Need to find the F.
+# ----------------------------------------------------------------------------
+cat("\n--- Rceattle F at age and total F by fleet (year 1) ---\n")
+f_slots <- grep("F_|^F$|log_F|F_flt|F_at_age", names(cod_ss3_fixed$quantities), value = TRUE)
+cat("F-related quantities slots:", paste(f_slots, collapse = ", "), "\n")
+if ("F_flt_age" %in% names(cod_ss3_fixed$quantities)) {
+  fdims <- dim(cod_ss3_fixed$quantities$F_flt_age)
+  cat(sprintf("F_flt_age dim: %s\n", paste(fdims, collapse = " x ")))
+  for (i in seq_len(nrow(fleet_meta))) {
+    f_yr1 <- cod_ss3_fixed$quantities$F_flt_age[i, 1, , 1]
+    cat(sprintf("  %s F at age (yr 1): %s\n",
+                fleet_meta$name[i], paste(sprintf("%.4f", f_yr1), collapse = ", ")))
+  }
+}
+
+# F-full (sel-independent) vs SS3 F per year — direct check of log_F injection
+cat("\n--- F_full (fleet-level) vs SS3 F:_n per year ---\n")
+if ("F_flt" %in% names(cod_ss3_fixed$quantities)) {
+  show_yrs <- c(1, 5, 25, 38, length(years_hind))
+  show_yrs <- show_yrs[show_yrs <= length(years_hind)]
+  f_tbl <- data.frame(Year = years_hind[show_yrs])
+  for (i in seq_len(nrow(fleet_meta))) {
+    if (fleet_meta$fleet_type[i] != "Fishery") next
+    f_tbl[[paste0(fleet_meta$name[i], "_Rce")]] <-
+      cod_ss3_fixed$quantities$F_flt[i, show_yrs]
+    f_tbl[[paste0(fleet_meta$name[i], "_SS3")]] <-
+      ts_ss3[match(years_hind[show_yrs], ts_ss3$Yr),
+             sprintf("F:_%d", fleet_meta$ss3_num[i])]
+  }
+  print(f_tbl)
+}
+
+# SS3 fishing mortality from ts file: columns F:_1 ... F:_K
+ss3_f_cols <- grep("^F:_[0-9]+$", colnames(ts_ss3), value = TRUE)
+if (length(ss3_f_cols) > 0) {
+  cat("\nSS3 F (ts file) for 1977-1980:\n")
+  print(ts_ss3 %>% dplyr::filter(Yr %in% years_hind[1:4]) %>%
+          dplyr::select(Yr, dplyr::all_of(ss3_f_cols)))
+}
+
+# Compare Rceattle catch (predicted) vs SS3 obs catch in 1977
+cat("\n--- Catch comparison (1977) ---\n")
+if ("catch_hat" %in% names(cod_ss3_fixed$quantities)) {
+  for (i in seq_len(nrow(fleet_meta))) {
+    if (fleet_meta$fleet_type[i] == "Fishery") {
+      catch_rce <- cod_ss3_fixed$quantities$catch_hat[i]
+      cat(sprintf("  %s Rceattle catch_hat[%d] = %.4g\n",
+                  fleet_meta$name[i], years_hind[1], catch_rce))
+    }
+  }
+}
+cat("Input catch_data rows for 1977:\n")
+print(cod_ss3$catch_data %>% dplyr::filter(Year == years_hind[1]))
+
+
+# ----------------------------------------------------------------------------
+# 8b.6  Maturity diagnostic — SSB = Bio indicates maturity not loaded from SS3----
+# ----------------------------------------------------------------------------
+cat("\n--- Maturity in Rceattle data vs SS3 ---\n")
+if (!is.null(cod_ss3$maturity)) {
+  cat("cod_ss3$maturity rows:", nrow(cod_ss3$maturity), "\n")
+  if (nrow(cod_ss3$maturity) > 0) print(head(cod_ss3$maturity))
+}
+cat("Rceattle internal maturity (cod_ss3_fixed$data_list$maturity, first row):\n")
+print(cod_ss3_fixed$data_list$maturity)
+cat("\nSS3 endgrowth maturity columns (any column with 'Mat' in name):\n")
+mat_cols <- grep("Mat", colnames(ss3_rep$endgrowth), value = TRUE)
+cat("  Candidate columns:", paste(mat_cols, collapse = ", "), "\n")
+ss3_mat <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1, int_Age %in% (a_min:a_max)) %>%
+  dplyr::arrange(int_Age) %>%
+  dplyr::select(int_Age, dplyr::any_of(c("Age_Mat", "Mat_F_wtatage", "Len_Mat", "Wt_Mat")))
+print(ss3_mat)
 
 
 # ============================================================================
