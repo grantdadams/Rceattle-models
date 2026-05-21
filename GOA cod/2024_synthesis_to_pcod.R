@@ -268,6 +268,67 @@ init_from_ss3_par <- function(parlist, inits, data_list, fleet_meta, years_hind,
     warning("index_log_q not in inits — catchability not set")
   }
 
+  # --- 3g. Fishing mortality (F) ---
+  #   SS3 conditions catch on F via a hybrid Pope/Newton solver — there are no
+  #   F parameters in ss3.par. We extract the resolved F-at-age and inject it
+  #   into Rceattle's log_F.
+  #
+  #   Rceattle parameterisation (verified vs ceattle_v01_11.cpp): log_F is
+  #   per-fleet x per-hindcast-year. F_at_age[flt, sex, age, yr] = sel_at_age *
+  #   exp(log_F[flt, yr]).
+  #
+  #   Source preference order:
+  #     1. ss3_rep$fatage  (F-at-age by fleet/year, includes seasonal & retention)
+  #     2. ss3_rep$exploitation  (apical F per fleet/year)
+  #   We use (1) when present and reduce to per-fleet apical F = max over ages
+  #   (the F that multiplies sel-at-age in the Baranov eq).
+  if ("log_F" %in% names(inits)) {
+    inits$log_F[] <- log(1e-8)   # near-zero floor (safe default for years with no F)
+
+    have_fatage  <- !is.null(ss3_rep$fatage) && nrow(ss3_rep$fatage) > 0
+    have_exploit <- !is.null(ss3_rep$exploitation) && nrow(ss3_rep$exploitation) > 0
+
+    if (have_fatage) {
+      age_cols <- as.character(data_list$minage[1]:(data_list$minage[1] + data_list$nages[1] - 1))
+      age_cols <- intersect(age_cols, colnames(ss3_rep$fatage))
+      for (i in seq_len(nrow(fleet_meta))) {
+        sub <- ss3_rep$fatage %>%
+          dplyr::filter(Fleet == fleet_meta$ss3_num[i],
+                        Yr %in% years_hind)
+        if (nrow(sub) == 0) next
+        for (yi in seq_along(years_hind)) {
+          yr  <- years_hind[yi]
+          row <- sub %>% dplyr::filter(Yr == yr)
+          if (nrow(row) == 0) next
+          fage <- as.numeric(row[1, age_cols])
+          fmax <- max(fage, na.rm = TRUE)
+          if (is.finite(fmax) && fmax > 0) inits$log_F[i, yi] <- log(fmax)
+        }
+        cat(sprintf("log_F[%s] set from ss3_rep$fatage (mean F = %.4f)\n",
+                    fleet_meta$name[i],
+                    exp(mean(inits$log_F[i, ]))))
+      }
+    } else if (have_exploit) {
+      exp_long <- ss3_rep$exploitation %>%
+        dplyr::filter(Yr %in% years_hind) %>%
+        tidyr::pivot_longer(cols = -c(Yr, Seas), names_to = "Fleet_name", values_to = "F")
+      for (i in seq_len(nrow(fleet_meta))) {
+        sub <- exp_long %>% dplyr::filter(Fleet_name == fleet_meta$name[i])
+        for (yi in seq_along(years_hind)) {
+          f <- sub$F[sub$Yr == years_hind[yi]]
+          if (length(f) && is.finite(f[1]) && f[1] > 0) inits$log_F[i, yi] <- log(f[1])
+        }
+        cat(sprintf("log_F[%s] set from ss3_rep$exploitation (mean F = %.4f)\n",
+                    fleet_meta$name[i],
+                    exp(mean(inits$log_F[i, ]))))
+      }
+    } else {
+      warning("Neither ss3_rep$fatage nor ss3_rep$exploitation available — log_F left at floor.")
+    }
+  } else {
+    warning("log_F not in inits — F not injected. Catch likelihood will not match SS3.")
+  }
+
   # --- 3f. Selectivity (DoubleNormal, length-based, with blocks) ---
   inits$sel_inf[]         <- 0
   inits$log_sel_slp[]     <- 0
@@ -549,6 +610,61 @@ cod_ss3$fleet_control$Selectivity_dimension <- "Age"
 
 cat(sprintf("emp_sel built: %d rows across %d fleets, %d years\n",
             nrow(cod_ss3$emp_sel), nrow(fleet_meta), length(years_hind)))
+
+# ============================================================================
+# 4c. Empirical WAA injection (bypass VB->WAA derivation)
+#     Rceattle reads minage=1 from cod_caal, so its growth function returns
+#     l1 = length at age 1 in slot 1. But our natage injection puts SS3's
+#     age-0 cohort (recruits, ~7 g) in slot 1. To make WAA-per-slot match the
+#     cohort-per-slot, we feed SS3's start-of-year weights for ages 0..nages-1
+#     directly into cod_ss3$wt as time-invariant fleet/population WAA.
+#
+#     This is the WAA analogue of emp_sel: collapses VB+W-L+SD_growth into a
+#     single lookup table. Once forward dynamics are validated we can revert
+#     to parametric WAA.
+# ============================================================================
+ss3_endgrowth_waa <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1, int_Age %in% (0:(a_max))) %>%
+  dplyr::arrange(int_Age) %>%
+  dplyr::pull(Wt_Beg)
+
+# Plus-group weight: weight at the SS3 plus-group age (== last available row)
+waa_slot <- numeric(cod_ss3$nages[1])
+n_avail  <- length(ss3_endgrowth_waa)
+# Map: slot k <- SS3 endgrowth int_Age (k-1) for k = 1..nages-1
+# Slot nages = plus group = SS3 endgrowth at int_Age (nages-1) and beyond
+for (k in seq_len(cod_ss3$nages[1] - 1)) {
+  if (k <= n_avail) waa_slot[k] <- ss3_endgrowth_waa[k]
+}
+waa_slot[cod_ss3$nages[1]] <- ss3_endgrowth_waa[min(cod_ss3$nages[1], n_avail)]
+
+cat(sprintf("\nWAA slot 1..%d (kg): %s\n", cod_ss3$nages[1],
+            paste(sprintf("%.4f", waa_slot), collapse = ", ")))
+
+# Build the cod_ss3$wt frame: one row per (Wt_index, Year). The wt_index slots
+# map to (1) population WAA, (2) SSB WAA, (3..) per-fleet WAA. We feed the same
+# vector to all slots since SS3 derives all of them from the same growth curve.
+n_wt_slots <- 2L + nrow(fleet_meta)
+wt_names   <- c("Pop_WAA", "SSB_WAA", paste0(fleet_meta$name, "_WAA"))
+wt_rows <- list()
+age_col_names <- paste0("Age", 1:cod_ss3$nages[1])
+for (s in seq_len(n_wt_slots)) {
+  for (yr in years_hind) {
+    base <- data.frame(
+      Wt_name  = wt_names[s],
+      Wt_index = s,
+      Species  = 1L,
+      Sex      = 0L,
+      Year     = yr,
+      stringsAsFactors = FALSE
+    )
+    waa_df <- setNames(as.data.frame(as.list(waa_slot)), age_col_names)
+    wt_rows[[length(wt_rows) + 1]] <- cbind(base, waa_df)
+  }
+}
+cod_ss3$weight <- do.call(rbind, wt_rows)
+cat(sprintf("cod_ss3$weight built: %d rows across %d WAA slots, %d years\n",
+            nrow(cod_ss3$weight), n_wt_slots, length(years_hind)))
 
 # initMode must be set BEFORE fit_mod() so the parameter structure (init_dev
 # sizing and map) is built correctly. "FreeParams" lets us inject SS3 natage
@@ -889,6 +1005,162 @@ cat(sprintf("\ncod_ss3$weight rows: %d\n",
             if (is.null(cod_ss3$weight)) 0L else nrow(cod_ss3$weight)))
 if (!is.null(cod_ss3$weight) && nrow(cod_ss3$weight) > 0) {
   cat("First few rows:\n"); print(head(cod_ss3$weight))
+}
+
+
+# ============================================================================
+# 8c. Likelihood-component mapping: SS3 vs Rceattle
+#     SS3 stores total NLL by component in $likelihoods_used (col "values"),
+#     and a fleet-level breakdown in $likelihoods_by_fleet (when available).
+#     Rceattle stores them in $quantities$jnll_comp as a 20 x n_col matrix.
+#     Row meanings verified against ceattle_v01_11.cpp:2300..3017 :
+#
+#       R-row  Rceattle component                  SS3 component
+#       1      Survey index obs                    "Survey"
+#       2      Fishery catch obs                   "Catch"
+#       3      Marginal age/length comps           "Length_comp" / "Age_comp" (non-CAAL)
+#       4      CAAL (conditional age-at-length)    "Age_comp" if CAAL data present
+#       5      Selectivity curvature penalty       (no direct SS3 row)
+#       6      Selectivity dev RE                  partial of "Parm_devs"
+#       7      q prior + AR1 q penalty             partial of "Parm_priors"
+#       8      q dev / env                         partial of "Parm_devs"
+#       9      SRR / steepness prior               partial of "Parm_priors"
+#       10     init_dev (initial age-struct devs)  partial of "Recruitment"  *
+#       11     rec_dev (recruitment devs)          partial of "Recruitment"  *
+#       12     R vs R_hat penalty                  partial of "Recruitment"  (usually 0)
+#       13     F/B reference-point penalty         off when not in BRP mode
+#       14     zero_N floor penalty                no SS3 analogue (small)
+#       15     M1 prior                            partial of "Parm_priors"
+#       16     M random effects                    partial of "Parm_devs"
+#       17–19  ration / stomach (multispecies)     n/a, == 0 in single-spp
+#       20     General parameter priors            partial of "Parm_priors"
+#
+#     * Recruitment bucket is EXPECTED to diverge: SS3 applies the Methot-Taylor
+#       bias-adj ramp (b(y) varies by period) inside its NLL contribution, while
+#       Rceattle uses a constant 0.5*sigmaR^2 offset. We accept this divergence
+#       by design and exclude it from the tolerance gate below. The recruitment
+#       *time series* still matches because init_from_ss3_par applies the ramp
+#       offset to rec_dev on the input side.
+# ============================================================================
+
+# Pull SS3 likelihood breakdown -----------------------------------------------
+ss3_ll <- ss3_rep$likelihoods_used
+ss3_ll$component <- rownames(ss3_ll)
+ss3_val_col <- if ("values" %in% colnames(ss3_ll)) "values" else colnames(ss3_ll)[1]
+ss3_lik <- setNames(ss3_ll[[ss3_val_col]], ss3_ll$component)
+cat("\n=== SS3 likelihoods_used ===\n"); print(ss3_lik)
+
+# Detect whether SS3 age data is CAAL or marginal ----------------------------
+ss3_has_caal <- !is.null(ss3_rep$ladbase) && nrow(ss3_rep$ladbase) > 0
+cat(sprintf("\nSS3 CAAL data present: %s\n", ss3_has_caal))
+
+# Pull Rceattle jnll_comp -----------------------------------------------------
+jnll_mat <- cod_ss3_fixed$quantities$jnll_comp
+if (is.null(jnll_mat)) stop("cod_ss3_fixed$quantities$jnll_comp not found.")
+stopifnot(nrow(jnll_mat) >= 20)
+rce_row_sum <- function(r) sum(jnll_mat[r, ])     # collapse columns (fleet/species)
+
+# Mapping table: each row says "this SS3 component = sum of these Rceattle rows".
+# `expected_match` flags whether the bucket is in the tolerance gate.
+ll_map <- list(
+  Catch                = list(ss3 = "Catch",                rce_rows = 2,
+                              expected_match = TRUE),
+  Survey               = list(ss3 = "Survey",               rce_rows = 1,
+                              expected_match = TRUE),
+  Length_comp          = list(ss3 = "Length_comp",          rce_rows = 3,
+                              expected_match = TRUE),
+  Age_comp             = list(ss3 = "Age_comp",
+                              rce_rows = if (ss3_has_caal) 4 else 3,
+                              expected_match = TRUE),
+  # Recruitment bucket: structural mismatch in NLL formulation (SS3 bias-adj ramp
+  # vs Rceattle's constant variance offset). Time-series matches; NLL won't.
+  Recruitment          = list(ss3 = "Recruitment",          rce_rows = c(10, 11, 12),
+                              expected_match = FALSE),
+  Forecast_Recruitment = list(ss3 = "Forecast_Recruitment", rce_rows = integer(0),
+                              expected_match = FALSE),
+  Parm_priors          = list(ss3 = "Parm_priors",          rce_rows = c(7, 9, 15, 20),
+                              expected_match = TRUE),
+  Parm_devs            = list(ss3 = "Parm_devs",            rce_rows = c(6, 8, 16),
+                              expected_match = TRUE),
+  Parm_softbounds      = list(ss3 = "Parm_softbounds",      rce_rows = integer(0),
+                              expected_match = FALSE),
+  Crash_Pen            = list(ss3 = "Crash_Pen",            rce_rows = 14,
+                              expected_match = FALSE),
+  F_Ballpark           = list(ss3 = "F_Ballpark",           rce_rows = 13,
+                              expected_match = FALSE)
+)
+
+rel_err <- function(a, b) {
+  if (is.na(a) || is.na(b)) return(NA_real_)
+  denom <- max(abs(b), 1e-10)
+  abs(a - b) / denom
+}
+
+ll_compare <- do.call(rbind, lapply(names(ll_map), function(nm) {
+  m       <- ll_map[[nm]]
+  ss3_v   <- if (m$ss3 %in% names(ss3_lik)) unname(ss3_lik[m$ss3]) else NA_real_
+  rce_v   <- if (length(m$rce_rows)) sum(sapply(m$rce_rows, rce_row_sum)) else 0
+  data.frame(
+    Component  = nm,
+    SS3_row    = m$ss3,
+    Rce_rows   = paste(m$rce_rows, collapse = ","),
+    SS3        = ss3_v,
+    Rceattle   = rce_v,
+    AbsDiff    = if (is.na(ss3_v)) NA_real_ else abs(rce_v - ss3_v),
+    RelErr     = rel_err(rce_v, ss3_v),
+    Gated      = m$expected_match,
+    stringsAsFactors = FALSE
+  )
+}))
+
+cat("\n=== Likelihood-component comparison (cod_ss3_fixed vs SS3) ===\n")
+print(ll_compare, row.names = FALSE, digits = 6)
+
+# TOTAL: Rceattle's `jnll` is the sum of all 20 rows (incl. internal penalties)
+# whereas SS3's TOTAL is the sum of its (un-skipped) component rows.
+rce_total_jnll <- if (!is.null(cod_ss3_fixed$quantities$jnll))
+  cod_ss3_fixed$quantities$jnll else sum(jnll_mat)
+ss3_total      <- ss3_lik[["TOTAL"]]
+rce_total_agg  <- sum(ll_compare$Rceattle, na.rm = TRUE)
+
+cat(sprintf("\nTOTAL NLL:\n  SS3 TOTAL             = %.6f\n", ss3_total))
+cat(sprintf("  Rceattle jnll (full)  = %.6f\n", rce_total_jnll))
+cat(sprintf("  Rceattle (mapped sum) = %.6f   rel err vs SS3: %.2e\n",
+            rce_total_agg, rel_err(rce_total_agg, ss3_total)))
+
+# ---- Component-wise tolerance check (gated rows only) ----------------------
+tol_lik <- 1e-3
+gated   <- ll_compare[ll_compare$Gated, ]
+fail    <- gated[!is.na(gated$RelErr) & gated$RelErr > tol_lik & gated$SS3 != 0, ]
+if (nrow(fail) == 0) {
+  cat(sprintf("\nAll gated components within tol = %.0e.\n", tol_lik))
+} else {
+  cat(sprintf("\nGated components EXCEEDING tol = %.0e:\n", tol_lik))
+  print(fail, row.names = FALSE, digits = 6)
+}
+cat("\nUn-gated buckets (expected-divergence, informational only):\n")
+print(ll_compare[!ll_compare$Gated, c("Component", "SS3", "Rceattle", "AbsDiff", "RelErr")],
+      row.names = FALSE, digits = 6)
+
+# ---- Optional: fleet-level breakdown for the worst component ---------------
+if (!is.null(ss3_rep$likelihoods_by_fleet)) {
+  fleet_ll <- ss3_rep$likelihoods_by_fleet
+  cat("\n=== SS3 likelihoods_by_fleet (for drill-down) ===\n")
+  print(fleet_ll[, intersect(c("Label", "ALL", fleet_meta$name),
+                             colnames(fleet_ll))])
+
+  cat("\nRceattle jnll_comp by column (fleet/species index):\n")
+  for (r in c(1, 2, 3, 4, 6)) {
+    cat(sprintf("  row %2d (%-12s):  %s\n",
+                r,
+                switch(as.character(r),
+                       "1" = "Survey",
+                       "2" = "Catch",
+                       "3" = "Comp",
+                       "4" = "CAAL",
+                       "6" = "Sel_dev"),
+                paste(sprintf("%.4f", jnll_mat[r, ]), collapse = "  ")))
+  }
 }
 
 
