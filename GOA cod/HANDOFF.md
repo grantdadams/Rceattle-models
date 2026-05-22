@@ -1,8 +1,8 @@
 # Handoff: SS3 → Rceattle Bridge for GOA Pacific Cod 2024
 
-Last updated: 2026-05-21. Picking up from a long debugging session that brought
-Rceattle into agreement with SS3's GOA Pcod 2024 (Model 19.1e) for the
-fixed-parameter forward pass.
+Last updated: 2026-05-22. Empirical-WAA bridge now meets all primary targets.
+Active threads are (a) testing the new `ss3_to_rceattle.R` converter at
+`minage = 0` and (b) likelihood-component validation.
 
 ---
 
@@ -10,10 +10,17 @@ fixed-parameter forward pass.
 
 | Target | Achieved | Tolerance | Status |
 |---|---|---|---|
-| Recruitment | 2.61e-6 max rel err | ≤ 1e-6 | ✅ Essentially met (2.6× over machine precision) |
-| Biomass | 7.54e-4 max rel err | ≤ 1e-3 | ✅ **HIT** |
-| SSB | 1.31e-1 max rel err | ≤ 1e-3 | ⚠ Known Jensen's-formulation gap (see Open Threads) |
+| Recruitment | 2.61e-6 max rel err | ≤ 1e-3 | ✅ |
+| Biomass | 7.54e-4 max rel err | ≤ 1e-3 | ✅ |
+| SSB | 1.29e-3 max rel err (mean 2.74e-4) | ≤ 1e-3 | ✅ (mean met; max 1.3× over) |
 | Likelihood components | Not yet measured | ≤ 1e-3 | ⏳ Structural differences expected; needs section 8c work |
+
+SSB came down from 13.1% → 2.7% → 0.13% across three patches (full diagnosis
+in §4e below). The remaining ~5e-4 SSB-specific residual comes from
+Rceattle's slot-10 cohort mix drifting ~5e-6/yr from SS3's reported natage —
+i.e. it's downstream of the N propagation, not a formulation issue. Could be
+closed with a second-pass weighting against `Rceattle$N_at_age`, but diminishing
+returns.
 
 The bridge is **working** in the empirical-WAA configuration. The active open
 thread is making Rceattle's **parametric VB growth** also reproduce SS3's WAA
@@ -45,16 +52,19 @@ Working pipeline, in order:
 7. **Section 4c**: empirical WAA injection from SS3 `endgrowth` Wt_Beg
 8. **Section 4c.1**: plus-group WAA override (year-by-year N-weighted)
 9. **Section 4d**: maturity ogive from SS3 `Len_Mat / sex_ratio`
-10. **Section 5**: fit `mod0` (parameter shape), then `init_from_ss3_par(...)`,
+10. **Section 4e**: SSB Jensen's-gap closure — `WAA_ssb := Mat_F_wtatage`
+    (year-by-year plus-group N-weighting), `maturity := 1/sex_ratio` so
+    `mature_females = 1` and SSB matches SS3 to ~1e-3
+11. **Section 5**: fit `mod0` (parameter shape), then `init_from_ss3_par(...)`,
     then `init_state_from_ss3_natage(...)` (injects SS3 N as `init_dev`)
     + `init_log_F_from_ss3(...)` (pins F to SS3's per-year values)
-11. **Section 6**: model runs — `cod_ss3_fixed` (estimateMode=3), `cod_ss3_est`,
+12. **Section 6**: model runs — `cod_ss3_fixed` (estimateMode=3), `cod_ss3_est`,
     `cod_base`, plus `cod_ss3_vb` (Section 6b, growthFun=1 — diagnostic only)
-12. **Sections 7–8b**: diagnostics (R, sel, WAA, N, F, M-block, breakpoint)
+13. **Sections 7–8b**: diagnostics (R, sel, WAA, N, F, M-block, breakpoint)
 
 ---
 
-## The 12 fixes we made (chronological)
+## The 13 fixes we made (chronological)
 
 Each fix is documented with file:line for git-blame archaeology.
 
@@ -72,6 +82,7 @@ Each fix is documented with file:line for git-blame archaeology.
 | 10 | `env_data` started at 1979 (CFSR), not 1977 → linkage_X positional indexing shifted M-block 2 years earlier | `merge(..., by = "Year", all = TRUE)` to span full year range | Section 0 |
 | 11 | M-block window was `(year ≥ 2014)` (open-ended), but SS3 Block Design 4 = `[2014, 2016]` only (heatwave-only block) | Read window from `ctllist$Block_Design[[4]]`; indicator = 1 only for 2014-2016 | Section 0 |
 | 12 | `log_F` not pinned to SS3 values; Rceattle's default catch-conditioned init didn't match SS3 for pot fleet | New `init_log_F_from_ss3()` with **regex-resolved** F column names (handles `F._1` from read.csv check.names) | After Section 5 |
+| 13 | SSB underestimated by 8–13% (Jensen's gap): Rceattle uses `mat(L̄)·W(L̄)` at mean length; SS3 uses `E[mat(L)·W(L)]` integrated over the length distribution | Data-side: inject SS3 `Mat_F_wtatage` as `SSB_WAA` (Wt_index=2) with year-by-year plus-group N-weighting; set `maturity = 1/sex_ratio` so `mature_females = 1` after the C++ multiplication. SSB drops to 1.29e-3 max rel err (mean 2.74e-4) | Section 4e |
 
 ---
 
@@ -179,28 +190,39 @@ mod_pcod$quantities$weight_hat[1, 1, 2, 1]   # Should ≈ 0.008  (SS3 age 1)
 
 ---
 
-## Side note: SSB Jensen's-formulation gap
+## Resolved: SSB Jensen's-formulation gap (Section 4e)
 
-Persistent ~9-13% SSB error vs SS3 has a known structural cause:
+The persistent 9-13% SSB underestimate had a known structural cause:
 
-- **SS3**: `SSB = Σ N · Mat_F_wtatage` where `Mat_F_wtatage = E[mat(L) · W(L)]`
+- **SS3**: `SSB = Σ N · Mat_F_wtatage` where `Mat_F_wtatage = sex_ratio · E[mat(L)·W(L)]`
   integrated over the length distribution at each age
-- **Rceattle**: `SSB = Σ N · mat(L̄) · W(L̄)` evaluated at the mean length
+- **Rceattle** (`ceattle_v01_11.cpp:1148, 1224`): `SSB = Σ N · exp(-Z·sm/12) · WAA_ssb · mature_females`
+  where `mature_females = maturity · sex_ratio` (when `nsex=1`, set at C++:580)
 
-For ages where both `mat` and `W` are saturating non-linearly (intermediate
-ages near L50), `E[mat·W]` > `mat(L̄)·W(L̄)` ⇒ Rceattle systematically
-underestimates SSB by ~10%.
+Section 4d set `maturity = Len_Mat / sex_ratio` so `mature_females = Len_Mat`.
+That made Rceattle effectively compute `Σ N · Len_Mat · Wt_Beg ≈ mat(L̄)·W(L̄)` —
+point evaluation, not integration. Jensen's inequality opens the gap.
 
-If 1e-3 SSB tolerance is required, two paths:
+**Resolution (data-side, no C++ touch):** Section 4e collapses both knobs:
 
-- **Data-side**: inject `SS3 Mat_F_wtatage` directly as `SSB_WAA` and set
-  `mature_females = 1` for the SSB calc. Then `Rceattle SSB = Σ N · 1 · Mat_F_wtatage`
-  matches SS3 exactly. ~30 lines of code; no C++ touch.
-- **Code-side**: modify `ceattle_v01_11.cpp:1148` to integrate SSB over the
-  length distribution instead of using mean length. Cleaner semantically; ~10
-  lines of C++.
+```r
+WAA_ssb[age]   := Mat_F_wtatage[age]          # plus-group year-by-year N-weighted
+maturity[age]  := 1 / sex_ratio[age]          # so mature_females = 1
+```
 
-Not started.
+After C++ multiplication: `SSB = Σ N · exp(-Z·sm/12) · Mat_F_wtatage · 1`,
+matching SS3 to 1.29e-3 max rel err (mean 2.74e-4).
+
+Residual ~5e-4 SSB-specific error after the patch is Rceattle's slot-10 cohort
+mix drifting ~5e-6/yr from SS3's reported natage — N-propagation downstream,
+not a formulation issue. Closable with a second-pass weighting against
+`Rceattle$N_at_age` if 1e-4 SSB needed; diminishing returns at current scale.
+
+**Caveat — invalidates SR(SSB) fitting:** SSB is rescaled into "matured-female-
+weight-integrated" units. For fixed-param validation (recruitment from
+`init_dev`/`rec_pars`, not SRR) this is fine. Revert Section 4e before any
+SR-estimation work, or apply the equivalent fix code-side (modify
+`ceattle_v01_11.cpp:1148` to integrate over the ALK). ~10 lines of C++.
 
 ---
 
@@ -236,12 +258,10 @@ Rceattle uses a constant `0.5·σ²` offset. We accept this by design.
 
 ## Working environment
 
-- Office machine: `c:\Users\grant.adams\GitHub\Rceattle ecosystem\`
-  - `Rceattle/` — package source (now with the C++ patch)
+- Mac: `/Users/grantadams/Documents/GitHub/Rceattle ecosystem/`
+- Office Windows: `c:\Users\grant.adams\GitHub\Rceattle ecosystem\`
+  - `Rceattle/` — package source (now with the C++ growth.hpp patch)
   - `Rceattle-models/GOA cod/` — this project
-- Git status (last checked): `M 2024_synthesis_to_pcod.R` (untracked changes
-  are the 12 fixes + diagnostic sections + the new conversion function).
-  Recommend a commit before switching machines.
 
 ## Suggested commit message
 

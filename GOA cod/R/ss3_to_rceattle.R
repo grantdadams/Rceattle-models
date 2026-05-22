@@ -128,28 +128,36 @@ ss3_to_rceattle <- function(ss3_dir,
   d$endyr    <- endyr
   d$projyr   <- projyr
   d$spnames  <- spnames
-  d$nsex     <- as.integer(nsex_rce)
-  d$nages    <- as.integer(nages_rce)
-  d$minage   <- as.integer(minage)
-  d$nlengths <- as.integer(nlengths_rce)
-  d$lengths  <- matrix(ss3_lbins, nrow = nspp)
 
-  # spawn_month from SS3 (1-based month)
-  d$spawn_month <- ctllist$spawn_month %||% datlist$spawn_seas %||% 1L
+  # Per-species vectors (length nspp) -- matches Build_data_without_excel.R
+  d$nsex     <- rep(as.integer(nsex_rce), nspp)
+  d$nages    <- rep(as.integer(nages_rce), nspp)
+  d$minage   <- rep(as.integer(minage), nspp)
+  d$nlengths <- rep(as.integer(nlengths_rce), nspp)
+
+  # spawn_month: SS3 ctl stores actual month (3.30.20+) OR fraction-of-year.
+  # datlist$spawn_seas is a season index, NOT a month, so don't use as fallback.
+  spawn_m <- ctllist$spawn_month
+  if (is.null(spawn_m) || is.na(spawn_m)) {
+    # Estimate from spawn timing in MG_parms or default mid-year
+    spawn_m <- get_par_value(parlist$MG_parms, "spawn_seas") %||% 6
+  }
+  # Clamp to [0, 12]
+  spawn_m <- max(0, min(12, as.numeric(spawn_m)))
+  d$spawn_month <- rep(spawn_m, nspp)
 
   # Population dynamics flags
-  d$estDynamics      <- 0L           # estimate dynamics
-  d$pop_wt_index     <- 1L
-  d$ssb_wt_index     <- 2L
-  d$pop_alk_index    <- 1L
-  d$pop_age_transition_index <- 1L
-  d$sigma_rec_prior  <- ctllist$SR_sigmaR %||%
-    parlist$SR_parms["SR_sigmaR", "ESTIM"] %||% 0.6
-  d$other_food       <- 1e5    # unused in single-species
+  d$estDynamics      <- rep(0L, nspp)       # estimate dynamics
+  d$pop_wt_index     <- rep(1L, nspp)        # use Wt_index = 1 for total biomass
+  d$ssb_wt_index     <- rep(2L, nspp)        # use Wt_index = 2 for SSB
+  d$pop_age_transition_index <- rep(1L, nspp)
+  d$sigma_rec_prior  <- rep(ctllist$SR_sigmaR %||%
+    get_par_value(parlist$SR_parms, "SR_sigmaR") %||% 0.6, nspp)
+  d$other_food       <- rep(1e5, nspp)       # unused in single-species
 
   # W = alpha * L^beta from SS3 Wtlen_*_Fem_GP_1
-  d$alpha_wt_len <- get_par_value(parlist$MG_parms, "Wtlen_1_Fem_GP_1") %||% NA_real_
-  d$beta_wt_len  <- get_par_value(parlist$MG_parms, "Wtlen_2_Fem_GP_1") %||% NA_real_
+  d$alpha_wt_len <- rep(get_par_value(parlist$MG_parms, "Wtlen_1_Fem_GP_1") %||% NA_real_, nspp)
+  d$beta_wt_len  <- rep(get_par_value(parlist$MG_parms, "Wtlen_2_Fem_GP_1") %||% NA_real_, nspp)
 
   # ---------------------------------------------------------------------------
   # 3. Fleet control
@@ -233,7 +241,11 @@ ss3_to_rceattle <- function(ss3_dir,
 # =============================================================================
 
 #' @keywords internal
-`%||%` <- function(x, y) if (is.null(x) || (length(x) == 1 && is.na(x))) y else x
+`%||%` <- function(x, y) {
+  if (is.null(x)) return(y)
+  if (length(x) == 1 && is.na(x)) return(y)
+  x
+}
 
 #' Pull a single parameter value by exact label match (with fallback regex)
 #' @keywords internal
@@ -365,64 +377,102 @@ build_index_data <- function(datlist, fleet_control) {
   )
 }
 
+#' Detect SS3 agecomp/CAAL age frequency columns. r4ss varies by version:
+#' `a0,a1,...`, `f0,f1,...`, or bare numerics `0,1,...`. Pick whichever the
+#' frame uses; returns NULL if none match.
+#' @keywords internal
+detect_age_cols <- function(df) {
+  for (pat in c("^a[0-9]+$", "^f[0-9]+$", "^[0-9]+$")) {
+    nm <- grep(pat, colnames(df), value = TRUE, ignore.case = TRUE)
+    if (length(nm) > 0) return(nm)
+  }
+  NULL
+}
+
+#' Split SS3 agecomp into marginal (Lbin_lo <= 0) and CAAL (Lbin_lo > 0) rows.
+#' SS3 uses Lbin_lo = -1 as a sentinel for marginal age comps; CAAL rows carry
+#' a positive Lbin_lo (and Lbin_hi). Returns list(marginal=..., caal=...).
+#' @keywords internal
+split_agecomp <- function(datlist) {
+  ac <- datlist$agecomp
+  if (is.null(ac) || nrow(ac) == 0) return(list(marginal = NULL, caal = NULL))
+  if (!"Lbin_lo" %in% colnames(ac)) {
+    # No Lbin_lo column => all rows are marginal
+    return(list(marginal = ac, caal = NULL))
+  }
+  list(
+    marginal = ac[ac$Lbin_lo <= 0, , drop = FALSE],
+    caal     = ac[ac$Lbin_lo  > 0, , drop = FALSE]
+  )
+}
+
 #' @keywords internal
 build_comp_data <- function(datlist, fleet_control, nages, minage) {
-  # SS3 stores marginal age comps in $agecomp and length comps in $lencomp
-  comp_rows <- list()
-  if (!is.null(datlist$agecomp) && nrow(datlist$agecomp) > 0) {
-    ac <- datlist$agecomp
-    age_cols <- grep("^a[0-9]+$", colnames(ac), value = TRUE, ignore.case = TRUE)
-    if (length(age_cols) >= nages) age_cols <- age_cols[1:nages]
-    base <- data.frame(
-      Fleet_name   = fleet_control$Fleet_name[match(ac$fleet, fleet_control$Fleet_code)],
-      Fleet_code   = as.integer(ac$fleet),
-      Species      = 1L,
-      Sex          = as.integer(ac$sex),
-      Age0_Length1 = 0L,
-      Year         = as.integer(ac$year),
-      Month        = round((ac$seas %||% 1 - 1) * 12),
-      Sample_size  = as.numeric(ac$Nsamp)
-    )
-    obs <- as.data.frame(ac[, age_cols, drop = FALSE])
-    colnames(obs) <- paste0("Comp_", seq_along(age_cols))
-    comp_rows[[1]] <- cbind(base, obs)
-  }
-  if (!is.null(datlist$lencomp) && nrow(datlist$lencomp) > 0) {
-    # Length comps emitted separately if needed -- TODO if downstream wants them.
-    # For now skip; CAAL via build_caal_data() carries the age info.
-  }
-  if (length(comp_rows) == 0) {
+  split <- split_agecomp(datlist)
+  ac <- split$marginal
+  if (is.null(ac) || nrow(ac) == 0) {
     return(empty_df(c("Fleet_name","Fleet_code","Species","Sex","Age0_Length1",
                       "Year","Month","Sample_size"),
                     paste0("Comp_", 1:nages)))
   }
-  do.call(rbind, comp_rows)
+  age_cols <- detect_age_cols(ac)
+  if (is.null(age_cols))
+    stop("build_comp_data: could not find age columns in datlist$agecomp")
+  # Drop the age-0 column when minage > 0 (we keep slots 1..nages aligned to
+  # SS3 ages minage..(minage + nages - 1))
+  if (length(age_cols) >= (minage + nages)) {
+    age_cols <- age_cols[(minage + 1):(minage + nages)]
+  } else if (length(age_cols) >= nages) {
+    age_cols <- age_cols[1:nages]
+  }
+  base <- data.frame(
+    Fleet_name   = fleet_control$Fleet_name[match(ac$fleet, fleet_control$Fleet_code)],
+    Fleet_code   = as.integer(ac$fleet),
+    Species      = 1L,
+    Sex          = as.integer(ac$sex),
+    Age0_Length1 = 0L,
+    Year         = as.integer(ac$year),
+    Month        = round((ac$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
+    Sample_size  = as.numeric(ac$Nsamp),
+    stringsAsFactors = FALSE
+  )
+  obs <- as.data.frame(ac[, age_cols, drop = FALSE])
+  colnames(obs) <- paste0("Comp_", seq_along(age_cols))
+  cbind(base, obs)
 }
 
 #' @keywords internal
 build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths) {
-  ## SS3 CAAL is in datlist$age@length or datlist$ageerr_caal (varies by SS3 ver)
-  caal <- datlist[["ageerr_caal"]] %||% datlist[["agecomp"]]
-  if (is.null(caal) || !"Lbin_lo" %in% colnames(caal)) {
+  # SS3 CAAL rides in datlist$agecomp on rows with Lbin_lo > 0; some SS3
+  # versions also have a separate $ageerr_caal table.
+  caal <- split_agecomp(datlist)$caal
+  if ((is.null(caal) || nrow(caal) == 0) && !is.null(datlist[["ageerr_caal"]])) {
+    caal <- datlist[["ageerr_caal"]]
+    if ("Lbin_lo" %in% colnames(caal)) {
+      caal <- caal[caal$Lbin_lo > 0, , drop = FALSE]
+    }
+  }
+  if (is.null(caal) || nrow(caal) == 0) {
     return(empty_df(c("Fleet_name","Fleet_code","Species","Sex","Year","Length","Sample_size"),
                     paste0("CAAL_", 1:nages)))
   }
-  # Filter to actual CAAL rows (Lbin_lo > 0)
-  caal <- caal[caal$Lbin_lo > 0, , drop = FALSE]
-  if (nrow(caal) == 0) {
-    return(empty_df(c("Fleet_name","Fleet_code","Species","Sex","Year","Length","Sample_size"),
-                    paste0("CAAL_", 1:nages)))
+  age_cols <- detect_age_cols(caal)
+  if (is.null(age_cols))
+    stop("build_caal_data: could not find age columns in CAAL data")
+  if (length(age_cols) >= (minage + nages)) {
+    age_cols <- age_cols[(minage + 1):(minage + nages)]
+  } else if (length(age_cols) >= nages) {
+    age_cols <- age_cols[1:nages]
   }
-  age_cols <- grep("^a[0-9]+$", colnames(caal), value = TRUE, ignore.case = TRUE)
-  if (length(age_cols) >= nages) age_cols <- age_cols[1:nages]
   base <- data.frame(
     Fleet_name  = fleet_control$Fleet_name[match(caal$fleet, fleet_control$Fleet_code)],
     Fleet_code  = as.integer(caal$fleet),
     Species     = 1L,
     Sex         = as.integer(caal$sex),
     Year        = as.integer(caal$year),
-    Length      = as.integer(caal$Lbin_lo),  # length bin index
-    Sample_size = as.numeric(caal$Nsamp)
+    Length      = as.integer(caal$Lbin_lo),
+    Sample_size = as.numeric(caal$Nsamp),
+    stringsAsFactors = FALSE
   )
   obs <- as.data.frame(caal[, age_cols, drop = FALSE])
   colnames(obs) <- paste0("CAAL_", seq_along(age_cols))

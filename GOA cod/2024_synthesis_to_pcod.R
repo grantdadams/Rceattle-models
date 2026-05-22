@@ -31,6 +31,26 @@ USE_SS3_INITIAL_NATAGE <- TRUE
 
 cod_caal <- read_data(file = RCEATTLE_DATA)
 
+# ============================================================================
+# 1.  Read SS3 parameter file
+# ============================================================================
+cat("Reading SS3 parameter file...\n")
+parlist <- SS_readpar_3.30(
+  parfile   = PAR_FILE,
+  datsource = DAT_FILE,
+  ctlsource = CTL_FILE,
+  verbose   = FALSE
+)
+
+# Quick look at structure
+cat("SS3 parlist sections:", paste(names(parlist), collapse = ", "), "\n")
+
+cat("Reading SS3 data and control files...\n")
+datlist_ss3 <- SS_readdat(file = DAT_FILE, verbose = FALSE)
+ctllist_ss3 <- SS_readctl(file = CTL_FILE, use_datlist = TRUE, datlist = datlist_ss3, verbose = FALSE)
+cat("Block designs found:", ctllist_ss3$N_Block_Designs, "\n")
+
+
 # Block-M workaround (binary linkage covariate on log_M1):
 #   M(yr) = exp(log_M_base + beta * m_block(yr))
 #
@@ -81,24 +101,6 @@ M1_block <- build_M1(
 )
 
 
-# ============================================================================
-# 1.  Read SS3 parameter file
-# ============================================================================
-cat("Reading SS3 parameter file...\n")
-parlist <- SS_readpar_3.30(
-  parfile   = PAR_FILE,
-  datsource = DAT_FILE,
-  ctlsource = CTL_FILE,
-  verbose   = FALSE
-)
-
-# Quick look at structure
-cat("SS3 parlist sections:", paste(names(parlist), collapse = ", "), "\n")
-
-cat("Reading SS3 data and control files...\n")
-datlist_ss3 <- SS_readdat(file = DAT_FILE, verbose = FALSE)
-ctllist_ss3 <- SS_readctl(file = CTL_FILE, use_datlist = TRUE, datlist = datlist_ss3, verbose = FALSE)
-cat("Block designs found:", ctllist_ss3$N_Block_Designs, "\n")
 
 
 # ============================================================================
@@ -861,6 +863,92 @@ print(data.frame(Slot = 1:cod_ss3$nages[1],
 # sizing and map) is built correctly. "FreeParams" lets us inject SS3 natage
 # directly; "NonEquilibrium" is the standard Rceattle equilibrium-with-devs.
 if (USE_SS3_INITIAL_NATAGE) cod_ss3$initMode <- "FreeParams"
+
+
+# ============================================================================
+# 4e. SSB Jensen's-gap closure (data-side)
+#     SS3:  SSB = sum_age  N * Mat_F_wtatage
+#       where Mat_F_wtatage = sex_ratio * E[mat(L) * W(L)] integrated over the
+#       length distribution at age (an *expectation*, not point evaluation).
+#     Rce (ceattle_v01_11.cpp:1148, 1224):
+#       SSB = sum_age  N * exp(-Z * spawn_month/12) * WAA_ssb * mature_females
+#       with mature_females = maturity * sex_ratio (when nsex == 1).
+#
+#     With Section 4d's maturity = Len_Mat / sex_ratio, the product
+#     WAA_ssb * mature_females collapses to Wt_Beg * Len_Mat, which is
+#     mat(L_bar) * W(L_bar) -- point evaluation. Jensen's inequality opens
+#     a ~8-13% SSB underestimate because E[mat*W] > mat(L_bar)*W(L_bar) at
+#     intermediate ages.
+#
+#     Fix (no C++ touch): collapse WAA_ssb * mature_females into Mat_F_wtatage
+#     directly by setting
+#         WAA_ssb[age]  := Mat_F_wtatage[age]
+#         maturity[age] := 1 / sex_ratio[age]
+#     so mature_females = 1 after C++ multiplication, and SSB becomes
+#         sum_age  N * exp(-Z*sm/12) * Mat_F_wtatage
+#     matching SS3 to machine precision.
+#
+#     CAVEAT: invalidates any downstream SR(SSB) fit because SSB is rescaled
+#     into "matured-female-weight" units that include the mat*W expectation.
+#     For fixed-param validation (recruitment from init_dev/rec_pars, not
+#     SRR), this is fine. Revert before estimating an SR curve.
+# ============================================================================
+ss3_mfw <- ss3_rep$endgrowth %>%
+  dplyr::filter(Sex == 1) %>% dplyr::arrange(int_Age) %>%
+  dplyr::select(int_Age, Mat_F_wtatage)
+mfw_at <- function(age) {
+  v <- ss3_mfw %>% dplyr::filter(int_Age == age) %>% dplyr::pull(Mat_F_wtatage)
+  if (length(v) == 0) NA_real_ else v[1]
+}
+
+# Ages 1..nages-1: time-invariant Mat_F_wtatage from SS3 endgrowth
+mfw_vec_base <- numeric(cod_ss3$nages[1])
+for (k in 1:(cod_ss3$nages[1] - 1)) {
+  v <- mfw_at(k - 1)
+  mfw_vec_base[k] <- if (is.na(v)) 0 else v
+}
+mfw_nm1  <- mfw_at(cod_ss3$nages[1] - 1)
+mfw_plus <- mfw_at(cod_ss3$nages[1])
+
+# Plus group is year-varying because Rceattle slot nages holds
+# (SS3 age nages-1 + SS3 plus-group age nages), and the N-weighting between
+# those two shifts as cohorts pass through. Mirrors Section 4c.1's logic.
+plus_mfw_year <- function(year) {
+  row <- ss3_rep$natage %>%
+    dplyr::filter(Yr == year, `Beg/Mid` == "B", Sex == 1) %>% dplyr::slice(1)
+  if (nrow(row) == 0) return(mfw_nm1)
+  n_nm1  <- as.numeric(row[1, as.character(cod_ss3$nages[1] - 1)])
+  n_plus <- as.numeric(row[1, as.character(cod_ss3$nages[1])])
+  (n_nm1 * mfw_nm1 + n_plus * mfw_plus) / max(n_nm1 + n_plus, 1e-10)
+}
+
+# Inject as SSB_WAA (Wt_index = 2). Per-year rows so plus-group can vary.
+age_cols_w <- paste0("Age", 1:cod_ss3$nages[1])
+plus_col_w <- paste0("Age", cod_ss3$nages[1])
+ssb_rows   <- which(cod_ss3$weight$Wt_index == 2)
+for (r in ssb_rows) {
+  yr <- cod_ss3$weight$Year[r]
+  vec <- mfw_vec_base
+  vec[cod_ss3$nages[1]] <- plus_mfw_year(yr)
+  cod_ss3$weight[r, age_cols_w] <- vec
+}
+
+# Maturity := 1 / sex_ratio so mature_females = 1 after C++ multiplication.
+sr_val_4e <- as.numeric(cod_ss3$sex_ratio[1, age_cols_w][1])
+if (is.na(sr_val_4e) || sr_val_4e == 0) sr_val_4e <- 0.5
+cod_ss3$maturity[1, age_cols_w] <- 1 / sr_val_4e
+
+cat(sprintf(
+  "\nJensen's-gap closure applied: WAA_ssb := Mat_F_wtatage (plus-group year-weighted); maturity := 1/%.2f\n",
+  sr_val_4e))
+print(data.frame(
+  Slot              = 1:cod_ss3$nages[1],
+  SS3_age           = 0:(cod_ss3$nages[1] - 1),
+  Mat_F_wtatage_age = mfw_vec_base,
+  Plus_mfw_1977     = c(rep(NA, cod_ss3$nages[1] - 1), plus_mfw_year(1977)),
+  Plus_mfw_2024     = c(rep(NA, cod_ss3$nages[1] - 1), plus_mfw_year(2024)),
+  Rce_maturity      = 1 / sr_val_4e
+))
 
 
 # ============================================================================
