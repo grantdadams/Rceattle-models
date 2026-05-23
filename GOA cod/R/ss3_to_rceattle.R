@@ -106,9 +106,11 @@ ss3_to_rceattle <- function(ss3_dir,
   # Single or two-sex (Rceattle convention: nsex = 1 means single-sex / females)
   nsex_rce <- if (datlist$Nsexes == 2) 2L else 1L
 
-  # Length bins -- SS3 has population length bins (Lbin_method) and data bins
-  # (Lbin_vector). Use the data bins as Rceattle's length axis.
-  ss3_lbins <- datlist$lbin_vector_pop %||% datlist$lbin_vector
+  # Length bins -- SS3 has data bins (lbin_vector, used for CAAL/lencomp) and
+  # finer population bins (lbin_vector_pop, used internally for ALK). CAAL
+  # observations are reported on the *data* bins, so Rceattle's length axis
+  # must match those or the per-length-bin unique-count check fails.
+  ss3_lbins <- datlist$lbin_vector %||% datlist$lbin_vector_pop
   if (is.null(ss3_lbins))
     stop("Could not find length bin vector in datlist$lbin_vector or $lbin_vector_pop")
   nlengths_rce <- length(ss3_lbins)
@@ -135,14 +137,20 @@ ss3_to_rceattle <- function(ss3_dir,
   d$minage   <- rep(as.integer(minage), nspp)
   d$nlengths <- rep(as.integer(nlengths_rce), nspp)
 
-  # spawn_month: SS3 ctl stores actual month (3.30.20+) OR fraction-of-year.
-  # datlist$spawn_seas is a season index, NOT a month, so don't use as fallback.
+  # spawn_month: SS3 reports SSB at the START of `Spawn_seas`. For an annual
+  # time step (nseas = 1), Spawn_seas = 1 means start of year => Rceattle
+  # spawn_month = 0 (since Rceattle applies exp(-Z * spawn_month/12) to N
+  # before SSB integration). Newer SS3 ctl files (3.30.20+) carry an explicit
+  # spawn_month field; honor it if present, otherwise compute from
+  # Spawn_seas + nseas. Don't use raw spawn_seas as a month (it's a season
+  # index in [1, nseas], not a calendar month).
   spawn_m <- ctllist$spawn_month
   if (is.null(spawn_m) || is.na(spawn_m)) {
-    # Estimate from spawn timing in MG_parms or default mid-year
-    spawn_m <- get_par_value(parlist$MG_parms, "spawn_seas") %||% 6
+    nseas    <- max(1L, as.integer(datlist$nseas %||% 1L))
+    spawn_seas <- as.integer(datlist$spawn_seas %||% 1L)
+    # Start of Spawn_seas in months from Jan 1: (spawn_seas - 1) * (12 / nseas)
+    spawn_m <- (spawn_seas - 1L) * (12 / nseas)
   }
-  # Clamp to [0, 12]
   spawn_m <- max(0, min(12, as.numeric(spawn_m)))
   d$spawn_month <- rep(spawn_m, nspp)
 
@@ -172,7 +180,7 @@ ss3_to_rceattle <- function(ss3_dir,
   d$catch_data <- build_catch_data(datlist, d$fleet_control)
   d$comp_data  <- build_comp_data(datlist, d$fleet_control, nages_rce, minage)
   d$caal_data  <- build_caal_data(datlist, d$fleet_control, nages_rce, minage,
-                                  nlengths_rce)
+                                  nlengths_rce, ss3_lbins)
 
   # ---------------------------------------------------------------------------
   # 5. Empirical selectivity from SS3 ageselex Factor = "Asel2" (realized sel)
@@ -201,7 +209,7 @@ ss3_to_rceattle <- function(ss3_dir,
   d$pop_age_transition_index <- 1L
 
   # No-error ageing key (identity); replace if SS3 has ageing error
-  d$age_error <- build_age_error(nages_rce, nspp)
+  d$age_error <- build_age_error(nages_rce, nspp, minage = minage)
 
   # ---------------------------------------------------------------------------
   # 9. Environmental covariates -- includes M-block indicators
@@ -231,7 +239,46 @@ ss3_to_rceattle <- function(ss3_dir,
   # initial F. Caller can override.
   d$initMode <- "FishedNonEquilibrium"
 
+  # Turn off fleets that have no data contributing to the likelihood. SS3 lets
+  # users carry ghost surveys (all observation Year < 0) for diagnostic
+  # plotting; in Rceattle those would still cost selectivity / Q parameters
+  # without any data anchoring them, so set Fleet_type = "Off" and let the
+  # downstream switches/maps drop them cleanly.
+  d <- mark_inactive_fleets_off(d, msg = msg)
+
   msg("Done. Returning data list with ", length(d), " top-level fields.\n")
+  d
+}
+
+#' Set Fleet_type = "Off" for any fleet whose observation tables contribute
+#' nothing to the likelihood. A fleet is considered active if any of
+#' catch_data, index_data, comp_data, or caal_data has at least one row with
+#' Year > 0 referencing that Fleet_code. Returns the modified data_list.
+#' @keywords internal
+mark_inactive_fleets_off <- function(d, msg = function(...) invisible()) {
+  active_codes <- function(df) {
+    if (is.null(df) || nrow(df) == 0) return(integer(0))
+    if (!all(c("Fleet_code", "Year") %in% colnames(df))) return(integer(0))
+    df <- df[!is.na(df$Year) & df$Year > 0 & !is.na(df$Fleet_code), , drop = FALSE]
+    if (nrow(df) == 0) return(integer(0))
+    unique(as.integer(df$Fleet_code))
+  }
+  active <- unique(c(
+    active_codes(d$catch_data),
+    active_codes(d$index_data),
+    active_codes(d$comp_data),
+    active_codes(d$caal_data)
+  ))
+  inactive_idx <- which(!d$fleet_control$Fleet_code %in% active &
+                          d$fleet_control$Fleet_type != "Off")
+  if (length(inactive_idx) > 0) {
+    msg("Auto-Off fleets with no active observations: ",
+        paste(d$fleet_control$Fleet_name[inactive_idx], collapse = ", "), "\n")
+    d$fleet_control$Fleet_type[inactive_idx] <- "Off"
+    # Off-fleets shouldn't claim projection F or estimated Q
+    d$fleet_control$proj_F_prop[inactive_idx]  <- NA_real_
+    d$fleet_control$Catchability[inactive_idx] <- NA
+  }
   d
 }
 
@@ -289,12 +336,19 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
   # Fleet weight units: SS3 1 = biomass (mt), 2 = numbers
   units_w1n2 <- fi$units %||% rep(1, n_flt)
 
+  # SS3 surveytiming: fraction-of-year in [0, 1], or a negative sentinel meaning
+  # "use catch month". Map to a valid Rceattle Month in [0, 12]; clamp negatives
+  # to 0 (start of year, the safest default).
+  st_raw <- fi$surveytiming %||% rep(0, n_flt)
+  st_raw[is.na(st_raw)] <- 0
+  st_month <- pmax(0, pmin(12, round(st_raw * 12)))
+
   data.frame(
     Fleet_name              = fi$fleetname,
     Fleet_code              = seq_len(n_flt),
     Fleet_type              = rce_type,
     Species                 = 1L,
-    Month                   = round((fi$surveytiming %||% 0) * 12),  # SS3 fraction-of-year -> month
+    Month                   = st_month,
     Selectivity_index       = seq_len(n_flt),
     Selectivity             = "Fixed",           # using emp_sel from Asel2
     Selectivity_dimension   = "Age",             # already age-realized via Asel2
@@ -333,16 +387,32 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
   fc
 }
 
+#' SS3 ghost-observation convention: a negative `fleet` (or in some tables,
+#' negative `year`) flags a row that is *predicted but not included in the
+#' likelihood*. Rceattle's equivalent is negative `Year`. Returns a data frame
+#' with absolute-valued Fleet_code and Year negated where SS3 ghosted the row.
+#' @keywords internal
+normalize_ss3_ghosts <- function(df, fleet_col, year_col = "year") {
+  if (is.null(df) || nrow(df) == 0) return(df)
+  flt   <- df[[fleet_col]]
+  yr    <- df[[year_col]]
+  ghost <- (flt < 0) | (yr < 0)
+  df[[fleet_col]] <- abs(flt)
+  df[[year_col]]  <- ifelse(ghost, -abs(yr), abs(yr))
+  df
+}
+
 #' @keywords internal
 build_catch_data <- function(datlist, fleet_control) {
   if (is.null(datlist$catch) || nrow(datlist$catch) == 0) {
     return(empty_df(c("Fleet_name","Fleet_code","Species","Year","Month","Selectivity_block"),
                     c("Catch","Log_sd")))
   }
-  fish_flt <- fleet_control$Fleet_code[fleet_control$Fleet_type == "Fishery"]
   cat_raw <- datlist$catch
-  # Filter out non-fishery rows / equilibrium rows (year < 0 or -999)
-  cat_raw <- cat_raw[cat_raw$year >= datlist$styr & cat_raw$year <= datlist$endyr, ]
+  cat_raw <- normalize_ss3_ghosts(cat_raw, "fleet", "year")
+  # Equilibrium catch (SS3 year = -999, etc) is below styr after negation.
+  # Keep only hindcast-window rows; SS3 catch is treated as known per fleet/year.
+  cat_raw <- cat_raw[abs(cat_raw$year) >= datlist$styr & abs(cat_raw$year) <= datlist$endyr, ]
   data.frame(
     Fleet_name        = fleet_control$Fleet_name[match(cat_raw$fleet, fleet_control$Fleet_code)],
     Fleet_code        = as.integer(cat_raw$fleet),
@@ -363,6 +433,7 @@ build_index_data <- function(datlist, fleet_control) {
                     c("Observation","Log_sd")))
   }
   cpue <- datlist$CPUE
+  cpue <- normalize_ss3_ghosts(cpue, "index", "year")
   cpue <- cpue[abs(cpue$year) >= datlist$styr & abs(cpue$year) <= datlist$endyr, ]
   data.frame(
     Fleet_name        = fleet_control$Fleet_name[match(cpue$index, fleet_control$Fleet_code)],
@@ -406,6 +477,24 @@ split_agecomp <- function(datlist) {
   )
 }
 
+#' Pad an age-comp frame so it has exactly nages age columns (1..nages).
+#' SS3 dat files often declare fewer comp bins than the population nages
+#' (e.g., comp ages 1..10 but population ages 0..10). Missing trailing bins
+#' (older ages) are filled with 0; missing leading bins (young ages dropped
+#' when minage shifts) are also filled with 0.
+#' @keywords internal
+pad_comp_cols <- function(obs, nages, prefix) {
+  n_have <- ncol(obs)
+  if (n_have >= nages) {
+    obs <- obs[, 1:nages, drop = FALSE]
+  } else {
+    pad <- as.data.frame(matrix(0, nrow = nrow(obs), ncol = nages - n_have))
+    obs <- cbind(obs, pad)
+  }
+  colnames(obs) <- paste0(prefix, "_", seq_len(nages))
+  obs
+}
+
 #' @keywords internal
 build_comp_data <- function(datlist, fleet_control, nages, minage) {
   split <- split_agecomp(datlist)
@@ -415,16 +504,15 @@ build_comp_data <- function(datlist, fleet_control, nages, minage) {
                       "Year","Month","Sample_size"),
                     paste0("Comp_", 1:nages)))
   }
+  ac <- normalize_ss3_ghosts(ac, "fleet", "year")
   age_cols <- detect_age_cols(ac)
   if (is.null(age_cols))
     stop("build_comp_data: could not find age columns in datlist$agecomp")
-  # Drop the age-0 column when minage > 0 (we keep slots 1..nages aligned to
-  # SS3 ages minage..(minage + nages - 1))
+  # Slice to the (minage..minage+nages-1) range when SS3 emits enough columns
   if (length(age_cols) >= (minage + nages)) {
     age_cols <- age_cols[(minage + 1):(minage + nages)]
-  } else if (length(age_cols) >= nages) {
-    age_cols <- age_cols[1:nages]
   }
+  obs <- pad_comp_cols(as.data.frame(ac[, age_cols, drop = FALSE]), nages, "Comp")
   base <- data.frame(
     Fleet_name   = fleet_control$Fleet_name[match(ac$fleet, fleet_control$Fleet_code)],
     Fleet_code   = as.integer(ac$fleet),
@@ -436,13 +524,12 @@ build_comp_data <- function(datlist, fleet_control, nages, minage) {
     Sample_size  = as.numeric(ac$Nsamp),
     stringsAsFactors = FALSE
   )
-  obs <- as.data.frame(ac[, age_cols, drop = FALSE])
-  colnames(obs) <- paste0("Comp_", seq_along(age_cols))
   cbind(base, obs)
 }
 
 #' @keywords internal
-build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths) {
+build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
+                            ss3_lbins) {
   # SS3 CAAL rides in datlist$agecomp on rows with Lbin_lo > 0; some SS3
   # versions also have a separate $ageerr_caal table.
   caal <- split_agecomp(datlist)$caal
@@ -456,26 +543,32 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths) {
     return(empty_df(c("Fleet_name","Fleet_code","Species","Sex","Year","Length","Sample_size"),
                     paste0("CAAL_", 1:nages)))
   }
+  caal <- normalize_ss3_ghosts(caal, "fleet", "year")
   age_cols <- detect_age_cols(caal)
   if (is.null(age_cols))
     stop("build_caal_data: could not find age columns in CAAL data")
   if (length(age_cols) >= (minage + nages)) {
     age_cols <- age_cols[(minage + 1):(minage + nages)]
-  } else if (length(age_cols) >= nages) {
-    age_cols <- age_cols[1:nages]
   }
+  obs <- pad_comp_cols(as.data.frame(caal[, age_cols, drop = FALSE]), nages, "CAAL")
+
+  # SS3 stores Lbin_lo as a length VALUE (cm) in the data-bin grid. Rceattle's
+  # Length column expects a bin INDEX in 1..nlengths. Map via nearest match on
+  # the data-bin vector.
+  length_idx <- vapply(caal$Lbin_lo, function(x) {
+    which.min(abs(ss3_lbins - x))[1]
+  }, integer(1))
+
   base <- data.frame(
     Fleet_name  = fleet_control$Fleet_name[match(caal$fleet, fleet_control$Fleet_code)],
     Fleet_code  = as.integer(caal$fleet),
     Species     = 1L,
     Sex         = as.integer(caal$sex),
     Year        = as.integer(caal$year),
-    Length      = as.integer(caal$Lbin_lo),
+    Length      = as.integer(length_idx),
     Sample_size = as.numeric(caal$Nsamp),
     stringsAsFactors = FALSE
   )
-  obs <- as.data.frame(caal[, age_cols, drop = FALSE])
-  colnames(obs) <- paste0("CAAL_", seq_along(age_cols))
   cbind(base, obs)
 }
 
@@ -637,22 +730,27 @@ build_age_trans_matrix <- function(ss3_rep, nages, minage, nlengths, nsex, nspp)
   tmp <- matrix(0, nrow = nages, ncol = nlengths)
   diag(tmp[1:min(nages, nlengths), 1:min(nages, nlengths)]) <- 1
   colnames(tmp) <- paste0("Length_", 1:nlengths)
+  # Age column spans minage..(minage + nages - 1), matching the data_list
+  # convention. At minage=0 this is 0..nages-1, not 1..nages.
+  ages_vec <- minage:(minage + nages - 1L)
   cbind(
     data.frame(Age_transition_name = paste0("Spp", 1:nspp),
                Age_transition_index = 1L,
                Species = 1L,
                Sex = 0L,
-               Age = 1:nages),
+               Age = ages_vec),
     tmp
   )
 }
 
 #' Identity ageing-error matrix (no error)
 #' @keywords internal
-build_age_error <- function(nages, nspp) {
+build_age_error <- function(nages, nspp, minage = 0L) {
   diag_df <- as.data.frame(diag(1, nages))
   colnames(diag_df) <- paste0("Obs_age", 1:nages)
-  cbind(Species = 1:nspp, True_age = 1:nages, diag_df)
+  cbind(Species = 1:nspp,
+        True_age = minage:(minage + nages - 1L),
+        diag_df)
 }
 
 #' Build env_data with block indicators (post2014 etc) from SS3 ctl Block_Design.
