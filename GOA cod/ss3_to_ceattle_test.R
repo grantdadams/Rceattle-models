@@ -244,18 +244,32 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
   amax_gp <- ctllist$Growth_Age_for_L2 %||% (data_list$minage[1] + data_list$nages[1] - 1)
   if (!is.null(L_min) && !is.null(L_max) && !is.null(K_vb) &&
       "log_growth_pars" %in% names(inits)) {
+    # Linf: SS3's L_at_Amax is sometimes a sentinel (-9 / 99) meaning Linf
+    # itself; otherwise it's the asymptotic VB length at amax_gp years.
     Linf_est <- if (amax_gp >= 99) L_max
                 else {
                   delta <- exp(-K_vb * (amax_gp - amin_gp))
                   (L_max - L_min * delta) / (1 - delta)
                 }
-    L1_rce <- Linf_est - (Linf_est - L_min) *
-                exp(-K_vb * (data_list$minage[1] - amin_gp))
+    # Rceattle's growth.hpp now defaults the VB anchor age to 0.5 when
+    # minage = 0 (matching SS3's default Growth_Age_for_L1), so we can
+    # pass SS3's L_at_Amin directly as l1 -- no back-extrapolation needed,
+    # which previously gave negative values that had to be floored.
+    # At minage >= 1, Rceattle's anchor is minage, so we DO back-extrapolate
+    # to the minage point.
+    if (data_list$minage[1] == 0L) {
+      L1_rce <- L_min  # = SS3 L_at_Amin at Growth_Age_for_L1
+    } else {
+      L1_rce <- Linf_est - (Linf_est - L_min) *
+                  exp(-K_vb * (data_list$minage[1] - amin_gp))
+    }
     inits$log_growth_pars[1, 1, 1] <- log(K_vb)
-    inits$log_growth_pars[1, 1, 2] <- log(max(L1_rce, 0.1))
+    inits$log_growth_pars[1, 1, 2] <- log(max(L1_rce, 0.01))
     inits$log_growth_pars[1, 1, 3] <- log(Linf_est)
-    cat(sprintf("Growth: K=%.4f, L1(at minage=%d)=%.4f, Linf=%.4f\n",
-                K_vb, data_list$minage[1], L1_rce, Linf_est))
+    cat(sprintf("Growth: K=%.4f, L1=%.4f (anchor age %.2f), Linf=%.4f\n",
+                K_vb, L1_rce,
+                if (data_list$minage[1] == 0L) 0.5 else data_list$minage[1],
+                Linf_est))
   }
   if (!is.null(SD_y) && "growth_log_sd" %in% names(inits))
     inits$growth_log_sd[1, 1, 1] <- log(SD_y)

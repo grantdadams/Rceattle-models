@@ -552,12 +552,18 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
   }
   obs <- pad_comp_cols(as.data.frame(caal[, age_cols, drop = FALSE]), nages, "CAAL")
 
-  # SS3 stores Lbin_lo as a length VALUE (cm) in the data-bin grid. Rceattle's
-  # Length column expects a bin INDEX in 1..nlengths. Map via nearest match on
-  # the data-bin vector.
+  # Rceattle's Length column should hold the actual length VALUE (cm), not a
+  # bin index. rearrange_data() does two things with it:
+  #   (a) factor(Length) -> Length_bin (rank-ordered integer) for caal_ctl
+  #   (b) data_list$lengths[sp, ] <- Length values for weight-length integration
+  # If we pass bin indices (1..nlengths), (a) still works but (b) produces a
+  # `lengths` array of 1..nlengths instead of cm values, and the C++ weight
+  # calc `alpha * lengths^beta` gives wrong WAA scale. Pass the cm value so
+  # the lengths array gets actual cm.
   length_idx <- vapply(caal$Lbin_lo, function(x) {
     which.min(abs(ss3_lbins - x))[1]
   }, integer(1))
+  length_cm <- ss3_lbins[length_idx]
 
   base <- data.frame(
     Fleet_name  = fleet_control$Fleet_name[match(caal$fleet, fleet_control$Fleet_code)],
@@ -565,7 +571,7 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
     Species     = 1L,
     Sex         = as.integer(caal$sex),
     Year        = as.integer(caal$year),
-    Length      = as.integer(length_idx),
+    Length      = as.numeric(length_cm),
     Sample_size = as.numeric(caal$Nsamp),
     stringsAsFactors = FALSE
   )
