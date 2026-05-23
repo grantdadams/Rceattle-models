@@ -84,14 +84,13 @@ mfw_vec <- numeric(nages_pcod)
 for (k in seq_len(nages_pcod)) mfw_vec[k] <- mfw_at(k - 1) %||% 0
 
 age_cols_w <- paste0("Age", seq_len(nages_pcod))
-ssb_rows <- which(cod_pcod$weight$Wt_index == 2)
-for (r in ssb_rows) cod_pcod$weight[r, age_cols_w] <- mfw_vec
 
-sr_val <- as.numeric(cod_pcod$sex_ratio[1, age_cols_w][1])
-if (is.na(sr_val) || sr_val == 0) sr_val <- 0.5
-cod_pcod$maturity[1, age_cols_w] <- 1 / sr_val
-
-cat(sprintf("\nJensen fix: SSB_WAA <- Mat_F_wtatage; maturity <- 1/%.2f\n", sr_val))
+# Jensen's-gap fix is INCOMPATIBLE with parametric growth: the C++ overwrites
+# weight_hat from VB in the SSB slot, so injecting Mat_F_wtatage there has no
+# effect. Skip the fix here; SSB will carry the ~10% Jensen gap until a
+# parametric-path equivalent exists. Maturity stays as Len_Mat (the converter's
+# default); mature_females = Len_Mat * sex_ratio in C++.
+cat("\nJensen fix SKIPPED (incompatible with VB growth)\n")
 print(data.frame(Slot = seq_len(nages_pcod), SS3_age = 0:(nages_pcod - 1),
                  Mat_F_wtatage = mfw_vec))
 
@@ -159,7 +158,7 @@ mod0 <- Rceattle::fit_mod(
   inits        = NULL,
   estimateMode = 3,
   initMode     = 3,
-  growthFun    = build_growth(fun = 0),   # empirical WAA -- VB later
+  growthFun    = build_growth(fun = "vonBertalanffy"),
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -379,7 +378,7 @@ cod_pcod_fixed <- Rceattle::fit_mod(
   inits        = inits,
   estimateMode = 3,
   initMode     = "FreeParams",
-  growthFun    = build_growth(fun = 0),   # empirical WAA from cod_pcod$weight
+  growthFun    = build_growth(fun = "vonBertalanffy"),
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -427,17 +426,33 @@ print(data.frame(
 # empirical (WAA fixed at SS3 endgrowth Wt_Beg + Jensen's-gap correction).
 # Starting from SS3's MLE means the estimator should stay near it if Rceattle's
 # likelihood is structurally compatible with SS3's.
-cat("\n--- Full MLE estimation from SS3 starting values (PHASED) ---\n")
-# Phased estimation mirrors SS3's ADMB-style approach: estimate a stable
-# subset first (R, N), then progressively unmap more parameters. With the
-# default fit_control(phase = TRUE), Rceattle uses its built-in phasing
-# schedule from rceattle_class.R.
+# CAAL likelihood weighting: at default CAAL_weights = 1, Rceattle's CAAL
+# NLL is 32k vs SS3's Age_like of ~722 (per-obs ratio ~45). The dominant
+# CAAL likelihood was driving the optimizer to bad minima -- log_F 5-10x
+# too high, log(R0) ~30% off. Downweight to match SS3's effective per-obs
+# influence. SS3 doesn't use CAAL the same way (it splits Length_comp +
+# marginal Age_comp), so this is a compromise to make the optimization
+# landscape closer to SS3's.
+caal_scale <- 1 / 45
+cat(sprintf("\nDownweighting CAAL_weights by %.4f to match SS3's per-obs influence\n",
+            caal_scale))
+cod_pcod$fleet_control$CAAL_weights <- caal_scale
+
+# Switch to parametric VB growth so the C++ populates growth_matrix from
+# the VB curve. Empirical growth (growth_model = 0) leaves growth_matrix
+# at zero -- pred_CAAL collapses to 0 and the CAAL likelihood gradient is
+# uninformative. With VB growth + SS3-injected K/L1/Linf the growth_matrix
+# reproduces SS3's ALK, restoring useful CAAL gradients. SIDE EFFECT: the
+# C++ will now compute weight_hat from VB (overwriting our Mat_F_wtatage
+# injection in the SSB slot), so the Jensen's-gap fix no longer applies
+# until a parametric-path equivalent is added (separate thread).
+cat("\n--- Full MLE estimation (PHASED, CAAL downweighted, VB growth) ---\n")
 cod_pcod_est <- Rceattle::fit_mod(
   data_list    = cod_pcod,
   inits        = inits,
   estimateMode = 1,                    # hindcast estimation
   initMode     = 3,
-  growthFun    = build_growth(fun = 0),
+  growthFun    = build_growth(fun = "vonBertalanffy"),
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
