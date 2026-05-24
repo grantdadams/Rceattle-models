@@ -154,6 +154,12 @@ ss3_to_rceattle <- function(ss3_dir,
   spawn_m <- max(0, min(12, as.numeric(spawn_m)))
   d$spawn_month <- rep(spawn_m, nspp)
 
+  # VB anchor age (= SS3 Growth_Age_for_L1). Read from ctl; defaults to
+  # max(0.5, minage) downstream in Rceattle::fit_mod() if NA.
+  gal1_ss3 <- ctllist$Growth_Age_for_L1
+  d$growth_age_L1 <- rep(if (is.null(gal1_ss3) || is.na(gal1_ss3))
+                            NA_real_ else as.numeric(gal1_ss3), nspp)
+
   # Population dynamics flags
   d$estDynamics      <- rep(0L, nspp)       # estimate dynamics
   d$pop_wt_index     <- rep(1L, nspp)        # use Wt_index = 1 for total biomass
