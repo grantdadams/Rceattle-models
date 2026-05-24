@@ -178,7 +178,8 @@ ss3_to_rceattle <- function(ss3_dir,
   # ---------------------------------------------------------------------------
   d$index_data <- build_index_data(datlist, d$fleet_control)
   d$catch_data <- build_catch_data(datlist, d$fleet_control)
-  d$comp_data  <- build_comp_data(datlist, d$fleet_control, nages_rce, minage)
+  d$comp_data  <- build_comp_data(datlist, d$fleet_control, nages_rce, minage,
+                                   nlengths_rce)
   d$caal_data  <- build_caal_data(datlist, d$fleet_control, nages_rce, minage,
                                   nlengths_rce, ss3_lbins)
 
@@ -495,36 +496,81 @@ pad_comp_cols <- function(obs, nages, prefix) {
   obs
 }
 
+#' Detect SS3 length-comp frequency columns. r4ss names them `l<lower-edge>`
+#' (e.g., `l4.5`, `l9.5`, ...). Returns NULL if none match.
 #' @keywords internal
-build_comp_data <- function(datlist, fleet_control, nages, minage) {
+detect_length_cols <- function(df) {
+  nm <- grep("^l[0-9]+(\\.[0-9]+)?$", colnames(df), value = TRUE, ignore.case = TRUE)
+  if (length(nm) > 0) return(nm)
+  NULL
+}
+
+#' @keywords internal
+build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
+  ncomp <- max(nages, nlengths)
+  empty_template <- empty_df(c("Fleet_name","Fleet_code","Species","Sex","Age0_Length1",
+                              "Year","Month","Sample_size"),
+                            paste0("Comp_", seq_len(ncomp)))
+
+  rows_out <- list()
+
+  # ---- Marginal age comp (datlist$agecomp rows with Lbin_lo <= 0) ----
   split <- split_agecomp(datlist)
   ac <- split$marginal
-  if (is.null(ac) || nrow(ac) == 0) {
-    return(empty_df(c("Fleet_name","Fleet_code","Species","Sex","Age0_Length1",
-                      "Year","Month","Sample_size"),
-                    paste0("Comp_", 1:nages)))
+  if (!is.null(ac) && nrow(ac) > 0) {
+    ac <- normalize_ss3_ghosts(ac, "fleet", "year")
+    age_cols <- detect_age_cols(ac)
+    if (!is.null(age_cols)) {
+      if (length(age_cols) >= (minage + nages)) {
+        age_cols <- age_cols[(minage + 1):(minage + nages)]
+      }
+      obs <- pad_comp_cols(as.data.frame(ac[, age_cols, drop = FALSE]), ncomp, "Comp")
+      rows_out[[length(rows_out) + 1]] <- cbind(
+        data.frame(
+          Fleet_name   = fleet_control$Fleet_name[match(ac$fleet, fleet_control$Fleet_code)],
+          Fleet_code   = as.integer(ac$fleet),
+          Species      = 1L,
+          Sex          = as.integer(ac$sex),
+          Age0_Length1 = 0L,
+          Year         = as.integer(ac$year),
+          Month        = round((ac$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
+          Sample_size  = as.numeric(ac$Nsamp),
+          stringsAsFactors = FALSE
+        ),
+        obs
+      )
+    }
   }
-  ac <- normalize_ss3_ghosts(ac, "fleet", "year")
-  age_cols <- detect_age_cols(ac)
-  if (is.null(age_cols))
-    stop("build_comp_data: could not find age columns in datlist$agecomp")
-  # Slice to the (minage..minage+nages-1) range when SS3 emits enough columns
-  if (length(age_cols) >= (minage + nages)) {
-    age_cols <- age_cols[(minage + 1):(minage + nages)]
+
+  # ---- Length comp (datlist$lencomp) ----
+  lc <- datlist$lencomp
+  if (!is.null(lc) && nrow(lc) > 0) {
+    lc <- normalize_ss3_ghosts(lc, "fleet", "year")
+    len_cols <- detect_length_cols(lc)
+    if (!is.null(len_cols)) {
+      # SS3 emits one column per length bin; keep first nlengths in order.
+      if (length(len_cols) > nlengths) len_cols <- len_cols[1:nlengths]
+      obs <- pad_comp_cols(as.data.frame(lc[, len_cols, drop = FALSE]), ncomp, "Comp")
+      rows_out[[length(rows_out) + 1]] <- cbind(
+        data.frame(
+          Fleet_name   = fleet_control$Fleet_name[match(lc$fleet, fleet_control$Fleet_code)],
+          Fleet_code   = as.integer(lc$fleet),
+          Species      = 1L,
+          Sex          = as.integer(lc$sex),
+          Age0_Length1 = 1L,
+          Year         = as.integer(lc$year),
+          Month        = round((lc$month %||% lc$seas %||% 1 - 1) * 12 /
+                                  max(1, datlist$nseas %||% 1)),
+          Sample_size  = as.numeric(lc$Nsamp),
+          stringsAsFactors = FALSE
+        ),
+        obs
+      )
+    }
   }
-  obs <- pad_comp_cols(as.data.frame(ac[, age_cols, drop = FALSE]), nages, "Comp")
-  base <- data.frame(
-    Fleet_name   = fleet_control$Fleet_name[match(ac$fleet, fleet_control$Fleet_code)],
-    Fleet_code   = as.integer(ac$fleet),
-    Species      = 1L,
-    Sex          = as.integer(ac$sex),
-    Age0_Length1 = 0L,
-    Year         = as.integer(ac$year),
-    Month        = round((ac$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
-    Sample_size  = as.numeric(ac$Nsamp),
-    stringsAsFactors = FALSE
-  )
-  cbind(base, obs)
+
+  if (length(rows_out) == 0) return(empty_template)
+  do.call(rbind, rows_out)
 }
 
 #' @keywords internal
