@@ -115,11 +115,28 @@ ss3_to_rceattle <- function(ss3_dir,
     stop("Could not find length bin vector in datlist$lbin_vector or $lbin_vector_pop")
   nlengths_rce <- length(ss3_lbins)
 
+  # Population length bins -- SS3 uses these internally for the ALK and WAA
+  # integration (the WAA Jensen's integral converges only on a fine enough
+  # grid). r4ss exposes them as lbin_vector_pop. When lbin_method = 2, SS3
+  # generates the pop grid from binwidth/minimum_size/maximum_size in the
+  # data file. Fall back to data bins if the pop grid is missing (e.g. some
+  # older SS3 models that share the same grid for data and pop).
+  ss3_pop_lbins <- datlist$lbin_vector_pop
+  if (is.null(ss3_pop_lbins) && !is.null(datlist$binwidth)) {
+    ss3_pop_lbins <- seq(
+      as.numeric(datlist$minimum_size %||% min(ss3_lbins)),
+      as.numeric(datlist$maximum_size %||% max(ss3_lbins)),
+      by = as.numeric(datlist$binwidth)
+    )
+  }
+  if (is.null(ss3_pop_lbins)) ss3_pop_lbins <- ss3_lbins
+  nlengths_pop_rce <- length(ss3_pop_lbins)
+
   nspp <- 1L
 
-  msg(sprintf("Dimensions: nspp=%d, nsex=%d, ages %d..%d (nages=%d), nlengths=%d, years %d..%d (proj %d)\n",
+  msg(sprintf("Dimensions: nspp=%d, nsex=%d, ages %d..%d (nages=%d), nlengths=%d (pop=%d), years %d..%d (proj %d)\n",
               nspp, nsex_rce, minage, minage + nages_rce - 1L, nages_rce,
-              nlengths_rce, styr, endyr, projyr))
+              nlengths_rce, nlengths_pop_rce, styr, endyr, projyr))
 
   # ---------------------------------------------------------------------------
   # 2. Top-level scalars/vectors
@@ -136,6 +153,14 @@ ss3_to_rceattle <- function(ss3_dir,
   d$nages    <- rep(as.integer(nages_rce), nspp)
   d$minage   <- rep(as.integer(minage), nspp)
   d$nlengths <- rep(as.integer(nlengths_rce), nspp)
+
+  # Pop length bins are stored as their own matrix [nspp x nlengths_pop] so
+  # downstream rearrange_data() / TMB can pick them up alongside `lengths`.
+  # When growth_model > 0, growth.hpp will integrate the ALK and WAA on these
+  # bins (SS3 parity). When growth_model == 0, lengths_pop is unused.
+  d$nlengths_pop <- rep(as.integer(nlengths_pop_rce), nspp)
+  d$lengths_pop  <- matrix(as.numeric(ss3_pop_lbins), nrow = nspp,
+                           ncol = nlengths_pop_rce, byrow = TRUE)
 
   # spawn_month: SS3 reports SSB at the START of `Spawn_seas`. For an annual
   # time step (nseas = 1), Spawn_seas = 1 means start of year => Rceattle
@@ -221,7 +246,7 @@ ss3_to_rceattle <- function(ss3_dir,
   # ---------------------------------------------------------------------------
   # 9. Environmental covariates -- includes M-block indicators
   # ---------------------------------------------------------------------------
-  d$env_data <- build_env_data(ctllist, styr, projyr)
+  d$env_data <- build_env_data(ctllist, datlist, styr, projyr)
 
   # ---------------------------------------------------------------------------
   # 10. Fill remaining required-but-unused slots for single-species mode
@@ -343,12 +368,33 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
   # Fleet weight units: SS3 1 = biomass (mt), 2 = numbers
   units_w1n2 <- fi$units %||% rep(1, n_flt)
 
-  # SS3 surveytiming: fraction-of-year in [0, 1], or a negative sentinel meaning
-  # "use catch month". Map to a valid Rceattle Month in [0, 12]; clamp negatives
-  # to 0 (start of year, the safest default).
-  st_raw <- fi$surveytiming %||% rep(0, n_flt)
-  st_raw[is.na(st_raw)] <- 0
-  st_month <- pmax(0, pmin(12, round(st_raw * 12)))
+  # Rceattle's fleet_control$Month controls which month's WAA the C++ uses
+  # for that fleet's index_hat / catch_hat. SS3 stores the calendar month per
+  # observation (datlist$CPUE$month, datlist$catch$seas), and fleetinfo's
+  # `surveytiming` is a within-season fraction that varies in meaning across
+  # SS3 versions (positive = explicit fraction, -1 / 1 = "use the month from
+  # data rows"). Most reliable: take the modal month from the per-observation
+  # CPUE / catch tables. Surveys read from CPUE; fisheries read from catch.
+  # If a fleet has no positive-year observations, fall back to month 0.
+  modal_month <- function(months) {
+    months <- months[!is.na(months)]
+    if (length(months) == 0) return(0L)
+    as.integer(names(sort(table(months), decreasing = TRUE))[1])
+  }
+  st_month <- vapply(seq_len(n_flt), function(i) {
+    if (rce_type[i] == "Survey") {
+      m <- datlist$CPUE$month[datlist$CPUE$index == i &
+                                  datlist$CPUE$year > 0]
+      modal_month(m)
+    } else if (rce_type[i] == "Fishery") {
+      m <- datlist$catch$seas[datlist$catch$fleet == i &
+                                  datlist$catch$year > 0]
+      modal_month(m)
+    } else {
+      0L
+    }
+  }, integer(1))
+  st_month <- pmax(0L, pmin(12L, st_month))
 
   data.frame(
     Fleet_name              = fi$fleetname,
@@ -425,7 +471,7 @@ build_catch_data <- function(datlist, fleet_control) {
     Fleet_code        = as.integer(cat_raw$fleet),
     Species           = 1L,
     Year              = as.integer(cat_raw$year),
-    Month             = round((cat_raw$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
+    Month             = as.integer(cat_raw$seas %||% rep(0, nrow(cat_raw))),
     Selectivity_block = 1L,
     Catch             = as.numeric(cat_raw$catch),
     Log_sd            = as.numeric(cat_raw$catch_se),
@@ -447,7 +493,7 @@ build_index_data <- function(datlist, fleet_control) {
     Fleet_code        = as.integer(cpue$index),
     Species           = 1L,
     Year              = as.integer(cpue$year),
-    Month             = round((cpue$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
+    Month             = as.integer(cpue$month %||% cpue$seas %||% rep(0, nrow(cpue))),
     Selectivity_block = 1L,
     Observation       = as.numeric(cpue$obs),
     Log_sd            = as.numeric(cpue$se_log),
@@ -539,7 +585,7 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
           Sex          = as.integer(ac$sex),
           Age0_Length1 = 0L,
           Year         = as.integer(ac$year),
-          Month        = round((ac$seas %||% 1 - 1) * 12 / max(1, datlist$nseas %||% 1)),
+          Month        = as.integer(ac$month %||% ac$seas %||% rep(0, nrow(ac))),
           Sample_size  = as.numeric(ac$Nsamp),
           stringsAsFactors = FALSE
         ),
@@ -565,8 +611,7 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
           Sex          = as.integer(lc$sex),
           Age0_Length1 = 1L,
           Year         = as.integer(lc$year),
-          Month        = round((lc$month %||% lc$seas %||% 1 - 1) * 12 /
-                                  max(1, datlist$nseas %||% 1)),
+          Month        = as.integer(lc$month %||% lc$seas %||% rep(0, nrow(lc))),
           Sample_size  = as.numeric(lc$Nsamp),
           stringsAsFactors = FALSE
         ),
@@ -811,18 +856,22 @@ build_age_error <- function(nages, nspp, minage = 0L) {
         diag_df)
 }
 
-#' Build env_data with block indicators (post2014 etc) from SS3 ctl Block_Design.
-#' Adds one binary indicator column per detected block design that names a
-#' parameter pattern matching `block_targets` (default: M and selectivity).
+#' Build env_data with block indicators + SS3 environmental covariates.
+#' Block indicators (block_<i>) come from ctllist$Block_Design. Environmental
+#' covariates (env_<k>) come from datlist$envdat (the table SS3 reads from
+#' the data file's environmental section). Years outside the SS3 envdat
+#' window are forward/back-filled from the nearest available value so the
+#' column has no NAs (Rceattle requires complete env_data).
 #' @keywords internal
-build_env_data <- function(ctllist, styr, projyr) {
+build_env_data <- function(ctllist, datlist, styr, projyr) {
   years <- styr:projyr
   out <- data.frame(Year = years)
+
+  # 1. SS3 block-design indicators (one column per block design).
   if (!is.null(ctllist$Block_Design)) {
     for (i in seq_along(ctllist$Block_Design)) {
       bd <- ctllist$Block_Design[[i]]
       if (length(bd) >= 2 && length(bd) %% 2 == 0) {
-        # bd is alternating [start1, end1, start2, end2, ...]
         active <- rep(0L, length(years))
         for (k in seq(1, length(bd), by = 2)) {
           active[years >= bd[k] & years <= bd[k + 1]] <- 1L
@@ -831,7 +880,38 @@ build_env_data <- function(ctllist, styr, projyr) {
       }
     }
   }
-  # Convenience alias for the most common M block (Pcod 2024-style)
   if ("block_4" %in% colnames(out)) out$post2014 <- out$block_4
+
+  # 2. SS3 environmental covariates from datlist$envdat (long format with
+  #    columns year/variable/value). Each `variable` becomes one env_<k>
+  #    column, written into the years it covers and forward/back-filled to
+  #    the full styr:projyr range. Rceattle's env-q linkage reads the column
+  #    INDEX into env_data (after stripping Year), so SS3 variable 1 will
+  #    appear at the column-position equal to (n_blocks + 1) if no aliases
+  #    exist before it. The test script can refer to it by name.
+  if (!is.null(datlist$envdat) && nrow(datlist$envdat) > 0) {
+    ev <- datlist$envdat
+    for (v in sort(unique(ev$variable))) {
+      sub <- ev[ev$variable == v, c("year", "value"), drop = FALSE]
+      col <- rep(NA_real_, length(years))
+      hit <- match(sub$year, years)
+      ok  <- !is.na(hit)
+      col[hit[ok]] <- sub$value[ok]
+      # Forward-fill then back-fill to plug the styr:projyr edges.
+      first_nonNA <- which(!is.na(col))[1]
+      if (!is.na(first_nonNA)) {
+        last <- col[first_nonNA]
+        for (k in seq_along(col)) {
+          if (is.na(col[k])) col[k] <- last else last <- col[k]
+        }
+        # Back-fill the leading NAs (years before first SS3 obs).
+        first_known <- col[first_nonNA]
+        if (first_nonNA > 1L) col[1:(first_nonNA - 1L)] <- first_known
+      } else {
+        col[] <- 0
+      }
+      out[[sprintf("env_%d", v)]] <- col
+    }
+  }
   out
 }

@@ -103,7 +103,33 @@ cat(sprintf("\nM block 4 from ctl spans years %d-%d\n",
             m_block_yrs[1], m_block_yrs[2]))
 cod_pcod$env_data$post2014 <-
   as.integer(cod_pcod$env_data$Year >= m_block_yrs[1] &
-             cod_pcod$env_data$Year <= m_block_yrs[2])
+               cod_pcod$env_data$Year <= m_block_yrs[2])
+
+
+# =============================================================================
+# 3a. LLSrv environmental q linkage (SS3: LnQ_base_LLSrv(5)_ENV_add)
+#     SS3 ctl has env_var&link = 101 for LLSrv: env_var index 1 (CFSR),
+#     additive link, ENV_add = 0.9147. Rceattle equivalent:
+#       Catchability = "Environmental" (code 5)
+#       index_q_beta[LLSrv, CFSR_col] = 0.9147
+#     The C++ then computes index_q[LLSrv, yr] =
+#       exp(index_log_q[LLSrv] + sum_k(index_q_beta[LLSrv, k] * env_index[yr, k]))
+#     With only the CFSR column non-zero, this matches SS3's
+#       log(q[yr]) = LnQ_base + ENV_add * env_var1[yr]
+# =============================================================================
+llsrv_idx <- which(cod_pcod$fleet_control$Fleet_name == "LLSrv")
+stopifnot(length(llsrv_idx) == 1)
+# DEFERRED: SS3 has env_var&link = 101 on LLSrv with ENV_add = 0.9147 acting
+# additively on log(q). When we replicate that in Rceattle (Catchability =
+# "Environmental" + index_q_beta[LLSrv, CFSR_col] = 0.9147), Rceattle's
+# log(q) swings ~7x more than SS3's reported Calc_Q does (effective SS3
+# slope is ~0.137 vs our 0.9147). SS3 likely standardizes / scales env_var
+# internally in a way we haven't decoded yet. Leaving LLSrv at the plain
+# "Estimated" q (= exp(LnQ_base_LLSrv) = 1.169 constant) until the SS3 env
+# scaling convention is resolved.
+# To re-enable: set Catchability <- "Environmental", Time_varying_q <-
+# which(setdiff(colnames(cod_pcod$env_data), "Year") == "env_1"),
+# and inits$index_q_beta[llsrv_idx, cfsr_col] <- <empirical_slope_~0.137>.
 
 # Extract SS3 prior on NatM (PR_type, PRIOR, PR_SD from ctllist).
 # SS3 PR_type 3 = lognormal: log(M) ~ N(PRIOR - 0.5*PR_SD^2, PR_SD); PRIOR is
@@ -144,21 +170,117 @@ M1_block <- build_M1(
   M2_use_prior = FALSE,
   M_prior      = M_prior_rce,
   M_prior_sd   = M_prior_sd,
-  linkages     = list(log_M1 = linkage_spec(formula = ~ post2014 - 1,
-                                            by = ~ species))
+  linkages     = list(M1 = linkage_spec(formula = ~ post2014 - 1,
+                                        by = ~ species))
 )
+
+
+# =============================================================================
+# 3b. Switch active fleets to parametric Length-DoubleNormal selectivity
+#
+# SS3 uses pattern 24 (DoubleNormal): 6 params (peak, top, ascend, descend,
+# init_logit, end_logit) per fleet, with time blocks replacing P1-P4 (and P6
+# for Srv) in specific year windows. Rceattle's case 8 ("DoubleNormal") is a
+# 4-param simplification:
+#   sel_inf[1]     = peak       <- SS3 P1
+#   sel_inf[2]     = end_logit  <- SS3 P6 (right-tail floor)
+#   log_sel_slp[1] = log(sigma_asc)  <- SS3 P3 (ascending limb)
+#   log_sel_slp[2] = log(sigma_desc) <- SS3 P4 (descending limb)
+# SS3 P2 (top-width) and P5 (init_logit) have no analog -- discrepancies in
+# Lsel where these matter are expected.
+#
+# We use Time_varying_sel = "IID" (not "Block") because Block mode only maps
+# years with catch/index observations and zeros out other years -- a problem
+# for biennial surveys. IID maps every hindcast year, and we inject dev =
+# (block-replacement - base) only for years in a block; pre-block years stay
+# at base (dev = 0). All sel params are forward-pass-fixed via estimateMode = 3.
+# =============================================================================
+active_sel_fleets    <- c("FshTrawl", "FshLL", "FshPot", "Srv", "LLSrv")
+fleet_block_pattern  <- c(FshTrawl = 2L, FshLL = 2L, FshPot = 3L, Srv = 1L,
+                          LLSrv = NA_integer_)
+
+# Helpers --------------------------------------------------------------------
+ss3_sel_base <- function(parlist, fname, fnum) {
+  S <- parlist$S_parms
+  vapply(1:6, function(p) {
+    pat <- sprintf("^SizeSel_P_%d_%s\\(%d\\)$", p, fname, fnum)
+    idx <- grep(pat, rownames(S))
+    if (length(idx) == 1L) S[idx, "ESTIM"] else NA_real_
+  }, numeric(1))
+}
+
+ss3_sel_blocks <- function(parlist, fname, fnum, pattern_id) {
+  if (is.na(pattern_id)) return(list())
+  S <- parlist$S_parms
+  pat <- sprintf("^SizeSel_P_(\\d)_%s\\(%d\\)_BLK%drepl_(\\d+)$",
+                 fname, fnum, pattern_id)
+  hits <- grep(pat, rownames(S), value = TRUE)
+  lapply(hits, function(h) {
+    parts <- regmatches(h, regexec(pat, h))[[1]]
+    list(P = as.integer(parts[2]),
+         start_yr = as.integer(parts[3]),
+         value    = S[h, "ESTIM"])
+  })
+}
+
+# A block design is a flat vector of (start1, end1, start2, end2, ...).
+block_year_ranges <- function(block_design) {
+  n_blk <- length(block_design) %/% 2L
+  lapply(seq_len(n_blk), function(b) {
+    c(start = block_design[2L * b - 1L], end = block_design[2L * b])
+  })
+}
+
+# Override fleet_control for the active fleets --------------------------------
+for (fname in active_sel_fleets) {
+  fi <- which(cod_pcod$fleet_control$Fleet_name == fname)
+  if (length(fi) == 0L) next
+  cod_pcod$fleet_control$Selectivity[fi]           <- "DoubleNormal"
+  cod_pcod$fleet_control$Selectivity_dimension[fi] <- "Length"
+  cod_pcod$fleet_control$Time_varying_sel[fi]      <- "IID"
+}
+cat("\n--- Selectivity switched to parametric Length-DoubleNormal ---\n")
+print(cod_pcod$fleet_control[, c("Fleet_name", "Fleet_type", "Selectivity",
+                                 "Selectivity_dimension", "Time_varying_sel")])
 
 
 # =============================================================================
 # 4. Build mod0 (parameter shape only, no fit) to get the inits skeleton
 # =============================================================================
+# Hoist growthFun so mod0 and the subsequent forward-pass / estimation calls
+# share the exact same parameter shape. Adding growth linkages
+# (e.g. priors on K/L1/Linf) expands beta_linkage; if mod0 doesn't have
+# them but fit_mod does, the inits we pass back will be size-mismatched.
+#
+# Two specs because forward-pass and estimation need different setups:
+#   _forward: NO growth linkages, so our injected log_growth_pars values
+#             are used directly. With linkages active the effective param
+#             is log_growth_pars + beta_linkage[<intercept>], which double-
+#             counts when we inject both.
+#   _est:     growth linkages carrying SS3 ctl priors on K, L1, Linf so
+#             the optimizer sees the same penalty structure SS3 does.
+growthFun_spec <- build_growth(fun = "vonBertalanffy")
+
+growthFun_est_spec <- build_growth(
+  fun = "vonBertalanffy",
+  linkages = list(
+    K    = linkage_spec(formula = ~ 1,
+                        priors = list("(Intercept)" = normal(log(0.1966), 0.03))),
+    L1   = linkage_spec(formula = ~ 1,
+                        init   = list("(Intercept)" = log(6.1252))),
+    Linf = linkage_spec(formula = ~ 1,
+                        init   = list("(Intercept)" = log(99.4617)),
+                        priors = list("(Intercept)" = normal(log(99.4617), 0.015)))
+  )
+)
+
 cat("\n--- Building mod0 (parameter shape) ---\n")
 mod0 <- Rceattle::fit_mod(
   data_list    = cod_pcod,
   inits        = NULL,
   estimateMode = 3,
   initMode     = 3,
-  growthFun    = build_growth(fun = "vonBertalanffy"),
+  growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -247,10 +369,10 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
     # Linf: SS3's L_at_Amax is sometimes a sentinel (-9 / 99) meaning Linf
     # itself; otherwise it's the asymptotic VB length at amax_gp years.
     Linf_est <- if (amax_gp >= 99) L_max
-                else {
-                  delta <- exp(-K_vb * (amax_gp - amin_gp))
-                  (L_max - L_min * delta) / (1 - delta)
-                }
+    else {
+      delta <- exp(-K_vb * (amax_gp - amin_gp))
+      (L_max - L_min * delta) / (1 - delta)
+    }
     # Rceattle's growth.hpp now defaults the VB anchor age to 0.5 when
     # minage = 0 (matching SS3's default Growth_Age_for_L1), so we can
     # pass SS3's L_at_Amin directly as l1 -- no back-extrapolation needed,
@@ -261,7 +383,7 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
       L1_rce <- L_min  # = SS3 L_at_Amin at Growth_Age_for_L1
     } else {
       L1_rce <- Linf_est - (Linf_est - L_min) *
-                  exp(-K_vb * (data_list$minage[1] - amin_gp))
+        exp(-K_vb * (data_list$minage[1] - amin_gp))
     }
     inits$log_growth_pars[1, 1, 1] <- log(K_vb)
     inits$log_growth_pars[1, 1, 2] <- log(max(L1_rce, 0.01))
@@ -285,7 +407,7 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
     cat(sprintf("W-L: alpha=%.6g, beta=%.4f\n", W1, W2))
   }
 
-  # --- Per-survey catchability ---
+  # --- Per-survey catchability (base log_q + env_add coefficients) ---
   if ("index_log_q" %in% names(inits)) {
     for (i in seq_len(nrow(fleet_meta))) {
       if (fleet_meta$fleet_type[i] != "Survey") next
@@ -296,6 +418,20 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
         inits$index_log_q[i] <- q
         cat(sprintf("  q[%s] = %.4f (exp = %.4f)\n",
                     fleet_meta$name[i], q, exp(q)))
+      }
+      # ENV_add coefficient (per SS3 ctl env_var&link). Match label of the
+      # form LnQ_base_<name>(<id>)_ENV_add in parlist$Q_parms; place into
+      # index_q_beta at the CFSR column found earlier.
+      env_pat <- sprintf("LnQ_base_%s\\(%d\\)_ENV_add$",
+                        fleet_meta$name[i], fleet_meta$ss3_num[i])
+      env_q <- get_par(parlist$Q_parms, env_pat)
+      if (!is.null(env_q) && "index_q_beta" %in% names(inits)) {
+        env_col_for_q <- data_list$fleet_control$Time_varying_q[i]
+        if (!is.na(env_col_for_q)) {
+          inits$index_q_beta[i, env_col_for_q] <- env_q
+          cat(sprintf("  q[%s] ENV_add = %.4f (into index_q_beta[fleet=%d, env_col=%d])\n",
+                      fleet_meta$name[i], env_q, i, env_col_for_q))
+        }
       }
     }
   }
@@ -375,12 +511,85 @@ init_log_F_from_ss3 <- function(inits, ts_ss3, fleet_meta, years_hind) {
 
 
 # =============================================================================
+# 7a. Inject SS3 Length-DoubleNormal sel params (base + per-block deviates)
+# =============================================================================
+init_doublenormal_from_ss3 <- function(inits, parlist, ctllist, fleet_meta,
+                                       years_hind) {
+  # Rceattle now uses the SS3-pattern-24 6-param DoubleNormal:
+  #   sel_inf[1]     = P1 peak
+  #   sel_inf[2]     = P6 logit(right_floor)
+  #   sel_inf[3]     = P5 logit(left_floor / init)
+  #   log_sel_slp[1] = P3 log(sigma_asc)
+  #   log_sel_slp[2] = P4 log(sigma_desc)
+  #   log_sel_slp[3] = P2 top-width logit (plateau)
+  # SS3 sentinel < -1000 on P5/P6 means "fix at -inf" (corresponding floor
+  # is 0). We map to a large-negative logit so 1/(1+exp(-x)) -> 0.
+  for (i in seq_len(nrow(fleet_meta))) {
+    fname <- fleet_meta$name[i]
+    fnum  <- fleet_meta$ss3_num[i]
+    if (!fname %in% active_sel_fleets) next
+    base <- ss3_sel_base(parlist, fname, fnum)
+    if (any(is.na(base[c(1, 3, 4)]))) {
+      warning(sprintf("Missing SS3 base P1/P3/P4 for %s -- skipping", fname))
+      next
+    }
+    P1 <- base[1]; P2 <- base[2]; P3 <- base[3]
+    P4 <- base[4]; P5 <- base[5]; P6 <- base[6]
+    if (is.na(P2) || P2 < -100) P2 <- -10.0   # narrow plateau (peak2 ~ peak + binwidth)
+    if (is.na(P5) || P5 < -100) P5 <- -10.0   # left floor -> 0
+    if (is.na(P6) || P6 < -100) P6 <- -10.0   # right floor -> 0
+
+    inits$sel_inf[1, i, 1]     <- P1   # peak length (cm)
+    inits$sel_inf[2, i, 1]     <- P6   # logit(right_floor)
+    inits$sel_inf[3, i, 1]     <- P5   # logit(left_floor / init)
+    inits$log_sel_slp[1, i, 1] <- P3   # log(sigma_ascending)
+    inits$log_sel_slp[2, i, 1] <- P4   # log(sigma_descending)
+    inits$log_sel_slp[3, i, 1] <- P2   # top-width logit
+    cat(sprintf("  %s base: peak=%.2f sigma_asc=%.3f sigma_desc=%.3f init=%.4f final=%.4f topW_lt=%.2f\n",
+                fname, P1, exp(P3), exp(P4),
+                1 / (1 + exp(-P5)), 1 / (1 + exp(-P6)), P2))
+
+    # Block deviates --------------------------------------------------------
+    bp <- fleet_block_pattern[[fname]]
+    if (is.na(bp)) next
+    bd  <- ctllist$Block_Design[[bp]]
+    bks <- block_year_ranges(bd)
+    for (blk in ss3_sel_blocks(parlist, fname, fnum, bp)) {
+      # Match SS3 BLKreplN -> block_year_ranges entry by start year
+      b_id <- which(vapply(bks, function(b) unname(b["start"]) == blk$start_yr,
+                           logical(1)))
+      if (length(b_id) == 0L) next
+      yr_lo <- unname(bks[[b_id]]["start"]); yr_hi <- unname(bks[[b_id]]["end"])
+      yr_idx <- which(years_hind >= yr_lo & years_hind <= yr_hi)
+      if (length(yr_idx) == 0L) next
+      base_val <- base[blk$P]
+      if (is.na(base_val) || base_val < -100) base_val <- -10.0
+      dev_val <- blk$value - base_val
+      # SS3 param index -> Rceattle (array, slot) destination
+      target <- switch(blk$P,
+                       `1` = list("sel_inf_dev",     1),  # P1 -> peak
+                       `2` = list("log_sel_slp_dev", 3),  # P2 -> top-width
+                       `3` = list("log_sel_slp_dev", 1),  # P3 -> asc width
+                       `4` = list("log_sel_slp_dev", 2),  # P4 -> desc width
+                       `5` = list("sel_inf_dev",     3),  # P5 -> init
+                       `6` = list("sel_inf_dev",     2),  # P6 -> final
+                       NULL)
+      if (is.null(target)) next
+      inits[[target[[1]]]][target[[2]], i, 1, yr_idx] <- dev_val
+    }
+  }
+  inits
+}
+
+
+# =============================================================================
 # 8. Wire it all up
 # =============================================================================
 inits <- init_from_ss3(parlist, ctllist, mod0$estimated_params, cod_pcod,
                        fleet_meta, years_hind)
 inits <- init_state_from_ss3_natage_m0(inits, ss3_rep, cod_pcod$styr, nages_pcod)
 inits <- init_log_F_from_ss3(inits, ts_ss3, fleet_meta, years_hind)
+inits <- init_doublenormal_from_ss3(inits, parlist, ctllist, fleet_meta, years_hind)
 
 
 # =============================================================================
@@ -392,7 +601,7 @@ cod_pcod_fixed <- Rceattle::fit_mod(
   inits        = inits,
   estimateMode = 3,
   initMode     = "FreeParams",
-  growthFun    = build_growth(fun = "vonBertalanffy"),
+  growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
@@ -432,6 +641,319 @@ print(data.frame(
 
 
 # =============================================================================
+# 9a. Selectivity-at-length and selectivity-at-age comparison (forward-pass)
+# =============================================================================
+cat("\n=== Sel-at-length (Rceattle) vs SS3 sizeselex Lsel ===\n")
+# SS3 sizeselex 'Lsel' is the length-based selectivity per fleet/year/length
+# bin. Rceattle's sel_at_length array is [flt, sex, length_bin, year].
+ss3_len_bins <- datlist$lbin_vector_pop
+nlen <- length(ss3_len_bins)
+sel_len_err <- list()
+for (i in seq_len(nrow(fleet_meta))) {
+  if (!fleet_meta$name[i] %in% active_sel_fleets) next
+  ss3_num <- fleet_meta$ss3_num[i]
+  ss3_lsel <- ss3_rep$sizeselex %>%
+    dplyr::filter(Factor == "Lsel", Fleet == ss3_num, Yr %in% years_hind,
+                  Sex == 1)
+  if (nrow(ss3_lsel) == 0) next
+  lcols <- as.character(ss3_len_bins)
+  lcols <- lcols[lcols %in% colnames(ss3_lsel)]
+  if (length(lcols) == 0) next
+  for (yi in seq_along(years_hind)) {
+    yr <- years_hind[yi]
+    rows_le <- ss3_lsel %>% dplyr::filter(Yr <= yr) %>%
+      dplyr::arrange(dplyr::desc(Yr))
+    if (nrow(rows_le) == 0) next
+    ss3_vec <- as.numeric(rows_le[1, lcols])
+    rce_vec <- as.numeric(cod_pcod_fixed$quantities$sel_at_length[i, 1, , yi])
+    if (length(rce_vec) != length(ss3_vec)) next
+    rel <- abs(rce_vec - ss3_vec) / pmax(abs(ss3_vec), 1e-4)
+    sel_len_err[[length(sel_len_err) + 1]] <- data.frame(
+      Fleet = fleet_meta$name[i], Year = yr,
+      MaxRelErr  = max(rel, na.rm = TRUE),
+      MeanRelErr = mean(rel, na.rm = TRUE),
+      Rce_peak_len = ss3_len_bins[which.max(rce_vec)],
+      SS3_peak_len = ss3_len_bins[which.max(ss3_vec)]
+    )
+  }
+}
+if (length(sel_len_err) > 0) {
+  sel_len_err <- do.call(rbind, sel_len_err)
+  print(sel_len_err %>% dplyr::group_by(Fleet) %>%
+          dplyr::summarise(max_rel = max(MaxRelErr),
+                           mean_rel = mean(MeanRelErr),
+                           peak_match_rate = mean(Rce_peak_len == SS3_peak_len)))
+}
+
+cat("\n=== Sel-at-age (Rceattle, via growth) vs SS3 ageselex Asel2 ===\n")
+age_cols_ss3 <- as.character(0:(nages_pcod - 1))
+sel_age_err <- list()
+for (i in seq_len(nrow(fleet_meta))) {
+  if (!fleet_meta$name[i] %in% active_sel_fleets) next
+  ss3_num <- fleet_meta$ss3_num[i]
+  ss3_sub <- ss3_rep$ageselex %>%
+    dplyr::filter(Factor == "Asel2", Fleet == ss3_num, Yr %in% years_hind)
+  if (nrow(ss3_sub) == 0) next
+  for (yi in seq_along(years_hind)) {
+    yr <- years_hind[yi]
+    rows_le <- ss3_sub %>% dplyr::filter(Yr <= yr) %>%
+      dplyr::arrange(dplyr::desc(Yr))
+    if (nrow(rows_le) == 0) next
+    ss3_vec <- as.numeric(rows_le[1, age_cols_ss3])
+    rce_vec <- as.numeric(cod_pcod_fixed$quantities$sel_at_age[i, 1, , yi])
+    rel <- abs(rce_vec - ss3_vec) / pmax(abs(ss3_vec), 1e-4)
+    sel_age_err[[length(sel_age_err) + 1]] <- data.frame(
+      Fleet = fleet_meta$name[i], Year = yr,
+      MaxRelErr = max(rel), MeanRelErr = mean(rel)
+    )
+  }
+}
+if (length(sel_age_err) > 0) {
+  sel_age_err <- do.call(rbind, sel_age_err)
+  print(sel_age_err %>% dplyr::group_by(Fleet) %>%
+          dplyr::summarise(max_rel = max(MaxRelErr),
+                           mean_rel = mean(MeanRelErr)))
+}
+
+# Detail probe: per-age comparison for each active fleet in last year, so we
+# can see which age contributes the max rel err (peak vs tails differ a lot).
+ny_last <- length(years_hind)
+yr_last <- tail(years_hind, 1)
+for (fname in active_sel_fleets) {
+  i <- which(fleet_meta$name == fname)
+  if (length(i) == 0) next
+  ss3_num <- fleet_meta$ss3_num[i]
+  ss3_sub <- ss3_rep$ageselex %>%
+    dplyr::filter(Factor == "Asel2", Fleet == ss3_num, Yr <= yr_last) %>%
+    dplyr::arrange(dplyr::desc(Yr))
+  if (nrow(ss3_sub) == 0) next
+  ss3_vec <- as.numeric(ss3_sub[1, age_cols_ss3])
+  rce_vec <- as.numeric(cod_pcod_fixed$quantities$sel_at_age[i, 1, , ny_last])
+  cat(sprintf("\n  -- %s sel-at-age @ %d --\n", fname, yr_last))
+  print(data.frame(Age = 0:(nages_pcod - 1),
+                   SS3 = round(ss3_vec, 5),
+                   Rce = round(rce_vec, 5),
+                   AbsDiff = signif(rce_vec - ss3_vec, 3)))
+}
+
+# Detail print: Lsel for LLSrv (no blocks) in last year -- cleanest comparison
+llsrv_i <- which(fleet_meta$name == "LLSrv")
+if (length(llsrv_i) == 1) {
+  ny  <- length(years_hind)
+  yr_last <- tail(years_hind, 1)
+  ss3_l <- ss3_rep$sizeselex %>%
+    dplyr::filter(Factor == "Lsel", Fleet == fleet_meta$ss3_num[llsrv_i],
+                  Yr == yr_last, Sex == 1)
+  if (nrow(ss3_l) > 0) {
+    lcols <- as.character(ss3_len_bins)
+    lcols <- lcols[lcols %in% colnames(ss3_l)]
+    if (length(lcols) > 0) {
+      cat(sprintf("\n--- LLSrv Lsel at %d (Rce vs SS3) ---\n", yr_last))
+      rce_vec <- as.numeric(cod_pcod_fixed$quantities$sel_at_length[llsrv_i, 1, , ny])
+      ss3_vec <- as.numeric(ss3_l[1, lcols])
+      n <- min(length(rce_vec), length(ss3_vec), length(lcols))
+      print(data.frame(
+        Length = as.numeric(lcols)[1:n],
+        Rce    = round(rce_vec[1:n], 4),
+        SS3    = round(ss3_vec[1:n], 4)
+      ))
+    } else {
+      cat("\n--- LLSrv Lsel: no matching length-bin columns in SS3 output (skip) ---\n")
+    }
+  }
+}
+
+
+# =============================================================================
+# 9b. GROWTH-OUTPUT comparison vs SS3 (forward-pass, SS3 params injected)
+#
+# Compares Rceattle's parametric VB outputs against SS3 endgrowth:
+#   (i)   length-at-age (Len_Beg / Len_Mid)
+#   (ii)  weight-at-age for pop slot vs SS3 Wt_Beg
+#   (iii) weight-at-age for SSB slot vs SS3 Wt_Mid (spawn_month = 0 here, so
+#         SSB-slot WAA should equal pop-slot)
+#   (iv)  per-fleet weight-at-age vs SS3 endgrowth SelWt:_<flt>
+#   (v)   growth transition matrix (ALK) row sums and a spot-check vs the
+#         analytic VB+SD distribution on the SS3 1cm pop grid
+#
+# Rceattle quantity layout (R, 1-indexed):
+#   weight_hat[1, sex, age, yr]  = pop slot 1   (= SS3 Wt_Beg)
+#   weight_hat[2, sex, age, yr]  = SSB slot     (= SS3 Wt_Mid at spawn fracyr)
+#   weight_hat[2+i, sex, age, yr] = fleet i WAA
+#   length_hat same layout
+#   growth_matrix[wt, sex, age, length_bin, yr]
+# =============================================================================
+cat("\n=== Growth-output comparison vs SS3 (forward-pass) ===\n")
+
+# Reference year for endgrowth comparison: SS3 endgrowth is annual / time-
+# invariant for this model so any hindcast year works; use the last hindcast
+# year to match what most users care about.
+yr_idx <- length(years_hind)
+eg <- ss3_rep$endgrowth %>% dplyr::filter(Sex == 1) %>% dplyr::arrange(int_Age)
+eg_ages <- eg$int_Age
+slot_ages <- minage_pcod + seq_len(nages_pcod) - 1L  # 0..nages-1 at minage=0
+keep_idx <- match(slot_ages, eg_ages)
+
+# Helper: print a per-age comparison + per-age and aggregate rel err.
+# Reports ex-plus-group rel err too -- the legacy static plus-group length
+# correction (Stage D in the SS3 parity work, not yet replaced with SS3-style
+# dynamic N-weighting) drives the all-ages max but doesn't reflect the rest
+# of the curve.
+compare_at_age <- function(rce_vec, ss3_vec, label, age_labels) {
+  rel <- abs(rce_vec - ss3_vec) / pmax(abs(ss3_vec), 1e-10)
+  n   <- length(rel)
+  rel_np <- if (n > 1) rel[-n] else rel
+  cat(sprintf("\n[%s] all-ages max %.2e mean %.2e | ex-plus max %.2e mean %.2e\n",
+              label,
+              max(rel, na.rm = TRUE), mean(rel, na.rm = TRUE),
+              max(rel_np, na.rm = TRUE), mean(rel_np, na.rm = TRUE)))
+  df <- data.frame(Age = age_labels,
+                   SS3 = signif(ss3_vec, 6),
+                   Rce = signif(rce_vec, 6),
+                   RelErr = signif(rel, 3))
+  print(df, row.names = FALSE)
+  invisible(rel)
+}
+
+# --- (i) Length-at-age (pop slot) vs SS3 Len_Beg --------------------------
+rce_LAA_pop <- as.numeric(cod_pcod_fixed$quantities$length_hat[1, 1, , yr_idx])
+ss3_LAA_pop <- eg$Len_Beg[keep_idx]
+compare_at_age(rce_LAA_pop, ss3_LAA_pop, "LAA pop slot (vs SS3 Len_Beg)", slot_ages)
+
+rce_LAA_ssb <- as.numeric(cod_pcod_fixed$quantities$length_hat[2, 1, , yr_idx])
+ss3_LAA_ssb <- eg$Len_Mid[keep_idx]
+# spawn_month = 0 means Rceattle fracyr = 0, so SSB-slot LAA should match pop-slot,
+# NOT SS3's Len_Mid (which is at fracyr=0.5). Show both so user can see what
+# Rceattle's spawn_month is producing.
+compare_at_age(rce_LAA_ssb, ss3_LAA_pop,
+               sprintf("LAA SSB slot (spawn_month=%g) vs SS3 Len_Beg",
+                       cod_pcod$spawn_month[1]),
+               slot_ages)
+
+# --- (ii) WAA pop slot vs SS3 Wt_Beg --------------------------------------
+rce_WAA_pop <- as.numeric(cod_pcod_fixed$quantities$weight_hat[1, 1, , yr_idx])
+ss3_WAA_pop <- eg$Wt_Beg[keep_idx]
+compare_at_age(rce_WAA_pop, ss3_WAA_pop, "WAA pop slot (vs SS3 Wt_Beg)", slot_ages)
+
+# --- (iii) WAA SSB slot vs SS3 Wt_Beg (since spawn_month=0) ---------------
+rce_WAA_ssb <- as.numeric(cod_pcod_fixed$quantities$weight_hat[2, 1, , yr_idx])
+compare_at_age(rce_WAA_ssb, ss3_WAA_pop,
+               sprintf("WAA SSB slot (spawn_month=%g) vs SS3 Wt_Beg",
+                       cod_pcod$spawn_month[1]),
+               slot_ages)
+
+# --- (iv) Per-fleet WAA vs SS3 SelWt:_<flt> -------------------------------
+# SS3 endgrowth has SelWt:_<n> columns = weight-at-age weighted by selectivity.
+# But what we really want for the Rceattle weight slot is mean weight-at-age
+# at the fleet's time of operation (NOT sel-weighted). SS3 reports this less
+# directly; the closest is Wt_Mid (mid-year) if the fleet is mid-year. Per
+# growth.hpp::estimate_growth_within_yr, Rceattle advances pop-slot LAA by
+# fracyr = Month/12 of VB growth, then integrates with the SD at that LAA.
+# Comparison: rebuild what SS3 would report at each fleet's modal Month using
+# the SS3 ESTIM params, and compare to Rceattle's weight_hat for that fleet.
+cat("\n--- Per-fleet WAA timing ---\n")
+# Extract SS3 growth ESTIM from parlist (so we don't double-pay for typos)
+K_ss3    <- parlist$MG_parms["VonBert_K_Fem_GP_1", "ESTIM"]
+L1_ss3   <- parlist$MG_parms["L_at_Amin_Fem_GP_1", "ESTIM"]
+Linf_ss3 <- parlist$MG_parms["L_at_Amax_Fem_GP_1", "ESTIM"]
+SDy_ss3  <- parlist$MG_parms["CV_young_Fem_GP_1", "ESTIM"]
+SDo_ss3  <- parlist$MG_parms["CV_old_Fem_GP_1", "ESTIM"]
+alpha_ss3 <- parlist$MG_parms["Wtlen_1_Fem_GP_1", "ESTIM"]
+beta_ss3  <- parlist$MG_parms["Wtlen_2_Fem_GP_1", "ESTIM"]
+gal1_ss3  <- ctllist$Growth_Age_for_L1 %||% 0.5
+# Pop length bins (1cm here): generated from binwidth/min/max in the SS3 dat
+pop_bw  <- datlist$binwidth %||% 1
+pop_min <- datlist$minimum_size %||% 0.5
+pop_max <- datlist$maximum_size %||% 104.5
+pop_edges <- seq(pop_min, pop_max, by = pop_bw)
+pop_mid   <- pop_edges + pop_bw / 2
+n_pop     <- length(pop_edges)
+
+ss3_LAA_at <- function(a) ifelse(a <= gal1_ss3,
+                                 pop_min + (L1_ss3 - pop_min) * (a / gal1_ss3),
+                                 Linf_ss3 - (Linf_ss3 - L1_ss3) *
+                                   exp(-K_ss3 * (a - gal1_ss3)))
+ss3_SD_at  <- function(L) ifelse(L <= L1_ss3, SDy_ss3,
+                                 SDy_ss3 + (SDo_ss3 - SDy_ss3) *
+                                   (L - L1_ss3) / (Linf_ss3 - L1_ss3))
+ss3_WAA_at <- function(a) {
+  L <- ss3_LAA_at(a); SD <- ss3_SD_at(L)
+  prob <- numeric(n_pop)
+  for (k in seq_len(n_pop)) {
+    if (k == 1)        prob[k] <- pnorm(pop_edges[k + 1], L, SD)
+    else if (k == n_pop) prob[k] <- 1 - pnorm(pop_edges[k], L, SD)
+    else               prob[k] <- pnorm(pop_edges[k + 1], L, SD) -
+                                   pnorm(pop_edges[k], L, SD)
+  }
+  sum(prob * alpha_ss3 * pop_mid^beta_ss3)
+}
+
+# For each active fleet, get its Month and rebuild SS3 reference WAA at that
+# within-year offset (slot age = integer_age + Month/12).
+# Report both whole-axis and ex-plus-group rel err so the legacy static plus-
+# group correction (Stage D, intentionally not yet replaced) doesn't mask
+# the rest of the curve. The plus group lives at slot nages.
+plus_slot <- nages_pcod
+for (i in seq_len(nrow(fleet_meta))) {
+  if (fleet_meta$fleet_type[i] == "Off") next
+  flt_month <- cod_pcod$fleet_control$Month[i]
+  fracyr    <- flt_month / 12
+  rce_WAA_flt <- as.numeric(cod_pcod_fixed$quantities$weight_hat[2 + i, 1, , yr_idx])
+  ss3_WAA_flt_ref <- vapply(slot_ages, function(a) ss3_WAA_at(a + fracyr), numeric(1))
+  rel <- abs(rce_WAA_flt - ss3_WAA_flt_ref) / pmax(abs(ss3_WAA_flt_ref), 1e-10)
+  rel_no_plus <- rel[-plus_slot]
+  cat(sprintf("  Fleet %-9s (Month=%d): all-ages max %.2e mean %.2e | ex-plus max %.2e mean %.2e\n",
+              fleet_meta$name[i], flt_month,
+              max(rel), mean(rel),
+              max(rel_no_plus), mean(rel_no_plus)))
+}
+
+# --- (v) Growth matrix (ALK) row-sum and spot-check -----------------------
+# growth_matrix dims: [wtind, sex, age, length, yr]. Rows (over length bins
+# per age) should sum to ~1.
+cat("\n--- Growth-matrix sanity ---\n")
+gm <- cod_pcod_fixed$quantities$growth_matrix
+gm_shape <- dim(gm)
+cat(sprintf("  shape (wtind, sex, age, length, yr) = %s\n",
+            paste(gm_shape, collapse = " x ")))
+gm_pop_last <- gm[1, 1, , , yr_idx]   # [age, length]
+row_sums <- rowSums(gm_pop_last)
+cat(sprintf("  Pop-slot ALK row sums (should be ~1): min=%.6f max=%.6f\n",
+            min(row_sums), max(row_sums)))
+
+# Spot-check ALK row for age 5 vs analytic distribution on Rceattle's grid
+rce_age5_alk <- gm_pop_last[6, ]   # age 5 = slot 6 at minage=0
+# Rceattle uses data-bin grid; rebuild analytic ALK on the SAME grid for fair
+# comparison
+data_edges <- datlist$lbin_vector   # 4.5, 9.5, ...
+n_data <- length(data_edges)
+L5_pred  <- ss3_LAA_at(5); SD5_pred <- ss3_SD_at(L5_pred)
+analytic_data_alk <- numeric(n_data)
+for (k in seq_len(n_data)) {
+  if (k == 1) analytic_data_alk[k] <-
+    pnorm(data_edges[1] + (data_edges[2] - data_edges[1]) - L5_pred, sd = SD5_pred)
+  else if (k == n_data) analytic_data_alk[k] <-
+    1 - pnorm(data_edges[k] - L5_pred, sd = SD5_pred)
+  else analytic_data_alk[k] <-
+    pnorm(data_edges[k + 1] - L5_pred, sd = SD5_pred) -
+    pnorm(data_edges[k] - L5_pred, sd = SD5_pred)
+}
+rel_alk <- abs(rce_age5_alk - analytic_data_alk) / pmax(abs(analytic_data_alk), 1e-10)
+cat(sprintf("  Age-5 ALK on data grid: max rel err vs analytic %.3e\n", max(rel_alk)))
+cat("  (Both should match each other since Rceattle integrates on data bins;\n")
+cat("   the SS3 mismatch is independent and lives in the choice of bin grid.)\n")
+
+
+# Stop here while we validate parametric Length-DoubleNormal selectivity --
+# estimation would currently free the IID sel devs (no map fix yet), which is
+# not what we want for an SS3-pinned comparison. Re-enable after sel match.
+if (TRUE) {
+  cat("\n[stop] Estimation section skipped during sel-parametric validation.\n")
+  quit(save = "no", status = 0)
+}
+
+
+# =============================================================================
 # 10. Full-MLE estimation (start from SS3 values, optimize)
 # =============================================================================
 # Estimate everything Rceattle has an SS3 analog for: log_R0, rec_dev, init_dev,
@@ -463,10 +985,10 @@ cod_pcod$fleet_control$CAAL_weights <- caal_scale
 cat("\n--- Full MLE estimation (PHASED, CAAL downweighted, VB growth) ---\n")
 cod_pcod_est <- Rceattle::fit_mod(
   data_list    = cod_pcod,
-  inits        = inits,
-  estimateMode = 1,                    # hindcast estimation
-  initMode     = 3,
-  growthFun    = build_growth(fun = "vonBertalanffy"),
+  #inits        = inits,
+  estimateMode = 0,                    # hindcast estimation
+  initMode     = 2,
+  growthFun    = growthFun_est_spec,   # with SS3 priors on K / Linf
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
