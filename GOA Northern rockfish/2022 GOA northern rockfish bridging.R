@@ -119,6 +119,7 @@ bridging_model_3 <- Rceattle::fit_mod(data_list = mydata,
 
 # - SAFE model
 library(readxl)
+yrs <- model1$data_list$styr:model1$data_list$endyr
 SAFE2022_mod <- bridging_model_1
 SAFE2022_mod$quantities$biomass[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$Biomass
 SAFE2022_mod$quantities$ssb[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$SSB
@@ -126,15 +127,16 @@ SAFE2022_mod$quantities$R[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimat
 
 
 # - Rtmb model
-load("report2.Rdata")
+load("Data/report2.Rdata")
 RTMB_model <- bridging_model_1
 RTMB_model$quantities$biomass[1,1:length(yrs)] <- report2$tot_bio
 RTMB_model$quantities$ssb[1,1:length(yrs)] <- report2$spawn_bio
-RTMB_model$quantities$R[1,1:length(yrs)] <- report2$Nat[1,]
+RTMB_model$quantities$R[1,1:length(yrs)] <- exp(report2$Nat[1,])
 
 
-plot_biomass(list(bridging_model_1, bridging_model_2, SAFE2022_mod), model_names = c("CEATTLE fix parms", "CEATTLE est parms", "ADMB", "RTMB"))
-plot_ssb(list(bridging_model_1, SAFE2022_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
+plot_biomass(list(bridging_model_1, bridging_model_3, SAFE2022_mod, RTMB_model), model_names = c("Rceattle fix parms", "Rceattle est parms", "ADMB", "RTMB"))
+plot_ssb(list(bridging_model_1, bridging_model_3, SAFE2022_mod), model_names = c("Rceattle fix parms", "Rceattle est parms", "ADMB"))
+plot_recruitment(list(bridging_model_1, bridging_model_3, SAFE2022_mod), model_names = c("Rceattle fix parms", "Rceattle est parms", "ADMB"))
 
 
 dev.off()

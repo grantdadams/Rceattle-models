@@ -60,6 +60,7 @@ model2 <- Rceattle::fit_mod(data_list = mydata,
 
 # - SAFE model
 library(readxl)
+yrs <- model1$data_list$styr:model1$data_list$endyr
 SAFE2022_mod <- model1
 SAFE2022_mod$quantities$biomass[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$Biomass
 SAFE2022_mod$quantities$ssb[1,1:length(yrs)] <- read_excel("Data/2022_ADMB_estimate.xlsx", sheet = 1)$SSB
