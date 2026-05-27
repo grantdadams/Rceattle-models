@@ -53,8 +53,8 @@ hist(jitters$nll)
 plot_biomass(jitters$Rceattle_list)
 
 # - Profiles
-profiles <- profile_param(
-  Rceattle = pk_model,
+profiles <- profile(
+  fitted   = pk_model,
   param    = "sigmaR",
   values   = list(seq(0.5, 1.5, by = 0.1))
 )
