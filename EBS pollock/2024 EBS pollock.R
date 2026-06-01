@@ -71,6 +71,24 @@ pollock_base <- Rceattle::fit_mod(
 )
 
 
+
+# -----------------------------------------------------------------------------
+# Model 2 - estimate age/time-invariant M
+# -----------------------------------------------------------------------------
+pollock_estM <- Rceattle::fit_mod(
+  data_list    = mydata,
+  inits        = NULL,
+  file         = NULL,
+  estimateMode = 0,
+  random_rec   = FALSE,
+  msmMode      = 0,
+  verbose      = 1,
+  phase        = TRUE,
+  initMode     = 0,   # free initial N-at-age (= ADMB log_avginit + log_initdevs)
+  M1Fun        = build_M1(M1_model = 1)   # estimate a single scalar M
+)
+
+
 # -----------------------------------------------------------------------------
 # ADMB ("SAFE") reference and comparison
 # -----------------------------------------------------------------------------
