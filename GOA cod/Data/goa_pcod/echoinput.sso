@@ -3304,23 +3304,3 @@ Finished meanlength obj_fun  0 0 0 0 0 0 0 0 0
  catch -log(L)  2.01023e-06 3.02359e-06 3.43592e-06 0 0 0 0 0 0
 Finished recruitdev obj_fun -35.2025 42.8786 0.3872
  OK with obj_func 4150.52
-Wrote first version of output files (before hessian, benchmark, and forecast)
-Start benchmark and forecast, if requested
-Calculated Fspr 0.647156 0.4
-Calculated Btgt: 0.647156 0.4
-Calculated Fmsy 0.647156 68153.3
-Finished benchmark, forecast, and sdreporting
-Iterations: 1913
- finished COVAR.SSO
-Finished forecast
-Writing wtatage.ss_new
-Finished StdDev quantities
-Finished posteriors
-Finished SS_summary.sso
-Finished final writing of report.sso
-Begin writing data_echo.ss_new file
-Write starter.ss_new file 
-Write forecast.ss_new file 
-Note 1 Information: A revised protocol for the Fcast_yr specification is available and recommended.
-Write control.ss_new file 
-Begin final output calculations and warnings

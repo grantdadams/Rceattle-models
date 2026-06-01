@@ -130,6 +130,20 @@ ss3_to_rceattle <- function(ss3_dir,
     )
   }
   if (is.null(ss3_pop_lbins)) ss3_pop_lbins <- ss3_lbins
+  # r4ss reports `lbin_vector_pop` as left edges PLUS the final upper edge,
+  # so n_entries = nbins + 1. SS3 internally has only `nbins` pop bins; drop
+  # the trailing upper edge so downstream code (xmax computation in
+  # selectivity.hpp pattern 24) sees the correct number of bins.
+  bw_pop <- as.numeric(datlist$binwidth %||% NA_real_)
+  if (!is.na(bw_pop) && length(ss3_pop_lbins) >= 2L) {
+    last_step <- ss3_pop_lbins[length(ss3_pop_lbins)] -
+                 ss3_pop_lbins[length(ss3_pop_lbins) - 1L]
+    if (abs(last_step - bw_pop) < 1e-9 &&
+        abs(ss3_pop_lbins[length(ss3_pop_lbins)] -
+            (as.numeric(datlist$maximum_size %||% NA) + bw_pop)) < 1e-9) {
+      ss3_pop_lbins <- ss3_pop_lbins[-length(ss3_pop_lbins)]
+    }
+  }
   nlengths_pop_rce <- length(ss3_pop_lbins)
 
   nspp <- 1L
@@ -644,10 +658,23 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
   age_cols <- detect_age_cols(caal)
   if (is.null(age_cols))
     stop("build_caal_data: could not find age columns in CAAL data")
-  if (length(age_cols) >= (minage + nages)) {
-    age_cols <- age_cols[(minage + 1):(minage + nages)]
+  # Parse the actual SS3 age each column represents (e.g., "a1" -> 1,
+  # "f2" -> 2, "5" -> 5) and map directly to Rce slots. Rce slot k
+  # (1-based) represents age (k - 1 + minage). This handles both:
+  #   - SS3 starts above minage (e.g. SS3 a1..a10, Rce minage=0): leading
+  #     zeros pad ages [minage..ss3_first-1] at the front
+  #   - SS3 has ages below minage (e.g. SS3 a1..a15, Rce minage=2): SS3
+  #     ages below minage are dropped
+  parse_age_label <- function(nm) as.integer(sub("^[afAF]", "", nm))
+  ss3_ages_in <- vapply(age_cols, parse_age_label, integer(1))
+  rce_ages    <- seq(minage, minage + nages - 1L)
+  obs <- as.data.frame(matrix(0, nrow = nrow(caal), ncol = nages))
+  for (k in seq_len(nages)) {
+    j <- which(ss3_ages_in == rce_ages[k])
+    if (length(j) == 1L)
+      obs[[k]] <- as.numeric(caal[[age_cols[j]]])
   }
-  obs <- pad_comp_cols(as.data.frame(caal[, age_cols, drop = FALSE]), nages, "CAAL")
+  colnames(obs) <- paste0("CAAL_", seq_len(nages))
 
   # Rceattle's Length column should hold the actual length VALUE (cm), not a
   # bin index. rearrange_data() does two things with it:
