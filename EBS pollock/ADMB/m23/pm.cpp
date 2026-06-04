@@ -1049,7 +1049,6 @@ void model_parameters::initializationfunction(void)
   steepness.set_initial_value(steepnessprior);
   log_avgrec.set_initial_value(10.87558);
   log_Rzero.set_initial_value(10.2033);
-  log_avginit.set_initial_value(4.8);
   log_avg_F.set_initial_value(-1.6);
   bt_slope.set_initial_value(0.);
   log_q_ats.set_initial_value(-1.05313);
@@ -1081,7 +1080,6 @@ model_parameters::model_parameters(int sz,int argc,char * argv[]) :
 {
   initializationfunction();
   log_avgrec.allocate(1,"log_avgrec");
-  log_avginit.allocate(1,"log_avginit");
   log_avg_F.allocate(1,"log_avg_F");
   natmort_phi.allocate(phase_natmort,"natmort_phi");
   natmort.allocate(1,nages,"natmort");
@@ -2134,8 +2132,16 @@ void model_parameters::GetNumbersAtAge(void)
   Get_Bzero();
   for (i=styr;i<=endyr_r;i++)
     rec_epsilons(i)=log_rec_devs(i)+larv_rec_devs(nsindex(i),ewindex(i));
-  log_initage=log_initdevs+log_avginit; 
+  // Initial age structure = Rceattle initMode=2 equilibrium cascade.
+  // NOTE: M is indexed (year=styr.., age=1..nages) and log_initage is (2,nages),
+  // so use M(styr, age) (1-based) rather than the 0-based M(0,0)/M(0,a-1).
+  log_initage(2)= log_avgrec-M(styr,1);
+  for(int a = 3; a <= nages; a ++){
+    log_initage(a)= log_initage(a-1)-M(styr,a-1);
+  }
+  log_initage(2,nages) += log_initdevs;
   natage(styr)(2,nages)=mfexp(log_initage); // Eq. 1
+  natage(styr)(nages)/=(1.-mfexp(-M(styr,nages))); // Eq. 1
   // Recruitment in subsequent years
   if(active(resid_temp_x1))
   {
@@ -3871,7 +3877,7 @@ void model_parameters::Recruitment_Likelihood(void)
   if (active(log_rec_devs))
     rec_like(2) =  1.*norm2(log_rec_devs);
  // Regularizing penalty on all initial age-comp -devs
-  rec_like(4) =  .1*norm2(log_initdevs);
+  rec_like(4) =  1.*norm2(log_initdevs);
   // Tune recruits to spawners via functional form of Srec (to estimate srec params) RAM's exp. value form of -ln like
   //if (current_phase()<4)
   if (phase_sr<0) 
@@ -3994,7 +4000,7 @@ void model_parameters::Evaluate_Objective_Function(void)
   if (current_phase()<3)
   {
       fff += 10.*square(log(mean(Fmort)/.2));
-      fff += 10.*square(log_avginit-log_avgrec)  ; //This is to make the initial comp not stray too far 
+      //fff += 10.*square(log_avginit-log_avgrec)  ; //This is to make the initial comp not stray too far 
   }
   Priors.initialize();
   if (active(natmort_phi)) // Sensitivity approach for estimating natural mortality (as offset of input vector, NOT USED, NOT IN DOC)
@@ -4203,7 +4209,7 @@ void model_parameters::Selectivity_Likelihood(void)
         // This is a "random walk" penalty weighted by a variance parameter (sel_ch_sig_fsh)
         if (yrs_ch_fsh(i) != styr)
           sel_like_dev(1) += norm2(log_sel_fsh(yrs_ch_fsh(i)-1) - log_sel_fsh(yrs_ch_fsh(i))) / 
-                            (2 * sel_ch_sig_fsh(i) * sel_ch_sig_fsh(i));  // Division by 2*sigma² is standard for normal likelihood
+                            (2 * sel_ch_sig_fsh(i) * sel_ch_sig_fsh(i));  // Division by 2*sigma^2 is standard for normal likelihood
       }
     }
     else  // If no time-varying deviations, only apply smoothness penalty to the base selectivity
@@ -4721,6 +4727,7 @@ void model_parameters::write_eval(void)
       // write_mceval_ppl(count_mcmc);
       // write_mceval_ppl(fff);  
       // write_mceval_ppl(eb_bts);
+      /*
       for (i=1;i<=n_bts_r;i++){
         double cvtmp = std_ob_bts(i)/ob_bts(i);
         double lnstd = sqrt(log(square(cvtmp) + 1.));
@@ -4774,6 +4781,7 @@ void model_parameters::write_eval(void)
                   << obs_avo_var(i) <<" "
                   <<endl;
       }
+      */
   // !! write_log(sam_fsh);write_log(sam_bts);write_log(sam_ats);
   // !! write_log(oac_fsh_data);write_log(yrs_bts_data);write_log(yrs_ats_data);
       if(count_mcmc==1)
@@ -4905,7 +4913,7 @@ void model_parameters::write_nofish(void)
   adj_age1.initialize();
   a3p_nofsh.initialize();
   SSB_nofsh.initialize();
-  log_initage=log_initdevs+log_avginit;
+  log_initage=log_initdevs;
   natage(styr)(2,nages)=mfexp(log_initage);
     natage(styr,1) = mfexp(log_avgrec+rec_epsilons(styr));
   // Recruitment in subsequent years
@@ -7382,7 +7390,7 @@ void model_parameters::report(const dvector& gradients)
     cerr << "error trying to open report file"  << adprogram_name << ".rep";
     return;
   }
-  save_gradients(gradients);
+  //save_gradients(gradients);
    ad_exit=&do_not_exit;
   // if (last_phase()) Get_Replacement_Yield();
     int k;

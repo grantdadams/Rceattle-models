@@ -7,10 +7,7 @@ library(dplyr)
 library(TMB)
 
 # Load data ----
-mydata_atf <- Rceattle::read_data( file = "Data/GOA_23.1.1_arrowtooth_single_species_1977-2023.xlsx")
-mydata_atf$estDynamics = 0
-mydata_atf$index_data$Log_sd <- mydata_atf$index_data$Log_sd/mydata_atf$index_data$Observation
-mydata_atf$fleet_control$proj_F_prop <- c(1,1,1)
+mydata_atf <- Rceattle::read_data( file = "Data/2023_GOA_arrowtooth.xlsx")
 
 # - Plot data
 plot_data(mydata_atf)
@@ -23,7 +20,7 @@ ceattle_ss <- Rceattle::fit_mod(data_list = mydata_atf,
                                 inits = NULL, # Initial parameters = 0
                                 file = NULL, # Don't save
                                 estimateMode = 0, # Estimate
-                                random_rec = FALSE, # No random recruitment
+                                random_rec = TRUE, # No random recruitment
                                 msmMode = 0, # Single species mode
                                 verbose = 1,
                                 phase = TRUE,

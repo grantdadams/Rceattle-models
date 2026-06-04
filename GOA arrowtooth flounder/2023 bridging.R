@@ -7,10 +7,7 @@ library(dplyr)
 library(TMB)
 
 # Load data ----
-mydata_atf <- Rceattle::read_data( file = "Data/GOA_23.1.1_arrowtooth_single_species_1977-2023.xlsx")
-mydata_atf$estDynamics = 0
-mydata_atf$srv_biom$Log_sd <- mydata_atf$srv_biom$Log_sd/mydata_atf$srv_biom$Observation
-mydata_atf$fleet_control$proj_F_prop <- c(1,1,1)
+mydata_atf <- Rceattle::read_data( file = "Data/2023_GOA_arrowtooth.xlsx")
 mydata_atf_ageerror <- mydata_atf # Save data with "correct" ageing error set-up
 
 # * Adjust ageing error ----

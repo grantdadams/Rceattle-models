@@ -382,7 +382,6 @@ private:
   ivector integer_control_flags;
   dvector double_control_flags;
   param_init_number log_avgrec;
-  param_init_number log_avginit;
   param_init_number log_avg_F;
   param_init_number natmort_phi;
   param_vector natmort;

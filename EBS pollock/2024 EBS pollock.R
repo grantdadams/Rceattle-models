@@ -42,13 +42,44 @@ nages <- mydata$nages
 
 # Selectivity to mirror the ADMB ("pm" = Ianelli AMAK) structure:
 # - Fishery: Ianelli (2018) non-parametric selectivity with annual IID deviations
-#   (= ADMB sel_coffs_fsh + sel_devs_fsh). This is the single biggest lever for
-#   matching the ADMB trajectory (SSB correlation 0.88 -> 0.999).
+#   (= ADMB sel_coffs_fsh + sel_devs_fsh). Biggest single lever for matching the
+#   ADMB trajectory shape (SSB correlation 0.88 -> 0.96).
 # - BTS: logistic with a random walk over time (= ADMB sel_slp_bts/sel_a50_bts
 #   + their annual deviations).
-mydata$fleet_control$Selectivity[mydata$fleet_control$Fleet_name == "Fishery"]      <- "NonParametric"
-mydata$fleet_control$Time_varying_sel[mydata$fleet_control$Fleet_name == "Fishery"] <- "IID"
-mydata$fleet_control$Time_varying_sel[mydata$fleet_control$Fleet_name == "BTS"]     <- "RandomWalk"
+# IMPORTANT: a time-varying selectivity needs a NON-ZERO deviation penalty SD
+# (Time_varying_sel_sd_prior) or the deviations are unconstrained and the model
+# will NOT converge (non-positive-definite Hessian). The shipped BTS value is 0;
+# set it to the ADMB selectivity-deviation sigma (~0.5, selvar24.dat). The
+# fishery already ships 0.2.
+fcn <- mydata$fleet_control$Fleet_name
+mydata$fleet_control$Selectivity[fcn == "Fishery"]                <- "NonParametricPM"
+mydata$fleet_control$Time_varying_sel[fcn == "Fishery"]           <- "RandomWalk"
+mydata$fleet_control$Time_varying_sel[fcn == "BTS"]               <- "RandomWalk"
+mydata$fleet_control$Time_varying_sel_sd_prior[fcn == "BTS"]      <- 0.1
+
+# --- Align with ADMB pm (items 3-6) ------------------------------------------
+# (3) Catchability: ADMB solves BTS q ANALYTICALLY (q_bts = geometric mean obs/
+#     pred) but ESTIMATES q_ats = exp(log_q_ats). So BTS = Analytical, ATS =
+#     Estimated (the data file ships ATS as Analytical; switch it).
+mydata$fleet_control$Catchability[fcn == "ATS"] <- "Estimated"
+
+# (4) Selectivity-deviation penalty SD matched to ADMB: the fishery sel_devs
+#     sigma is 0.5 (selvar24.dat); BTS logistic-dev sigma left at 0.1 (ADMB
+#     bounds the BTS devs rather than using a selvar sigma).
+mydata$fleet_control$Time_varying_sel_sd_prior[fcn == "Fishery"] <- 0.5
+
+# (5) q priors are OFF in ADMB (q_bts_sigma = q_all_sigma = 2 >= 1). Rceattle
+#     "Estimated"/"Analytical" carry no prior, so there is nothing to add.
+
+# (6) Age-1 indices (BTS_1 / ATS_1): ADMB uses an empirical (geometric-mean) q
+#     = exp(mean(log(obs) - log(pred))) with sigma = 1 (age1_sigma_ats).
+#     Geometric q = Rceattle "Analytical"; set the lognormal index SD to 1.
+mydata$fleet_control$Catchability[fcn %in% c("BTS_1", "ATS_1")] <- "Analytical"
+mydata$index_data$Log_sd[mydata$index_data$Fleet_name %in% c("BTS_1", "ATS_1")] <- 1
+
+# sigmaR: ADMB rec penalty = 1.0 * norm2(log_rec_devs) ~ Gaussian with
+# sigma_R = 1/sqrt(2) = 0.707 (sigr fixed; phase_sigr < 0).
+mydata$sigma_rec_prior <- 0.707
 
 # - Look at the data
 # plot_data(mydata)
@@ -66,27 +97,10 @@ pollock_base <- Rceattle::fit_mod(
   msmMode      = 0,
   verbose      = 1,
   phase        = TRUE,
-  initMode     = 0,   # free initial N-at-age (= ADMB log_avginit + log_initdevs)
+  initMode     = 2,   # unfished equilibrium + init devs (converges; see note)
   M1Fun        = build_M1(updateM1 = TRUE, M1_model = 0)   # M fixed at age schedule
 )
 
-
-
-# -----------------------------------------------------------------------------
-# Model 2 - estimate age/time-invariant M
-# -----------------------------------------------------------------------------
-pollock_estM <- Rceattle::fit_mod(
-  data_list    = mydata,
-  inits        = NULL,
-  file         = NULL,
-  estimateMode = 0,
-  random_rec   = FALSE,
-  msmMode      = 0,
-  verbose      = 1,
-  phase        = TRUE,
-  initMode     = 0,   # free initial N-at-age (= ADMB log_avginit + log_initdevs)
-  M1Fun        = build_M1(M1_model = 1)   # estimate a single scalar M
-)
 
 
 # -----------------------------------------------------------------------------
@@ -95,10 +109,12 @@ pollock_estM <- Rceattle::fit_mod(
 # Build a pseudo-Rceattle object holding the ADMB SSB / recruitment series
 # (Data/2024_ADMB_estimate.xlsx) so it can be overlaid on the Rceattle output.
 adm_ssb <- as.data.frame(read_excel("Data/2024_ADMB_estimate.xlsx", sheet = "SSB"))
+adm_biom <- as.data.frame(read_excel("Data/2024_ADMB_estimate.xlsx", sheet = "Biomass"))
 adm_r   <- as.data.frame(read_excel("Data/2024_ADMB_estimate.xlsx", sheet = "Recruitment"))
 
 SAFE2024 <- pollock_base
 SAFE2024$quantities$ssb[1, 1:length(yrs)] <- adm_ssb$Est
+SAFE2024$quantities$biomass[1, 1:length(yrs)] <- adm_biom$Est
 SAFE2024$quantities$R[1, 1:length(yrs)]   <- adm_r$Est
 
 mods  <- list(pollock_base, SAFE2024)
