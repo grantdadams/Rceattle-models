@@ -14,7 +14,7 @@
 # under the N(0, sigma=1.0) regularizing prior.
 # =============================================================================
 
-source("ss3_to_ceattle_test.R")
+source("ss3_to_ceattle_forward_pass.R")
 
 # CAAL kernel + bin alignment now match SS3 exactly; the historical 1/45
 # downweight is no longer needed.
@@ -30,8 +30,6 @@ cod_pcod$fleet_control$CAAL_weights <- 1
 # 67 below SS3 via overfitting per-year q deviations).
 active_fi <- which(cod_pcod$fleet_control$Fleet_name %in% active_sel_fleets)
 cod_pcod$fleet_control$Time_varying_sel_sd_prior[active_fi] <- 0.3
-llsrv_idx <- which(cod_pcod$fleet_control$Fleet_name == "LLSrv")
-if (length(llsrv_idx)) cod_pcod$fleet_control$Time_varying_q_sd_prior[llsrv_idx] <- 0.3
 
 # CRITICAL: build_params writes sel_dev_log_sd / index_q_dev_log_sd into the
 # parameter list from data_list$fleet_control AT mod0 BUILD TIME. mod0 was
@@ -96,105 +94,50 @@ apply_ss3_sel_phase_fixes <- function(map_list, ctllist, fleet_meta) {
 }
 
 # =============================================================================
-# BlockDev: prior_weight + factor-shared map from SS3 Block_Design
+# BlockDev: switch Time_varying_sel to the SS3-faithful enum (= 6)
 # =============================================================================
-# For each (fleet, SS3 sel-param) with an active block design:
-#   * Build sel_inf_dev_prior_weight / log_sel_slp_dev_prior_weight per
-#     sub-block: weight = 1/N(yrs in subblock) so the per-year prior loop
-#     sums to ONE prior contribution per sub-block (matching SS3's per-
-#     replacement prior count).
-#   * Factor-share the dev cells across each sub-block year range so TMB
-#     treats them as a single estimable replacement value.
-#   * Years OUTSIDE any sub-block (and slots that don't have a block at
-#     all) get prior_weight = 0 AND map = NA so the dev stays locked at 0.
+# Rceattle now supports `Time_varying_sel = "BlockDev"` natively (added to
+# [Rceattle/R/0-constants.R](../../Rceattle/R/0-constants.R) and handled in
+# build_map_selectivity DoubleNormal branch + rearrange_data prior_weight
+# populator). For each (fleet, year) in a sub-block:
+#   * base sel parameter remains estimable
+#   * dev cells in sub-block years share ONE estimable label per sub-block
+#   * dev cells in non-block years are NA-locked at 0
+#   * sel_inf_dev_prior_weight[fleet, year] = 1/N (auto-populated from
+#     Selectivity_block in rearrange_data); the per-year cpp prior loop
+#     collapses to exactly one N(0, sigma) contribution per sub-block.
 #
-# Layout note: sel_inf_dev / log_sel_slp_dev are 4D [slot=3, n_flt, max_sex,
-# nyrs_hind]. SS3 P_i -> Rce (arr, slot) mapping is the same one used for
-# PHASE fixes above (.ss3_to_rce_sel).
-build_blockdev_arrays <- function(cod_pcod, ctllist, fleet_meta,
-                                  active_sel_fleets) {
-  nyrs_hind <- cod_pcod$endyr - cod_pcod$styr + 1L
-  n_flt     <- nrow(cod_pcod$fleet_control)
-  max_sex   <- max(cod_pcod$nsex, na.rm = TRUE)
-  hindyr    <- cod_pcod$styr:cod_pcod$endyr
-
-  sip <- array(0, dim = c(3L, n_flt, max_sex, nyrs_hind))   # sel_inf
-  ssp <- array(0, dim = c(3L, n_flt, max_sex, nyrs_hind))   # log_sel_slp
-
-  # Patches to apply to the map AFTER build_map runs. Each entry says:
-  #   (arr_dev = "sel_inf_dev" | "log_sel_slp_dev", slot, fleet, sex,
-  #    yr_indices, integer label N to write into those cells).
-  # Years that don't appear in any patch get set to NA later (locked).
-  patches <- list()
-  next_id <- 1L
-
-  sse <- ctllist$size_selex_parms
-  pat <- "^SizeSel_P_([1-6])_([A-Za-z]+)\\(([0-9]+)\\)$"
-  m <- regmatches(rownames(sse), regexec(pat, rownames(sse)))
-
-  for (i in seq_along(m)) {
-    if (length(m[[i]]) < 4L) next
-    p_idx    <- as.integer(m[[i]][2])
-    flt_name <- m[[i]][3]
-    flt_row  <- which(fleet_meta$name == flt_name)
-    if (length(flt_row) == 0L) next
-    if (!(flt_name %in% active_sel_fleets)) next
-    if (as.numeric(sse$PHASE[i]) < 0) next     # already pinned by phase-fix
-
-    block_design <- as.integer(sse$Block[i])
-    if (is.na(block_design) || block_design == 0L) next   # no SS3 block
-
-    rce       <- .ss3_to_rce_sel[[p_idx]]
-    weight_tn <- if (rce$arr == "sel_inf") "sip" else "ssp"
-    arr_dev   <- paste0(rce$arr, "_dev")
-
-    bd    <- ctllist$Block_Design[[block_design]]
-    n_sub <- length(bd) %/% 2L
-    for (k in seq_len(n_sub)) {
-      y1 <- bd[2L * k - 1L]; y2 <- bd[2L * k]
-      yr_idx <- which(hindyr >= y1 & hindyr <= y2)
-      if (length(yr_idx) == 0L) next
-      N <- length(yr_idx)
-      for (sx in seq_len(max_sex)) {
-        if (weight_tn == "sip") {
-          sip[rce$slot, flt_row, sx, yr_idx] <- 1 / N
-        } else {
-          ssp[rce$slot, flt_row, sx, yr_idx] <- 1 / N
-        }
-        patches[[length(patches) + 1L]] <- list(
-          arr_dev = arr_dev, slot = rce$slot, fleet = flt_row, sex = sx,
-          yr_idx = yr_idx, label = next_id,
-          desc = sprintf("%s P%d B%d sub%d (%d-%d, N=%d)",
-                         flt_name, p_idx, block_design, k, y1, y2, N))
-        next_id <- next_id + 1L
-      }
-    }
-  }
-  list(sel_inf_dev_prior_weight     = sip,
-       log_sel_slp_dev_prior_weight = ssp,
-       map_patches                  = patches)
-}
-
-cat("\n--- Building BlockDev prior_weight + map patches from SS3 ctl ---\n")
-.blockdev <- build_blockdev_arrays(cod_pcod, ctllist, fleet_meta,
-                                   active_sel_fleets)
-# Inject prior_weight arrays into cod_pcod so fit_mod's pool/rearrange
-# pick them up. Defaults (built in rearrange_data) are 1.0 everywhere;
-# overriding here with the BlockDev tensor sets the cpp prior loop to:
-#   1/N inside each sub-block (sum-to-one prior per sub-block)
-#   0    outside any sub-block (skip prior; dev locked at 0 via map=NA)
-#   0    for slots/fleets with no SS3 block at all (matches SS3 base-only)
-cod_pcod$sel_inf_dev_prior_weight     <- .blockdev$sel_inf_dev_prior_weight
-cod_pcod$log_sel_slp_dev_prior_weight <- .blockdev$log_sel_slp_dev_prior_weight
-cat(sprintf("[blockdev] %d sub-block patches generated\n",
-            length(.blockdev$map_patches)))
-for (p in .blockdev$map_patches) cat(sprintf("    %s\n", p$desc))
+# Flip ALL active sel fleets to BlockDev. The build_map_selectivity
+# DoubleNormal branch NA-locks every dev cell first, then factor-shares
+# only within sub-blocks (max_block > 0 case). So fleets with no sel
+# block (e.g. LLSrv) get sel-devs fully NA-locked at 0 -- matching SS3,
+# which doesn't estimate any time-varying sel for those fleets. This
+# replaces the previous "leave LLSrv at IID" which left 6*53 = 318
+# unconstrained sel-dev cells per fleet.
+active_fi <- which(cod_pcod$fleet_control$Fleet_name %in% active_sel_fleets)
+cod_pcod$fleet_control$Time_varying_sel[active_fi] <- "BlockDev"
+cat("\n[blockdev] Time_varying_sel set to 'BlockDev' for active fleets:\n  ",
+    paste(cod_pcod$fleet_control$Fleet_name[active_fi], collapse = ", "),
+    "\n", sep = "")
 
 
 # Build map externally, patch, refactor, hand to fit_mod.
+# Important: copy the BlockDev override into mod0$data_list so build_map's
+# tv-sel branch sees it (mod0 was built with the FP-default Time_varying_sel
+# = "IID" because BlockDev didn't exist when it was constructed). Without
+# this, the externally-built map uses IID semantics and our cod_pcod
+# BlockDev override never reaches the map — leaving 6 * nyrs_hind dev cells
+# estimable per active fleet (= the +1300 param-count bloat).
+.dl_for_map <- mod0$data_list
+.dl_for_map$fleet_control$Time_varying_sel <- cod_pcod$fleet_control$Time_varying_sel
+.dl_for_map$fleet_control$Catchability     <- cod_pcod$fleet_control$Catchability
+.dl_for_map$fleet_control$Time_varying_q   <- cod_pcod$fleet_control$Time_varying_q
+.dl_for_map$catch_data <- cod_pcod$catch_data   # has Selectivity_block populated
+.dl_for_map$index_data <- cod_pcod$index_data
+
 cat("\n--- Building map + applying SS3 PHASE fixes ---\n")
 .fitmap <- Rceattle::build_map(
-  data_list  = mod0$data_list,    # has linkage_table populated
+  data_list  = .dl_for_map,       # BlockDev + Selectivity_block + linkage_table
   params     = inits,
   debug      = FALSE,
   random_rec = FALSE,
@@ -208,29 +151,8 @@ if ("log_Finit" %in% names(.fitmap$mapList)) {
   cat("[phase-fix] log_Finit fixed at injected SS3 SR_regime MLE\n")
 }
 
-# Apply BlockDev patches: NA out every dev cell that isn't in a sub-block,
-# then set sub-block cells to a SHARED integer ID so TMB treats each
-# sub-block as one estimable parameter (factor-shared dev across years).
-# Combined with prior_weight = 1/N per cell, this produces exactly the SS3
-# per-replacement prior contribution.
-.bd_patches <- .blockdev$map_patches
-if (length(.bd_patches) > 0L) {
-  # First lock all dev cells at NA (no devs anywhere unless a patch covers
-  # the cell). This is the SS3 base behavior: no time-varying sel except
-  # at block-replacement years.
-  for (nm in c("sel_inf_dev", "log_sel_slp_dev")) {
-    if (nm %in% names(.fitmap$mapList)) .fitmap$mapList[[nm]][] <- NA_integer_
-  }
-  # Then write the shared label into each patch's (slot, fleet, sex, yr) box.
-  # `label` is a per-patch integer so different patches share NOTHING
-  # (one shared dev per sub-block).
-  for (p in .bd_patches) {
-    .fitmap$mapList[[p$arr_dev]][p$slot, p$fleet, p$sex, p$yr_idx] <- p$label
-  }
-  cat(sprintf("[blockdev] applied %d sub-block factor-shared patches\n",
-              length(.bd_patches)))
-}
-
+# BlockDev factor-sharing + non-block NA-out is now handled inside
+# build_map_selectivity (package side) — no manual patches needed here.
 .fitmap$mapFactor <- lapply(.fitmap$mapList, factor)
 
 

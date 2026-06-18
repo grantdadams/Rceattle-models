@@ -62,14 +62,16 @@ R/Bio/SSB rel err (post-estimation): R 28% mean, Bio 24% mean, SSB 71% mean.
 - Catch kernel: SS3 robustified `0.5·(log(1.1·obs)−log(hat+0.1·obs)/σ)²` — closed #4 kernel form (still Baranov, not Pope's)
 - Recruitment kernel: SS3-form per-year `0.5·z² + log(σ)`
 - CAAL `pred_CAAL` integrates over the data bin (Lbin_method=2) — closed #17
-- BlockDev infrastructure (new this session):
-  - `DATA_ARRAY(sel_inf_dev_prior_weight)` shape `[3, n_flt, max_sex, nyrs_hind]`
-  - `DATA_ARRAY(log_sel_slp_dev_prior_weight)` same shape
-  - `DATA_MATRIX(index_q_dev_prior_weight)` shape `[n_flt, nyrs_hind]`
-  - IID sel-dev + q-dev prior contributions multiplied by per-cell weight
-  - Defaults = 1.0 preserve existing IID behavior bit-identically (verified FP v11 unchanged)
+- BlockDev — proper enum (`Time_varying_sel = "BlockDev"` = 6, `Time_varying_q = "BlockDev"` = 5):
+  - Cpp prior_weight tensors: `DATA_ARRAY(sel_inf_dev_prior_weight)` `[3, n_flt, max_sex, nyrs_hind]`, `DATA_ARRAY(log_sel_slp_dev_prior_weight)` same shape, `DATA_MATRIX(index_q_dev_prior_weight)` `[n_flt, nyrs_hind]`
+  - IID prior contributions multiplied by per-cell weight (1.0 default preserves old behavior bit-identically)
+  - R: `build_map_selectivity` DoubleNormal + `build_map_catchability` BlockDev branches NA-lock all dev cells, then factor-share one estimable label per sub-block (read from `Selectivity_block` in catch/index_data)
+  - R: `rearrange_data` auto-populates `*_dev_prior_weight = 1/N` from `Selectivity_block` for BlockDev fleets
+  - R: `build_map_f_and_data_weights` NA-locks sel/q cells for `Fleet_type == "Off"` fleets (otherwise the default sequential map leaks them as estimable)
+  - Result on Pcod: 1672 → **291 estimable params**, within 39 of SS3's 330 (gap = missing #10 dev-seq layer + 1 fixed `log_Finit`)
 - Init mode 4 ("NonEquilibriumScaled") + init mode 5 ("EquilibriumScaled") — closes #6
 - Linkage system: `growth_linkage_offset` / `M_linkage_offset` / `recruitment_linkage_offset` with log + identity link variants
+- `Catchability = "EnvExp"` (= 7): SS3 case-1 exponential env-link `q = exp(LnQ · exp(β · env))` — closes #21. q[LLSrv] matches SS3 Calc_Q to 3.5e-6 per year.
 
 ### R ([Rceattle/R/](../../Rceattle/R/))
 
@@ -80,7 +82,7 @@ R/Bio/SSB rel err (post-estimation): R 28% mean, Bio 24% mean, SSB 71% mean.
 - [`tmb_helpers.R`](../../Rceattle/R/0-tmb_helpers.R): `.fit_tmb` wraps `TMBhelper::fit_tmb` in `tryCatch` and falls through to in-package nlminb fallback when the TMBhelper path errors
 - [`rearrange_data.R`](../../Rceattle/R/5-rearrange_data.R): defaults `*_dev_prior_weight = 1.0`; allocates 3D `age_error[sp, true_age, obs_age]` from `data_list$age_error` data.frame
 
-### Test driver ([ss3_to_ceattle_test.R](ss3_to_ceattle_test.R))
+### Test driver ([ss3_to_ceattle_forward_pass.R](ss3_to_ceattle_forward_pass.R))
 
 - r4ss `SS_output` monkey-patch (skips Pstar/OFL sigma calc that errors on corrupt Report.sso)
 - Jensen-gap closure: `Mat_F_wtatage` → SSB_WAA when applicable
@@ -209,7 +211,7 @@ numbered section.
 3. **#6 InitEQ init_dev prior** — under mode 4 with non-zero init_dev (which we use to pin styr N), the lognormal prior on init_dev fires ~+5 NLL. Cosmetic — doesn't affect estimates. **Fix path**: implement SS3's `regime_like` formula in cpp or gate the prior under a per-species flag.
 4. **#19 per-row ageing-error reference** — Pcod has 2 ageing-error defs; 75% of CAAL rows use def 2, 25% use def 1. We currently use def 2 for all rows. **Fix path**: add per-comp-row ageing-error index to `caal_data` / `comp_data`; rearrange to a 4D `age_error[sp, def_id, true, obs]`; cpp picks `def_id` per row.
 5. **#7 M-block prior structure** — SS3 has independent priors on `M_base` and `M_block_2014_replacement`; Rce has prior on the offset `M_block - M_base`. Small NLL difference.
-6. **#20 q-dev BlockDev** — LLSrv has SS3 env-q linkage (not block), so q-devs are still free IID with σ=0.3 prior. Survey NLL is partially overfit (−31 vs SS3 −1.8). **Fix path**: model the SS3 env-q exponential link `q[yr] = exp(LnQ_base · exp(env_add · env[yr]))` directly in cpp (currently approximated via per-year q_devs).
+6. **#20 q-dev BlockDev** — ~~LLSrv has SS3 env-q linkage (not block), so q-devs are still free IID with σ=0.3 prior. Survey NLL is partially overfit (−31 vs SS3 −1.8). **Fix path**: model the SS3 env-q exponential link `q[yr] = exp(LnQ_base · exp(env_add · env[yr]))` directly in cpp (currently approximated via per-year q_devs).~~ **Closed by #21 EnvExp.**
 7. **Phase A3 N drift** — even with all of the above closed, mid-series (1982-2010) shows 2-3% Bio rel err that hasn't been localized. Suspected: a M-block boundary discontinuity or a sub-block sel transition introducing a one-year jump. Hunt down by dumping per-year N-at-age comparison and looking for the year where Rce/SS3 ratio diverges.
 
 ---
@@ -240,7 +242,7 @@ Before the next session executes, decide:
 ### Run forward-pass only (~3-5 min)
 ```bash
 cd "Rceattle-models/GOA cod"
-Rscript ss3_to_ceattle_test.R > /tmp/fp.log 2>&1
+Rscript ss3_to_ceattle_forward_pass.R > /tmp/fp.log 2>&1
 # Inspect:
 grep -A4 "Forward-pass relative" /tmp/fp.log
 grep -A12 "Grouped NLL components" /tmp/fp.log

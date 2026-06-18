@@ -1,0 +1,830 @@
+---
+title: "Fishery Selectivity Form Comparison"
+bibliography: ../references/selectivity.bib
+link-citations: true
+execute:
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    lightbox: true
+    # KaTeX is shipped with Quarto and works well with embed-resources (no external CDN reliance).
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+params:
+  results_dir: "analysis/output/fishery_sel_forms"
+  base_form: 0
+  compare_forms: [2, 5]
+---
+
+```{r setup}
+#| include: false
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(ggthemes)
+  library(ggridges)
+  library(gt)
+  library(knitr)
+  library(tibble)
+  library(purrr)
+})
+
+theme_set(ggthemes::theme_few())
+
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
+
+# Render can run with working dir = reporting/, so climb one level if needed.
+wd <- normalizePath(getwd(), mustWork = TRUE)
+rtmb_root <- if (file.exists(file.path(wd, "R", "Rpm.R"))) wd else normalizePath(file.path(wd, ".."), mustWork = TRUE)
+rtmb_file <- function(...) normalizePath(file.path(rtmb_root, ...), mustWork = FALSE)
+
+results_dir <- rtmb_file(params$results_dir)
+
+run_path <- function(form) file.path(results_dir, sprintf("fishery_sel_form_%d.rds", as.integer(form)))
+
+load_run <- function(form) {
+  path <- run_path(form)
+  if (!file.exists(path)) stop("Missing results file: ", path)
+  x <- readRDS(path)
+  x$path <- path
+  x
+}
+
+base_form <- as.integer(params$base_form)
+compare_forms <- as.integer(params$compare_forms)
+forms <- c(base_form, compare_forms)
+runs <- purrr::map(forms, load_run)
+
+safe_logit_rho <- function(x) 2 / (1 + exp(-x)) - 1
+
+# Short labels for plotting (full labels can get clipped in facets)
+short_label <- function(form) {
+  form <- as.integer(form)
+  if (form == 0L) return("Base")
+  if (form == 2L) return("Double-logistic")
+  if (form == 5L) return("2D AR1")
+  paste0("Form ", form)
+}
+
+summary_tbl <- tibble(
+  fishery_sel_form = purrr::map_int(runs, "form"),
+  label = purrr::map_chr(runs, "label"),
+  label_short = purrr::map_chr(purrr::map_int(runs, "form"), short_label),
+  objective = purrr::map_dbl(runs, "objective"),
+  evaluated_total = purrr::map_dbl(runs, ~ .x$evaluated_total %||% .x$report$tot_like %||% NA_real_),
+  convergence = purrr::map_int(runs, "convergence"),
+  max_gradient = purrr::map_dbl(runs, "max_gradient"),
+  seconds = purrr::map_dbl(runs, "seconds")
+) |>
+  arrange(fishery_sel_form) |>
+  mutate(
+    delta_objective = objective - objective[fishery_sel_form == base_form][1],
+    delta_evaluated_total = evaluated_total - evaluated_total[fishery_sel_form == base_form][1],
+    objective_report_gap = evaluated_total - objective
+  )
+
+rho_ar1_summary <- {
+  ar1_run <- runs[[which(purrr::map_int(runs, "form") == 5L)[1]]]
+  rho_working <- ar1_run$fixed_parameters$sel_tv_ar1_rho_fsh %||% c(NA_real_, NA_real_)
+  rho <- safe_logit_rho(as.numeric(rho_working))
+  tibble(
+    fishery_sel_form = 5L,
+    label_short = short_label(5L),
+    rho_y = rho[1],
+    rho_a = rho[2],
+    working_rho_y = as.numeric(rho_working[1]),
+    working_rho_a = as.numeric(rho_working[2])
+  )
+}
+
+rho_ar1_caption <- if (nrow(rho_ar1_summary) > 0 && all(is.finite(rho_ar1_summary$rho_y), is.finite(rho_ar1_summary$rho_a))) {
+  sprintf(
+    " For the 2D AR1 form, fitted correlations are rho_y = %.3f and rho_a = %.3f.",
+    rho_ar1_summary$rho_y,
+    rho_ar1_summary$rho_a
+  )
+} else {
+  ""
+}
+
+get_ssb_df <- function(run) {
+  ssb <- run$report$SSB
+  tibble(
+    fishery_sel_form = run$form,
+    label = run$label,
+    label_short = short_label(run$form),
+    year = as.integer(names(ssb)),
+    SSB = as.numeric(ssb)
+  )
+}
+
+# Note: fishery selectivity is stored as sel_fsh in the report list (matrix [year x age])
+get_sel_df <- function(run) {
+  sel <- run$report$sel_fsh
+  stopifnot(is.matrix(sel))
+  years <- as.integer(rownames(sel) %||% seq_len(nrow(sel)))
+  if (is.null(rownames(sel))) years <- seq_len(nrow(sel))
+  out <- as_tibble(sel, .name_repair = "minimal")
+  names(out) <- seq_len(ncol(sel))
+  out |>
+    mutate(year = years, .before = 1) |>
+    pivot_longer(-year, names_to = "age", values_to = "selectivity") |>
+    mutate(
+      age = as.integer(age),
+      fishery_sel_form = run$form,
+      label = run$label,
+      label_short = short_label(run$form)
+    )
+}
+
+ssb_df <- bind_rows(purrr::map(runs, get_ssb_df))
+sel_df <- bind_rows(purrr::map(runs, get_sel_df))
+
+get_catch_df <- function(run) {
+  obs <- run$report$obs_catch
+  pred <- run$report$pred_catch
+  yrs <- as.integer(names(obs) %||% names(pred) %||% seq_along(obs))
+  tibble(
+    fishery_sel_form = run$form,
+    label = run$label,
+    label_short = short_label(run$form),
+    year = yrs,
+    obs_catch = as.numeric(obs),
+    pred_catch = as.numeric(pred)
+  )
+}
+
+catch_df <- bind_rows(purrr::map(runs, get_catch_df))
+
+# Generic GT wrapper
+
+gt_report <- function(data, ...) {
+  gt(data, ...) |>
+    tab_options(table.font.size = px(13))
+}
+
+plot_agecomp_fit_comparison <- function(data, fleet_name, ncol = 4) {
+  plot_data <- data |>
+    filter(fleet == fleet_name, is.finite(obs) | is.finite(exp)) |>
+    mutate(label_short = factor(label_short, levels = unique(summary_tbl$label_short)))
+
+  observed_data <- plot_data |>
+    group_by(fleet, year, age) |>
+    summarize(obs = mean(obs, na.rm = TRUE), .groups = "drop")
+
+  ggplot() +
+    geom_line(
+      data = plot_data,
+      aes(x = age, y = exp, color = label_short, group = label_short),
+      linewidth = 0.5,
+      alpha = 0.9,
+      na.rm = TRUE
+    ) +
+    geom_point(
+      data = observed_data,
+      aes(x = age, y = obs),
+      color = "#1f78b4",
+      size = 0.85,
+      alpha = 0.75,
+      na.rm = TRUE
+    ) +
+    facet_wrap(~year, ncol = ncol, dir = "v") +
+    scale_y_continuous(limits = c(0, NA)) +
+    labs(
+      x = "Age",
+      y = "Proportion",
+      color = "Scenario",
+      title = paste(fleet_name, "Age Composition Fits")
+    ) +
+    theme(legend.position = "top")
+}
+```
+
+# Overview
+
+This report compares three RTMB runs that differ **only** in the fishery selectivity form.
+
+- Base: `fishery_sel_form = {params.base_form}`
+- Comparators: `fishery_sel_form = {paste(params.compare_forms, collapse=', ')}`
+
+The run outputs were generated by `R/run_fishery_selectivity_forms.R` and saved under:
+
+- `{params.results_dir}`
+
+# Fit Summary
+
+```{r}
+#| label: tbl-fit-summary
+#| tbl-cap: "Model optimization summary by fishery selectivity form."
+summary_tbl |>
+  mutate(across(c(objective, evaluated_total, delta_objective, delta_evaluated_total,
+                  objective_report_gap, max_gradient, seconds), ~round(.x, 6))) |>
+  gt_report() |>
+  tab_header(title = "Fit summary")
+```
+
+`objective_report_gap` should be near zero. A large value indicates that the optimizer
+and the saved report were evaluated under different data or parameter settings.
+
+```{r}
+#| label: objective-report-gap-warning
+#| echo: false
+#| results: asis
+
+gap_max <- max(abs(summary_tbl$objective_report_gap), na.rm = TRUE)
+if (is.finite(gap_max) && gap_max > 1e-3) {
+  cat(
+    "\n\n> **Diagnostic warning:** at least one saved run has a large ",
+    "`objective_report_gap`. Regenerate the scenario `.rds` files with the ",
+    "current `R/run_fishery_selectivity_forms.R` before interpreting the ",
+    "selectivity comparison.\n\n",
+    sep = ""
+  )
+}
+```
+
+## Catch biomass fit (observed vs predicted)
+
+```{r}
+#| label: fig-catch-fit
+#| fig-cap: "Observed vs predicted catch biomass by scenario (fishery)."
+
+catch_long <- catch_df |>
+  pivot_longer(c(obs_catch, pred_catch), names_to = "series", values_to = "catch") |>
+  mutate(series = factor(series, levels = c("obs_catch", "pred_catch"), labels = c("Observed", "Predicted")))
+
+ggplot(catch_long, aes(x = year, y = catch, color = series)) +
+  geom_line(linewidth = 0.6) +
+  facet_wrap(~label_short, ncol = 1, scales = "free_y") +
+  labs(x = "Year", y = "Catch biomass", color = NULL) +
+  theme(legend.position = "bottom")
+```
+
+## Per-scenario assessment reports
+
+For deeper inspection of each scenario (catch/SSB/selectivity surfaces/age-comp residuals), see the scenario-specific assessment pages:
+
+- Base (form 0): `fishery_sel_form_0_assessment.html`
+- Double-logistic (form 2): `fishery_sel_form_2_assessment.html`
+- 2D AR1 (form 5): `fishery_sel_form_5_assessment.html`
+
+# Likelihood Component Comparison
+
+## Age-composition fit comparison
+
+The model returns an age-composition negative log-likelihood contribution by fleet in `report$age_like`.
+
+It also stores fishery observed (`oac_fsh`) and expected (`eac_fsh`) age-composition proportions by year×age in the saved run outputs.
+
+```{r}
+#| label: fig-age-like
+#| fig-cap: "Change in age-composition NLL relative to the base scenario by fleet. Negative values indicate improved fit relative to base."
+#| fig-width: 8
+#| fig-height: 4.5
+#| out-width: "100%"
+
+age_like_df <- bind_rows(purrr::map(runs, function(run) {
+  al <- run$report$age_like
+  tibble(
+    fishery_sel_form = run$form,
+    label = run$label,
+    label_short = short_label(run$form),
+    fleet = names(al),
+    age_like = as.numeric(al)
+  )
+})) |>
+  mutate(
+    fleet = factor(fleet, levels = c("fsh", "bts", "ats"), labels = c("Fishery", "BTS", "ATS")),
+    label = factor(label, levels = unique(summary_tbl$label)),
+    label_short = factor(label_short, levels = unique(summary_tbl$label_short))
+  )
+
+base_vals <- age_like_df |>
+  filter(fishery_sel_form == base_form) |>
+  select(fleet, base_age_like = age_like)
+
+age_like_df2 <- age_like_df |>
+  left_join(base_vals, by = "fleet") |>
+  mutate(delta_age_like = age_like - base_age_like)
+
+age_like_plot_df <- age_like_df2 |>
+  filter(fishery_sel_form != base_form)
+
+ggplot(age_like_plot_df, aes(x = label_short, y = delta_age_like, fill = label_short)) +
+  geom_hline(yintercept = 0, linewidth = 0.4, color = "gray50") +
+  geom_col(width = 0.68, alpha = 0.9) +
+  geom_text(
+    aes(
+      label = round(delta_age_like, 1),
+      vjust = ifelse(delta_age_like >= 0, -0.35, 1.25)
+    ),
+    size = 3,
+    show.legend = FALSE
+  ) +
+  facet_wrap(~fleet, nrow = 1, scales = "free_y") +
+  labs(x = NULL, y = "Delta age-comp NLL vs base", fill = NULL) +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: tbl-age-like
+#| tbl-cap: "Age-composition NLL contributions (and deltas vs base) by fleet and scenario."
+
+age_like_df2 |>
+  mutate(across(c(age_like, base_age_like, delta_age_like), ~round(.x, 0))) |>
+  arrange(fleet, fishery_sel_form) |>
+  gt_report()
+```
+
+## Age Composition Fits
+
+These figures follow the observed-versus-expected age-composition layout used for figures 5-7 in the main assessment report. Points show the observed proportions; colored lines show the expected proportions from each fishery selectivity scenario.
+
+```{r}
+#| label: agecomp-data
+#| include: false
+
+extract_agecomp_df <- function(run, fleet = c("fsh", "bts", "ats")) {
+  fleet <- match.arg(fleet)
+
+  oac <- run$report[[paste0("oac_", fleet)]]
+  eac <- run$report[[paste0("phat_", fleet)]]
+  stopifnot(!is.null(oac), !is.null(eac))
+
+  yrs_key <- paste0("yrs_", fleet, "_data")
+  yrs <- run$report[[yrs_key]]
+  if (is.null(yrs) || length(yrs) != nrow(oac)) {
+    # Fallback if years weren't saved (shouldn't happen): use row index
+    yrs <- seq_len(nrow(oac))
+  }
+
+  sample_size <- run$report[[paste0("sam_", fleet)]]
+  if (is.null(sample_size) || length(sample_size) != nrow(oac)) {
+    sample_size <- rep(NA_real_, nrow(oac))
+  }
+
+  ages <- seq_len(ncol(oac))
+
+  # Match the main report's age-composition plots by comparing BTS/ATS over ages 2+.
+  if (fleet %in% c("bts", "ats") && ncol(oac) >= 2) {
+    keep <- 2:ncol(oac)
+    oac <- oac[, keep, drop = FALSE]
+    eac <- eac[, keep, drop = FALSE]
+    ages <- keep
+  }
+
+  grid <- tidyr::expand_grid(year = yrs, age = ages) |>
+    as.data.frame()
+  grid$fishery_sel_form <- run$form
+  grid$label <- run$label
+  grid$label_short <- short_label(run$form)
+  grid$fleet <- fleet
+
+  # Convert to proportions within each year-row to make diagnostics comparable.
+  # Some ATS expected values are stored on an abundance scale before this normalization.
+  o_rs <- pmax(rowSums(oac), 1e-12)
+  e_rs <- pmax(rowSums(eac), 1e-12)
+  o_prop <- sweep(oac, 1, o_rs, "/")
+  e_prop <- sweep(eac, 1, e_rs, "/")
+
+  # Safety: enforce exact renormalization numerically (and catch pathologies)
+  o_prop <- sweep(o_prop, 1, pmax(rowSums(o_prop), 1e-12), "/")
+  e_prop <- sweep(e_prop, 1, pmax(rowSums(e_prop), 1e-12), "/")
+
+  # Optional checks (won't stop render, but will warn in console if something is off)
+  o_chk <- max(abs(rowSums(o_prop) - 1))
+  e_chk <- max(abs(rowSums(e_prop) - 1))
+  if (is.finite(o_chk) && o_chk > 1e-6) warning("oac proportions do not sum to 1 (max abs dev = ", o_chk, ") for fleet=", fleet, ", form=", run$form)
+  if (is.finite(e_chk) && e_chk > 1e-6) warning("eac proportions do not sum to 1 (max abs dev = ", e_chk, ") for fleet=", fleet, ", form=", run$form)
+
+  grid$obs <- as.numeric(t(o_prop))
+  grid$exp <- as.numeric(t(e_prop))
+  grid$resid <- grid$obs - grid$exp
+  grid$n_eff <- rep(as.numeric(sample_size), each = length(ages))
+
+  tibble::as_tibble(grid)
+}
+
+agecomp_df <- bind_rows(
+  purrr::map_dfr(runs, extract_agecomp_df, fleet = "fsh"),
+  purrr::map_dfr(runs, extract_agecomp_df, fleet = "bts"),
+  purrr::map_dfr(runs, extract_agecomp_df, fleet = "ats")
+) |>
+  mutate(
+    label = factor(label, levels = unique(summary_tbl$label)),
+    label_short = factor(label_short, levels = unique(summary_tbl$label_short)),
+    fleet = factor(fleet, levels = c("fsh", "bts", "ats"), labels = c("Fishery", "BTS", "ATS"))
+  )
+```
+
+```{r}
+#| label: fig-agecomp-fishery
+#| fig-cap: "Observed and expected fishery age-composition patterns by fishery selectivity scenario, faceted by year. Points are observed proportions; lines are scenario-specific expected proportions."
+#| fig-width: 8
+#| fig-height: 11
+#| out-width: "100%"
+plot_agecomp_fit_comparison(agecomp_df, "Fishery", ncol = 5)
+```
+
+```{r}
+#| label: fig-agecomp-bts
+#| fig-cap: "Observed and expected BTS age-composition patterns by fishery selectivity scenario, faceted by year. Points are observed proportions; lines are scenario-specific expected proportions."
+#| fig-width: 8
+#| fig-height: 11
+#| out-width: "100%"
+plot_agecomp_fit_comparison(agecomp_df, "BTS", ncol = 4)
+```
+
+```{r}
+#| label: fig-agecomp-ats
+#| fig-cap: "Observed and expected ATS age-composition patterns by fishery selectivity scenario, faceted by year. Points are observed proportions; lines are scenario-specific expected proportions."
+#| fig-width: 8
+#| fig-height: 11
+#| out-width: "100%"
+plot_agecomp_fit_comparison(agecomp_df, "ATS", ncol = 3)
+```
+
+The RTMB report object stores a set of likelihood (or penalty) components. The most relevant ones for this comparison are:
+
+- `sel_like`, `sel_like_dev` (selectivity penalties)
+- `age_like` (age composition likelihood)
+- `cat_like` (catch fit)
+- `cpue_like` (CPUE)
+
+```{r}
+#| label: tbl-nll-components
+#| tbl-cap: "Selected likelihood / penalty components returned in the RTMB report."
+
+extract_components <- function(run) {
+  r <- run$report
+  tibble(
+    fishery_sel_form = run$form,
+    label = run$label,
+    sel_like = sum(r$sel_like, na.rm = TRUE),
+    sel_like_dev = sum(r$sel_like_dev, na.rm = TRUE),
+    age_like_total = attr(r$age_like, "total") %||% sum(r$age_like, na.rm = TRUE),
+    cat_like = r$cat_like %||% NA_real_,
+    cpue_like = r$cpue_like %||% NA_real_,
+    avo_like = r$avo_like %||% NA_real_,
+    wt_like = r$wt_like %||% NA_real_,
+    nll = r$tot_like %||% r$nll %||% NA_real_
+  )
+}
+
+comp_tbl <- bind_rows(purrr::map(runs, extract_components)) |>
+  arrange(fishery_sel_form) |>
+  mutate(
+    delta_nll = nll - nll[fishery_sel_form == base_form][1],
+    delta_sel_like = sel_like - sel_like[fishery_sel_form == base_form][1],
+    delta_sel_like_dev = sel_like_dev - sel_like_dev[fishery_sel_form == base_form][1]
+  )
+
+comp_tbl |>
+  mutate(across(where(is.numeric), ~round(.x, 0))) |>
+  gt_report() |>
+  tab_header(title = "NLL components")
+```
+
+# Fishery Selectivity Surfaces
+
+Fishery selectivity is represented as a relative age pattern that multiplies annual fully selected fishing mortality. Let \(t\) index years, \(a\) index ages, and \(x_a = a + 0.5\) denote the age value used in the selectivity functions. Each form is converted to log selectivity \(\ell_{t,a}\), constrained so ages 11 and older share the age-11 value, centered within year, and exponentiated:
+
+$$
+\ell_{t,a} = \ell_{t,11}, \quad a \ge 11,
+$$
+
+$$
+\ell^*_{t,a} =
+\ell_{t,a} -
+\log \left\{ A^{-1} \sum_{a=1}^{A} \exp(\ell_{t,a}) \right\},
+\qquad
+s_{t,a} = \exp(\ell^*_{t,a}).
+$$
+
+The centered selectivity \(s_{t,a}\) enters the population dynamics as \(F_{t,a} = F_t s_{t,a}\). Code references needed to reproduce the implementation are in @sec-appendix-implementation.
+
+## Literature context
+
+@sampson2014fishery provides a useful framing for this comparison by separating contact selection, availability, and population-level fishery selectivity. That distinction matters here because the RTMB selectivity surface is not simply a gear-retention curve; it is the relative fishing mortality pattern implied by the combined fishery, fleet behavior, fish distribution, and assessment model structure. The paper also illustrates that population selectivity can be temporally variable and can take diverse shapes, which motivates comparing the base change-year coefficient form against more flexible alternatives.
+
+@punt2014model focuses on the assessment-model problem: selectivity forms reduce variance when they are parsimonious, but they can bias assessment outputs when the assumed functional form is wrong. The paper reviews how residual diagnostics, information criteria, and simulation studies can be used to evaluate selectivity choices. This report follows that logic by comparing model likelihood components, age-composition fits, selectivity surfaces, and spawning biomass trajectories rather than interpreting one selectivity form from the objective value alone.
+
+@martell2014goodPractices is the most direct precedent for the time-varying selectivity comparison. Martell and Stewart used simulation-estimation experiments to evaluate fixed, blocked, and continuously changing selectivity patterns and emphasized that both statistical fit and policy consequences should be evaluated. The base model here resembles a blocked approach through change-year deviations, whereas the 2D AR1 option is closer to a continuous time-varying surface that borrows strength across neighboring years and ages.
+
+@butterworth2014selectivityMatter asks how much selectivity uncertainty affects management advice across a set of applied assessment and management-procedure examples. The study is a caution against treating selectivity sensitivity as automatically dominant: selectivity can strongly affect reference points and biomass scale in some cases, but other uncertainties may be equally or more influential. For this report, that means SSB and likelihood differences should be read as one part of a broader sensitivity analysis rather than as a complete basis for model choice.
+
+@cadrin2016fieldObservations connects assessment selectivity and catchability to field observations of fishing gear, survey gear, efficiency, and availability. The paper is relevant because assessment-estimated selectivity can absorb several processes that field studies may measure separately. For EBS pollock, any interpretation of the fishery selectivity surface should therefore distinguish model-based population selectivity from direct observations about gear performance, fishing behavior, or fish availability.
+
+@vasilakopoulos2020metrics shifts the focus from estimating selectivity curves to operational metrics for management advice. The authors evaluate candidate metrics for sensitivity to selectivity changes and robustness to recruitment and fishing-mortality variation, identifying the ratio of fishing mortality on the first recruited age to average fishing mortality as a useful summary. That perspective suggests a practical extension of this comparison: after fitting alternative selectivity forms, summarize whether the implied exploitation pattern changes in a way that managers could track, not only whether the full selectivity surface looks different.
+
+## Form 0: base coefficients with change-year deviations
+
+The base model uses estimated age coefficients plus deviations at configured fishery-selectivity change years:
+
+$$
+\ell_{t,a} = c_a + d_{k(t),a},
+$$
+
+where \(c_a\) is the baseline age coefficient and \(d_{k(t),a}\) is the deviation for the change-year block \(k(t)\). This form is flexible at the configured break points but does not estimate a continuous year-to-year process for fishery selectivity.
+
+## Form 2: time-varying double logistic
+
+The double-logistic form estimates annual parameters \(p_{1,t}\), \(p_{2,t}\), and \(p_{3,t}\), with starting values centered on \(1.5\), \(3\), and \(4\). These parameters define the ascending and descending transition ages:
+
+$$
+\gamma_{1,t} = p_{1,t} + p_{2,t},
+\qquad
+\gamma_{2,t} = 2p_{1,t} + p_{2,t} + p_{3,t}.
+$$
+
+The uncentered annual curve is
+
+$$
+u_{t,a} =
+\left[1 + \exp\left\{-\log(19)\frac{x_a - \gamma_{1,t}}{p_{1,t}}\right\}\right]^{-1},
+$$
+
+$$
+v_{t,a} =
+1 -
+\left[1 + \exp\left\{-\log(19)\frac{x_a - \gamma_{2,t}}{p_{3,t}}\right\}\right]^{-1},
+$$
+
+$$
+\ell_{t,a} =
+\log\left(u_{t,a} v_{t,a} 0.95^{-2} + \epsilon \right)
+- \max_a \log\left(u_{t,a} v_{t,a} 0.95^{-2} + \epsilon \right),
+$$
+
+followed by the age-11 plus-group constraint and within-year centering. The annual log-scale triplets \(\theta_t = \log(p_{1,t}, p_{2,t}, p_{3,t})\) are penalized with shrinkage toward \(\mu = \log(1.5, 3, 4)\) and a first-difference penalty:
+
+$$
+Q_\mathrm{DL} =
+\sum_t \sum_j
+\left(\frac{\theta_{t,j} - \mu_j}{\sigma_{p,j}}\right)^2
++
+\frac{1}{2}
+\sum_{t=2}^{T} \sum_j
+\left(\frac{\theta_{t,j} - \theta_{t-1,j}}{\sigma_{\Delta,j}}\right)^2,
+$$
+
+where \(\sigma_p = (0.75, 0.75, 0.45)\) and \(\sigma_\Delta = (0.60, 0.60, 0.40)\). The smaller scales for \(p_3\) impose stronger regularization on the descending limb, which is otherwise weakly informed by older ages.
+
+## Form 5: 2D AR1 time-varying surface
+
+The 2D AR1 form estimates a full year-by-age latent field \(z_{t,a}\). Before centering, the log selectivity is
+
+$$
+\ell_{t,a} = z_{t,a},
+$$
+
+with the same age-11 plus-group constraint and within-year centering used for the other forms. The latent field is penalized with a separable AR1 process over year and age:
+
+$$
+z \sim \operatorname{AR1}_{\mathrm{year}}(\rho_y)
+\otimes
+\operatorname{AR1}_{\mathrm{age}}(\rho_a),
+$$
+
+with fitted correlations reported in the caption for @fig-sel-ridges. The scenario recipe down-weights the AR1 penalty relative to the default, allowing more interannual variation while still borrowing strength across neighboring years and ages.
+
+```{r}
+#| label: fig-sel-ridges
+#| fig-cap: !expr paste0("Fishery selectivity through time (ggridges), normalized within year.", rho_ar1_caption)
+#| fig-width: 9
+#| fig-height: 11
+#| out-width: "100%"
+
+ridge_df <- sel_df |>
+  group_by(fishery_sel_form, label, year) |>
+  mutate(relative = selectivity / max(selectivity, na.rm = TRUE)) |>
+  ungroup() |>
+  mutate(year_factor = factor(year, levels = rev(sort(unique(year)))))
+
+ggplot(ridge_df, aes(x = age, y = year_factor, height = relative, group = year_factor)) +
+  geom_density_ridges(stat = "identity", fill = "#1f78b4", alpha = 0.65, rel_min_height = 0.01) +
+  facet_wrap(~label_short, ncol = 3) +
+  labs(x = "Age", y = "Year") +
+  theme(axis.text.y = element_text(size = 7))
+```
+
+# Spawning Biomass Comparison
+
+```{r}
+#| label: fig-ssb
+#| fig-cap: "Spawning biomass (SSB) trajectories by fishery selectivity form."
+
+ggplot(ssb_df, aes(x = year, y = SSB, color = label)) +
+  geom_line(linewidth = 1) +
+  labs(x = "Year", y = "SSB", color = NULL) +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: tbl-ssb-differences
+#| tbl-cap: "SSB differences relative to base run at key years."
+
+key_years <- sort(unique(ssb_df$year))
+key_years <- key_years[key_years %in% c(max(key_years), max(key_years) - 1, 2000, 2010, 2020)]
+if (length(key_years) == 0) key_years <- tail(sort(unique(ssb_df$year)), 5)
+
+ssb_wide <- ssb_df |>
+  filter(year %in% key_years) |>
+  select(fishery_sel_form, label, year, SSB) |>
+  pivot_wider(names_from = fishery_sel_form, values_from = SSB, names_prefix = "form_")
+
+base_col <- paste0("form_", base_form)
+
+ssb_delta <- ssb_df |>
+  filter(year %in% key_years) |>
+  group_by(year) |>
+  mutate(
+    base_SSB = SSB[fishery_sel_form == base_form][1],
+    delta_SSB = SSB - base_SSB,
+    pct_delta = 100 * delta_SSB / base_SSB
+  ) |>
+  ungroup() |>
+  select(label, fishery_sel_form, year, SSB, delta_SSB, pct_delta) |>
+  arrange(year, fishery_sel_form)
+
+ssb_delta |>
+  mutate(across(c(SSB, delta_SSB, pct_delta), ~round(.x, 4))) |>
+  gt_report() |>
+  tab_header(title = "SSB deltas vs base")
+```
+
+
+# Appendix: Implementation References {#sec-appendix-implementation}
+
+The equations above are implemented through the RTMB parameter builder, the selectivity construction helper, and the model likelihood. These references provide traceability without repeating the methods section.
+
+## Parameter blocks
+
+Fishery selectivity parameters are initialized in `R/utils-rtmb.R::add_fishery_selectivity_parameters()`. The defaults to check first are in `R/utils-rtmb.R:223-235`:
+
+```r
+add_fishery_selectivity_parameters <- function(parameters, data) {
+  nyrs <- as.integer(data$endyr - data$styr + 1L)
+  nages <- as.integer(data$nages)
+  defaults <- list(
+    sel_double_logistic_fsh = matrix(log(c(1.5, 3, 4)), nrow = nyrs, ncol = 3, byrow = TRUE),
+    sel_tv_ar1_fsh = matrix(0, nrow = nyrs, ncol = nages),
+    sel_tv_ar1_rho_fsh = c(0, 0),
+    log_sel_tv_ar1_sigma_fsh = log(0.2)
+  )
+}
+```
+
+`R/Rpm.R:9-22` contains matching safety defaults. These matter when older saved parameter lists are evaluated without the newer optional selectivity blocks:
+
+```r
+if (!exists("fishery_sel_form", inherits = FALSE)) fishery_sel_form <- 0L
+if (!exists("sel_double_logistic_fsh", inherits = FALSE)) {
+  sel_double_logistic_fsh <- matrix(log(c(1.5, 3, 4)), nrow = endyr - styr + 1, ncol = 3, byrow = TRUE)
+}
+if (!exists("sel_tv_ar1_fsh", inherits = FALSE)) sel_tv_ar1_fsh <- matrix(0, nrow = endyr - styr + 1, ncol = nages)
+if (!exists("sel_tv_ar1_rho_fsh", inherits = FALSE)) sel_tv_ar1_rho_fsh <- c(0, 0)
+if (!exists("log_sel_tv_ar1_sigma_fsh", inherits = FALSE)) log_sel_tv_ar1_sigma_fsh <- log(0.2)
+if (!exists("sel_tv_ar1_weight_fsh", inherits = FALSE)) sel_tv_ar1_weight_fsh <- 1.0
+```
+
+## Selectivity construction
+
+The base coefficient form is built in `R/model_funs.R:20-61`. The initial coefficients are centered, change-year deviations are applied, and selectivity is carried forward in years without a change:
+
+```r
+log_sel[1, 1:nsel] <- coffs
+log_sel[1, (nsel + 1):nages] <- coffs[nsel]
+log_sel[1, ] <- log_sel[1, ] - log(mean(exp(log_sel[1, ])))
+
+if (ii <= nch_fsh && year == yrs_ch_fsh[ii]) {
+  log_sel[i + 1, 1:nsel] <- log_sel[i, 1:nsel] + sel_devs[ii, ]
+  log_sel[i + 1, (nsel + 1):nages] <- log_sel[i + 1, nsel]
+} else {
+  log_sel[i + 1, ] <- log_sel[i, ]
+}
+```
+
+`R/model_funs.R:68-86` applies the age-11 plus-group constraint. This is the code that makes ages 11 and older share the same fishery selectivity value:
+
+```r
+if (ncol(log_sel) >= first_old_age) {
+  for (i in seq_len(nrow(log_sel))) {
+    log_sel[i, first_old_age:ncol(log_sel)] <- log_sel[i, first_old_age]
+    if (isTRUE(center)) log_sel[i, ] <- center_log_selectivity(log_sel[i, ])
+  }
+}
+```
+
+`R/model_funs.R:102-180` dispatches among selectivity forms and returns the year-by-age log selectivity matrix. The most relevant branches for this comparison are `R/model_funs.R:117-123` for form 0, `R/model_funs.R:136-153` for form 2, and `R/model_funs.R:172-180` for form 5:
+
+```r
+if (form == 0L) {
+  out <- compute_selectivity_fsh(...)
+  out$log_sel <- cap_old_age_log_selectivity(out$log_sel, first_old_age = 11L)
+  return(out)
+} else if (form == 2L) {
+  p1 <- exp(par_i[1])
+  p2 <- exp(par_i[2])
+  p3 <- exp(par_i[3])
+  gamma1 <- p1 + p2
+  gamma2 <- 2 * p1 + p2 + p3
+  asc <- 1 / (1 + exp(-log(19) * (age_vector - gamma1) / p1))
+  desc <- 1 - 1 / (1 + exp(-log(19) * (age_vector - gamma2) / p3))
+  base <- log(asc * desc * 0.95^(-2) + 1e-12)
+  log_sel[i, ] <- center_log_selectivity(base - max(base))
+} else if (form == 5L) {
+  for (i in 1:nyrs) log_sel[i, ] <- center_log_selectivity(sel_tv_ar1_fsh[i, ])
+}
+
+log_sel <- cap_old_age_log_selectivity(log_sel, first_old_age = 11L)
+```
+
+`R/Rpm.R` then exponentiates the returned log selectivity and applies it inside the annual fishing mortality calculation:
+
+```r
+sel_fsh <- exp(log_sel_fsh)
+F[i, ] <- Fmort[i] * sel_fsh[i, ]
+```
+
+Thus, all scenario differences shown in the comparison report enter through the same population-dynamics pathway after the selectivity surface has been constructed.
+
+## Selectivity penalties
+
+`R/Rpm.R:283-298` calls `R/model_funs.R::selectivity_like_fsh_forms()` after the age-composition likelihood and before survey selectivity penalties:
+
+```r
+pen_fsh <- selectivity_like_fsh_forms(
+  fishery_sel_form = fishery_sel_form,
+  log_sel_fsh = log_sel_fsh,
+  sel_double_logistic_fsh = sel_double_logistic_fsh,
+  sel_tv_ar1_fsh = sel_tv_ar1_fsh,
+  sel_tv_ar1_rho_fsh = sel_tv_ar1_rho_fsh,
+  log_sel_tv_ar1_sigma_fsh = log_sel_tv_ar1_sigma_fsh,
+  sel_tv_ar1_weight_fsh = sel_tv_ar1_weight_fsh
+)
+```
+
+For form 2, `R/model_funs.R:805-819` applies the prior on annual log-scale double-logistic parameters and the first-difference penalty:
+
+```r
+target <- log(c(1.5, 3, 4))
+prior_scale <- c(0.75, 0.75, 0.45)
+rw_scale <- c(0.60, 0.60, 0.40)
+for (i in 1:nrow(sel_double_logistic_fsh)) {
+  dev <- dev + sum(((sel_double_logistic_fsh[i, ] - target) / prior_scale)^2)
+}
+for (i in 2:nrow(sel_double_logistic_fsh)) {
+  dev <- dev + sum(((sel_double_logistic_fsh[i, ] - sel_double_logistic_fsh[i - 1, ]) / rw_scale)^2) / 2
+}
+```
+
+For form 5, `R/model_funs.R:827-841` transforms the AR1 correlations, applies the old-age constraint to the latent field used in the penalty, and evaluates the separable AR1-by-AR1 density:
+
+```r
+rho_y <- safe_logit_rho(sel_tv_ar1_rho_fsh[1])
+rho_a <- safe_logit_rho(sel_tv_ar1_rho_fsh[2])
+f_year <- function(x) dautoreg(x, phi = rho_y, log = TRUE)
+f_age <- function(x) dautoreg(x, phi = rho_a, log = TRUE)
+sel_tv_ar1_fsh_pen <- cap_old_age_log_selectivity(
+  sel_tv_ar1_fsh,
+  first_old_age = 11L,
+  center = FALSE
+)
+dev <- dev - sel_tv_ar1_weight_fsh * dseparable(f_year, f_age)(sel_tv_ar1_fsh_pen, scale = scale)
+```
+
+## Scenario driver
+
+`R/run_fishery_selectivity_forms.R` defines the scenario fits and writes the saved objects used by this report. The key setup is in `R/run_fishery_selectivity_forms.R:41-85`, where the form flag is set, form-specific starts are provided, and the AR1 penalty weight is relaxed for form 5:
+
+```r
+data$fishery_sel_form <- form_id
+parms <- e$add_fishery_selectivity_parameters(e$parms, data)
+
+if (form_id == 2L) {
+  parms$sel_double_logistic_fsh <- matrix(
+    log(c(1.5, 3, 4)),
+    nrow = nyrs,
+    ncol = 3,
+    byrow = TRUE
+  )
+}
+if (form_id == 5L) {
+  parms$log_sel_tv_ar1_sigma_fsh <- log(1.2)
+  data$sel_tv_ar1_weight_fsh <- 0.25
+  parms$sel_tv_ar1_rho_fsh <- c(0, 0)
+  parms$sel_tv_ar1_fsh <- matrix(rnorm(nyrs * nages, sd = 0.05), nrow = nyrs, ncol = nages)
+}
+```
+
+The optimizer setup is in `R/run_fishery_selectivity_forms.R:121-148`, and outputs are saved in `R/run_fishery_selectivity_forms.R:151-170`. The report reads those saved objects from `analysis/output/fishery_sel_forms/`, so the figures and tables reflect the fitted scenario objects rather than recomputing the model inside the document.

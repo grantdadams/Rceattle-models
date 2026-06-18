@@ -12,12 +12,15 @@ pollock_base <- fit_mod(data_list = pollock23,
                         file = NULL, # Don't save
                         estimateMode = 0, # Estimate
                         random_q = FALSE,
-                        random_rec = FALSE, # No random recruitment
+                        random_rec = TRUE, # No random recruitment
                         msmMode = 0, # Single species mode
                         verbose = 1,
                         initMode = 1,
+                        fit_control = fit_control(osa = TRUE),
                         phase = TRUE)
 
+osa <- osa_residuals(pollock_base)
+plot(osa)
 
 # SAFE model ----
 # Fixed initial age-structure and removed accumulation age

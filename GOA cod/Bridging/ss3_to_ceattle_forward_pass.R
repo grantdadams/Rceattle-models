@@ -258,22 +258,25 @@ cod_pcod$env_data$post2014 <-
 llsrv_idx <- which(cod_pcod$fleet_control$Fleet_name == "LLSrv")
 stopifnot(length(llsrv_idx) == 1)
 # SS3 env-q decoding (env_var&link = 101 = "env_var index 1, exponential link"):
-# From SS_timevaryparm.tpl case 1, SS3 multiplies the LnQ parameter (not
-# log(q)) by exp(env_add * env_var), then exponentiates:
+# From SS_timevaryparm.tpl case 1, SS3 multiplies LnQ_base by exp(env_add *
+# env_var[yr]), then exponentiates:
 #   LnQ_tv[yr] = LnQ_base * exp(env_add * env_var[yr])
 #   q[yr]      = exp(LnQ_tv[yr])
-# Rceattle's `Catchability = "Environmental"` formula is additive on log(q):
-#   q[yr] = exp(LnQ + sum_k env_var[yr, k] * beta[k])
-# These two are NOT equivalent for non-zero env_var (the SS3 form is
-# transcendental in env_var; Rceattle's is linear). To get machine-precision
-# parity WITHOUT modifying the C++, we run LLSrv as `Estimated` with
-# `Time_varying_q = "IID"` and inject per-year q-deviates:
-#   index_q_dev[LLSrv, yr] = log(SS3_Calc_Q[yr]) - index_log_q[LLSrv]
-# Rceattle's formula `exp(LnQ + dev)` then reproduces SS3 Calc_Q exactly.
-# Set up the fleet_control + q_dev injection here; the actual q_dev values
-# come from ss3_rep$cpue inside the SS3-injection helper below.
-cod_pcod$fleet_control$Catchability[llsrv_idx]   <- "Estimated"
-cod_pcod$fleet_control$Time_varying_q[llsrv_idx] <- "IID"
+# This is a NESTED exponential in env_var -- not equivalent to the additive
+# log-linear form `log(q) = LnQ + beta * env`. Rceattle's `EnvExp` (= 7)
+# implements the SS3 case-1 formula in C++ exactly:
+#   index_q(flt, yr) = exp(index_log_q(flt) * exp(sum_k index_q_beta(flt, k)
+#                                                       * env_index(yr, k)))
+# Set Catchability = "EnvExp" + Time_varying_q = "<env_col_idx>" so the env_1
+# column of index_q_beta becomes estimable (same convention as "Environmental").
+# The MLE values come from the SS3-injection helper below.
+cod_pcod$fleet_control$Catchability[llsrv_idx]   <- "EnvExp"
+# env_data columns after build_env_data: 1=block_1, 2=block_2, ..., then env_1.
+# Look up the env_1 column index dynamically so this stays correct if more
+# blocks get added upstream.
+.env_1_col <- match("env_1", colnames(cod_pcod$env_data)) - 1L  # -1 to skip Year
+stopifnot(!is.na(.env_1_col))
+cod_pcod$fleet_control$Time_varying_q[llsrv_idx] <- as.character(.env_1_col)
 
 # Extract SS3 prior on NatM (PR_type, PRIOR, PR_SD from ctllist).
 # SS3 PR_type 3 = lognormal: log(M) ~ N(PRIOR - 0.5*PR_SD^2, PR_SD); PRIOR is
@@ -432,11 +435,17 @@ for (fname in active_sel_fleets) {
   if (length(fi) == 0L) next
   cod_pcod$fleet_control$Selectivity[fi]           <- "DoubleNormal"
   cod_pcod$fleet_control$Selectivity_dimension[fi] <- "Length"
-  # IID maps every hindcast year (so per-year dev_seq injection covers all).
-  # Setting Time_varying_sel_sd_prior <= 0 tells the cpp to SKIP the N(0,σ)
-  # penalty on the deviates (Phase 1 forward-pass: devs are pre-baked from
-  # SS3, not estimated, so no prior should fire).
-  cod_pcod$fleet_control$Time_varying_sel[fi]          <- "IID"
+  # BlockDev maps one estimable dev label per (fleet, sub-block) from SS3's
+  # ctl Block_Design and NA-locks dev cells outside any sub-block. Combined
+  # with Time_varying_sel_sd_prior <= 0 the dev prior is skipped entirely
+  # so injected per-year SS3 effective values pass through unaltered. NOTE:
+  # under BlockDev, all years within one sub-block share a SINGLE estimable
+  # dev value — per-year SS3 dev_seq variation INSIDE a sub-block (#10
+  # three-tier) collapses to the value at the first year of the sub-block.
+  # This degrades FP NLL relative to the prior IID-with-sentinel path
+  # (which mapped every year independently), in exchange for unified
+  # Time_varying_sel between FP and estimation paths.
+  cod_pcod$fleet_control$Time_varying_sel[fi]          <- "BlockDev"
   cod_pcod$fleet_control$Time_varying_sel_sd_prior[fi] <- -1
   # SS3 robust multinomial kernel: NLL = N * sum_j obs_s * log(obs_s/hat_s)
   # with obs/hat smoothed by addtocomp. Matches SS3 Method-5 likelihood.
@@ -749,17 +758,14 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
   }
 
   # --- Per-survey catchability ---
-  # SS3 reports the realized Calc_Q per year per survey in ss3_rep$cpue.
-  # Strategy: inject SS3's LnQ_base as index_log_q (gives constant q for
-  # surveys without env), and for surveys with env-q (e.g. LLSrv with
-  # env_var&link = 101 = "exponential link"), additionally inject
-  # per-year q-deviates so Rceattle's exp(LnQ + dev) reproduces SS3's
-  # Calc_Q exactly. The env-q exponential link
-  #   q[yr] = exp(LnQ_base * exp(env_add * env_var[yr]))
-  # is NOT representable in Rceattle's linear-on-log-q env path; the
-  # per-year deviate route preserves exact SS3 parity without modifying
-  # Rceattle's C++.
+  # Inject SS3's LnQ_base MLE as index_log_q (constant log-q baseline). For
+  # fleets configured as `Catchability = "EnvExp"` (SS3 case-1 exponential
+  # env link), additionally inject the SS3 ENV_add MLE into the matching
+  # index_q_beta column so the cpp reproduces SS3's nested-exp formula:
+  #   q[yr] = exp(index_log_q(flt) * exp(index_q_beta(flt, env_col) * env_index(yr, env_col)))
+  # exactly (matches SS3 Calc_Q to machine precision; verified for Pcod LLSrv).
   if ("index_log_q" %in% names(inits)) {
+    env_beta_cols <- if (!is.null(inits$index_q_beta)) colnames(inits$index_q_beta) else character(0)
     for (i in seq_len(nrow(fleet_meta))) {
       if (fleet_meta$fleet_type[i] != "Survey") next
       pat <- sprintf("LnQ_base_%s\\(%d\\)$",
@@ -770,26 +776,36 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
         cat(sprintf("  q[%s] = %.4f (exp = %.4f)\n",
                     fleet_meta$name[i], q, exp(q)))
       }
-      # Per-year q deviates from SS3 Calc_Q. Only applies when this fleet
-      # has Time_varying_q != 0 / NA and index_q_dev has been allocated.
-      tvq <- data_list$fleet_control$Time_varying_q[i]
-      has_tv <- !is.na(tvq) && tvq %in% c("IID", "AR1", "RandomWalk")
-      if (has_tv && "index_q_dev" %in% names(inits)) {
-        cpue_rows <- ss3_rep$cpue[ss3_rep$cpue$Fleet == fleet_meta$ss3_num[i] &
-                                  ss3_rep$cpue$Yr %in% years_hind, , drop = FALSE]
-        if (nrow(cpue_rows) > 0) {
-          q_base <- inits$index_log_q[i]
-          for (k in seq_len(nrow(cpue_rows))) {
-            yp <- which(years_hind == as.integer(cpue_rows$Yr[k]))
-            if (length(yp) == 1L) {
-              ss3_q <- as.numeric(cpue_rows$Calc_Q[k])
-              if (!is.na(ss3_q) && ss3_q > 0) {
-                inits$index_q_dev[i, yp] <- log(ss3_q) - q_base
-              }
+
+      # EnvExp: inject the ENV_add slope into index_q_beta[fleet, "env_<v>"].
+      # SS_readpar_3.30 emits both base LnQ and tv ENV_add rows into the SAME
+      # parlist$Q_parms table; row name format is
+      #   "LnQ_base_<Fleet>(<num>)_ENV_add"
+      # with column "ESTIM" holding the MLE. (`parlist$Q_parms_tv` exists in
+      # newer r4ss versions but is NULL for our run; falling back to Q_parms.)
+      if (data_list$fleet_control$Catchability[i] == "EnvExp" &&
+          length(env_beta_cols) > 0L) {
+        env_add_pat <- sprintf("LnQ_base_%s\\(%d\\)_ENV_add$",
+                               fleet_meta$name[i], fleet_meta$ss3_num[i])
+        env_add <- get_par(parlist$Q_parms, env_add_pat)
+        if (is.null(env_add) && !is.null(parlist$Q_parms_tv)) {
+          env_add <- get_par(parlist$Q_parms_tv, env_add_pat)
+        }
+        if (!is.null(env_add)) {
+          ql_row <- which(rownames(ctllist$Q_parms) ==
+                          sprintf("LnQ_base_%s(%d)",
+                                  fleet_meta$name[i], fleet_meta$ss3_num[i]))
+          if (length(ql_row) == 1L) {
+            evl <- as.integer(ctllist$Q_parms[ql_row, "env_var&link"])
+            v_idx <- evl %% 100L
+            col_name <- sprintf("env_%d", v_idx)
+            col_pos <- match(col_name, env_beta_cols)
+            if (!is.na(col_pos)) {
+              inits$index_q_beta[i, col_pos] <- env_add
+              cat(sprintf("  q[%s] EnvExp: index_q_beta[%s, %s] = %.4f (SS3 ENV_add ESTIM)\n",
+                          fleet_meta$name[i], fleet_meta$name[i], col_name, env_add))
             }
           }
-          cat(sprintf("  q[%s] per-year q_dev injected for %d years\n",
-                      fleet_meta$name[i], nrow(cpue_rows)))
         }
       }
     }
