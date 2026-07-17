@@ -2,6 +2,57 @@
 
 Status as of 2026-07-14. Everything below marked **VERIFIED** was confirmed by running code, not inferred.
 
+> ## ⚠️ 2026-07-15 session — READ THIS FIRST
+>
+> This session moved to **macOS** (the Windows scratch paths below are dead) and overturned
+> three claims in the original handoff. Corrections are in **§ 2026-07-15 corrections** at the
+> bottom. Summary of what changed:
+>
+> 1. **The reference fit does NOT reproduce.** `opt$objective` = **474.0967 is not reachable
+>    here.** Best properly-converged optimum found: **489.9975** (max gradient 8e-06). The
+>    surface is multimodal. Everything downstream that compares against 474.0967 is suspect.
+> 2. **The N1 age-structure description is WRONG.** WHAM does *not* apply the year-1
+>    recruitment deviate to the initial age structure. Ages 2+ sit at equilibrium at
+>    `R0 = exp(mean_rec_pars)`, independent of `log_N1_pars`.
+> 3. **`initMode = 1` alone does NOT match WHAM.** Rceattle and WHAM index M differently in
+>    the equilibrium (departing vs arriving age). Harmless when M is constant; a **2× error at
+>    age 2** for pollock. Fix verified — see corrections.
+>
+> New/changed files: `2021 pollock update data.R` (**new**, builds the Rceattle data list),
+> `2021 pollock bridging.R` (**new**, Phase-1 forward-pass check — **PASSES exactly**),
+> `Data/pkwham/akwham_input_2021.RDS` (**re-downloaded** — was missing),
+> `Data/2021pollock_wham.Rdata` (**now holds the ~489.67 fit, not 474.0967**).
+>
+> **✅ Phase 1 (forward-pass validation) is DONE.** With WHAM's converged selectivity fed as
+> `emp_sel` and N/F/q mapped from `parList`, Rceattle reproduces WHAM's year-1 N-at-age, SSB,
+> F, catch, and all six index predictions **to ~5e-16 (machine precision)**. The data build is
+> correct.
+>
+> **✅ Phase 2 native parameterization — FIXED validation DONE, estimation OPEN (2026-07-16).**
+> The data build now carries the full native selectivity config, and the fixed-parameter check
+> reproduces WHAM **exactly** (all derived quantities + all 7 selectivity blocks to machine
+> precision; Shelikof to 6.5e-07). This proves every selectivity/q parameterization mapping.
+> **But FREE estimation diverges — Rceattle lands SSB up to ~112% off WHAM.** Root cause is
+> diagnosed (differently-weighted penalized objective); see **§ Phase 2 estimation diagnosis**.
+>
+> **✅ Phase 3 OSA cross-check — DONE, EXACT (2026-07-17).** Rceattle's one-step-ahead (OSA)
+> residuals match WHAM's to **~1e-13 (machine precision)** across **all 1031 observations** —
+> every aggregate index/catch, fishery age-comp, and survey age-comp, `r = 1.00000000`. Because
+> both models are fixed-effects (random NULL), OSA residuals are conditioning-order-invariant, so
+> an *exact* match is attainable (not merely the growth-template's tight correlation). Lives in
+> `2021 pollock bridging.R` **Phase 3**, mirroring `tests/comparison/WHAM-OSA-comparison.R`.
+> Three conditions make it exact + one C++ finding + one data-build fix — see **§ 2026-07-17**.
+> **This session also DISPROVED the Phase-2 "root cause" (lead #1 below): the `4*sel_dev_sd`
+> slope penalty contributes only 13.7 of the 761 selectivity penalty; the real driver is an
+> age-scale vs logit-scale deviate mismatch. See the correction in § Phase 2 diagnosis.**
+>
+> **✅ DELIVERABLE MET (scope confirmed 2026-07-17).** The requirement is *"show the OSAs are the
+> same when the models are at the same solution"* — parameters may be fixed. Phase 3 does exactly
+> this and is EXACT. **Phase 2 FREE estimation is DESCOPED — not required.** (For the record it
+> does NOT freely converge; the dominant obstacle is a structural initial-recruitment / R0
+> difference — free Rceattle R0 lands 64% high — see § Phase 2 diagnosis. Left documented, not
+> pursued.)
+
 ## Goal
 
 Bridge the 2021 GOA pollock model implemented in WHAM ("pkwham") into Rceattle, following the
@@ -236,6 +287,356 @@ does in its "Phase 2" section.
 component-by-component; then a free estimation; then `plot_biomass` / `plot_ssb` / `plot_index` at the
 end driven by a `mod_list` / `model_names` pair. The 2024 bridging script's `# Uses "master" branch`
 header line should become `# Uses "dev" branch` for 2021.
+
+## § 2026-07-15 corrections — all VERIFIED by running code on macOS
+
+### Environment (the Windows notes above are dead)
+
+- Now on **macOS**, R 4.5.1, wham **1.0.7.9000**, `Rceattle` checkout on branch **`dev-ebs-pk`**
+  (v4.7.0), with uncommitted EBS-pollock edits in the working tree.
+- **You do NOT need to switch to `dev`.** `dev-ebs-pk` already *contains* all of `origin/dev`
+  (it is ahead; only 4 doc-only commits behind) and has the dev parameter names
+  (`index_log_q`, `log_sel_slp`, …). Switching branches would disturb the in-flight EBS work.
+- `pkgload::load_all()` was not needed; `R CMD INSTALL` into a scratch library works fine on
+  macOS (the Windows "too many sections" problem does not occur). Prepend the scratch
+  `devlib` to `.libPaths()`. **Scratch lib is temporary** — reinstall with:
+  `R CMD INSTALL --no-multiarch --no-docs --no-byte-compile --library=<lib> Rceattle`
+- `Data/pkwham/akwham_input_2021.RDS` was **missing** and was re-downloaded from the
+  GOApollock repo. It loads fine.
+
+### 1. The reference fit does not reproduce (objective 474.0967) — **UNRESOLVED**
+
+Running `Data/2021 Pollock WHAM.R` verbatim gives **628.93, convergence = 1**, not
+474.0967 / convergence 0. This is not a transcription error; it reproduces deterministically.
+
+What was tried and what it showed:
+
+| Start / method | Objective | Max gradient |
+|---|---|---|
+| archived inits + 4× nlminb (the script as written) | 628.93 | 2200 | 
+| archived inits + 6× nlminb + BFGS polish | 504.76 | 43.6 (stalled) |
+| 8 random jitters (sd 0.15) | 578.8 – 12454 | jitter 1 **converged** at 578.8 |
+| basin hopping from 504.76 (50 restarts, sd 0.30→0.02) | **489.9975** | **8.1e-06 (converged)** |
+
+**Conclusion: the model specification is right; the optimizer is the problem.** At 489.9975
+every likelihood component is close to the handoff's reported values — `nll_agg_catch`
+−107.84 vs −107.77, `nll_sel` −414.75 vs −414.65, `nll_agg_indices` 101.18 vs 100.71,
+`nll_q` −187.68 vs −188.09. The remaining 15.9 gap is concentrated in `nll_catch_acomp`
+(620.53 vs 612.36) and `nll_NAA` (94.14 vs 88.67). So 474.0967 is a *better basin* that the
+Windows run happened to land in; nlminb's path is BLAS/platform-dependent and this surface is
+badly multimodal (as expected — the Shelikof selectivity saturates at exactly 1, which is
+already documented above as making the Hessian singular).
+
+`Data/2021pollock_wham.Rdata` now contains the **489.9975** fit. Options for a future session:
+(a) accept 489.9975 and bridge against it — **fine for the fixed-parameter (Phase 1) work,
+which only needs both models at the *same* parameters**; (b) keep hunting for 474 (try
+`optimx`, TMB `newton`, or many more jitters); (c) obtain the original Windows `parList`.
+
+### 2. `log_N1_pars` is a placeholder, not an ADMB-matched value
+
+`old$par$log_N1_pars` = `c(13.5, -Inf)`, i.e. exactly the `exp(13.5)` the script itself passes
+via `NAA_re$N1_pars`. `match_input()` never set it from the ADMB report. Consequence: the
+objective at the "ADMB-matched" inits is **2875**, with `nll_agg_catch` = 2200 concentrated in
+1970–1976 (1970 predicted catch is 5.1× observed, decaying to a near-perfect fit by 1979).
+**This is expected, not a bug** — N1 is simply a free parameter starting at a poor guess.
+Don't waste time chasing it as the handoff's earlier framing might suggest.
+
+### 3. WHAM's N1 age structure — the handoff above is WRONG
+
+The claim *"WHAM applies the year-1 recruitment deviate to the whole initial age structure"*
+is **false**. Tested four candidate constructions against `fit$rep$NAA[1,]`; exactly one
+matches, to **0.0 relative error**:
+
+```
+NAA[1,1]     = exp(log_N1_pars[1])                     # age 1 only
+NAA[1,a]     = R0 * prod(exp(-M[2..a]))    a = 2..10   # R0 = exp(mean_rec_pars)
+NAA[1,10]   /= (1 - exp(-M[10]))                       # plus group
+```
+
+Note **M is indexed at the *arriving* age** (`N_a = N_{a-1} * exp(-M_a)`), which is unusual.
+Ages 2+ are pinned to R0 and are *independent of* `log_N1_pars`. (Confirmed numerically:
+`R0*exp(-M[2])` = 1,857,046 = reported `NAA[1,2]`, whereas the handoff's reading gives 181,680.)
+
+The `selpars_re[1:104]` structural finding **is confirmed** — and now non-circularly: the
+*archived* `old$map$selpars_re` is literally `1:104` then 208 NAs, matching what the script builds.
+
+### 4. Rceattle `initMode = 1` does NOT match WHAM — verified fix
+
+`src/TMB/ceattle_v01_11.cpp:1208-1232`: Rceattle's equilibrium is
+`N_a = R_init * exp(-mort_sum(a) + init_dev(a-1))` where
+`mort_sum(a) = sum(M[1..a-1])` — **M at the *departing* age**. WHAM uses the *arriving* age.
+
+**This is invisible in the template** `tests/comparison/WHAM-growth-comparison.R`, whose test
+case has constant M = 0.35 — the two conventions coincide there. For pollock (M 1.39 → 0.29)
+it is a **2× error at age 2**. Do not trust that template's `init_dev[1,] <- 0` here.
+
+Fix (**verified: reproduces WHAM's `NAA[1,]` to 2.6e-06, which is just R0 rounding**), keeping
+`initMode = 1`:
+
+```r
+inits$rec_pars[1,1] <- fit$parList$mean_rec_pars                              # R_init = R0
+inits$rec_dev[1,1]  <- fit$parList$log_N1_pars[1] - fit$parList$mean_rec_pars # age-1, yr 1
+inits$rec_dev[1,2:nyrs] <- fit$parList$log_NAA[,1] - fit$parList$mean_rec_pars
+inits$init_dev[1,]  <- M[1] - M[2:nages]   # <-- corrects departing- vs arriving-age M
+inits$log_Finit[1]  <- -Inf                # WHAM log_N1_pars[2] = -Inf -> F = 0 in year 1
+```
+
+`init_dev` is **free of any penalty** when `initMode <= 1` (`ceattle_v01_11.cpp:3095`,
+`if(initMode > 1)`), so this correction costs nothing in the likelihood. The plus-group
+divisor already matches because `Finit = 0`.
+
+**Known Phase-1 likelihood offset:** Rceattle penalizes `rec_dev` for **all 52** years
+(slot 10), but WHAM's `log_N1_pars[1]` is an unpenalized fixed effect — WHAM only penalizes
+the 51 `log_NAA[,1]` deviates. Expect one extra `dnorm` term in Rceattle's slot 10. Also set
+`bias_adjust_proc = 0` to match WHAM's `bias_correct_pe = 0`.
+
+**Phase 2 caveat:** even with the `init_dev` fix the two are *structurally* different under
+free estimation — WHAM has 1 free N1 parameter with ages 2+ pinned at R0-equilibrium, whereas
+using `init_dev` as a correction leaves 9 free parameters unless they are mapped off. To make
+the two models genuinely identical you would need either to map `init_dev` to a constant
+offset, or add a WHAM-style equilibrium option to the cpp. **Not decided — needs your call.**
+
+### 5. `2021 pollock update data.R` — NEW, builds and runs, **NOT yet validated**
+
+Builds the Rceattle data list from `fit$input$data` (not the .xlsx), per the plan above.
+Saves `Data/2021pollock_rceattle.Rdata`. Confirmed to run, and the structural values match
+this handoff (spawn_month 2.52, M, halved maturity, `Weight_index` = 2,3,3,2,2,4,1,
+`Weight1_Numbers2` = 1,1,1,2,2,1). Fleets are **1-6 = indices, 7 = fishery**.
+
+It has **not** been through `fit_mod()` yet — the derived-quantity comparison (step 2 of
+"What is LEFT") is where the next session should start. Decisions baked in that still need
+checking:
+
+- `sex_ratio = 1` (not 0.5), because WHAM's `mature` is already halved — otherwise SSB is
+  halved twice. **Verify against `fit$rep$SSB`.**
+- Shelikof → `Selectivity = "NonParametric"` with `Sel_norm_bin1/2 = NA`. The
+  normalization concern in "Anticipated sticking points" is **still unresolved**.
+- Fishery → `Time_varying_sel = 5` (RandomWalkAscending). WHAM's deviates are **iid**, not a
+  random walk — `Time_varying_sel = 1` (IID) may be the correct choice. **Unverified guess.**
+- Indices 4/5/6 → `Selectivity = "Fixed"` + `emp_sel`; how `emp_sel` is consumed is unchecked.
+- `-999` index rows are switched off via negative `Year` and their `Observation` is
+  overwritten with 1 to survive data checks. **Confirm `data_check` honours this.**
+
+## § 2026-07-16 — Phase 2 native parameterization (all VERIFIED by running code)
+
+Goal for this session: make Rceattle estimate **all the same parameters** as WHAM and converge
+to the **same solution**. Outcome: the parameterization is fully mapped and the fixed-parameter
+check is exact, but free estimation does not yet reproduce WHAM's solution.
+
+### Selectivity — all resolved and VERIFIED
+
+The "anticipated sticking points" about Shelikof normalization are **solved**. Empirically:
+
+- **Shelikof age-specific (ages 1-2 = 0, 3-10 free) → `NonParametric`** with:
+  - **`Bin_first_selected = 3`** zeros ages 1-2. NOT 2 — the cpp zeroing test is
+    `bin < bin_first_selected` (0-based) and the R layer subtracts 1
+    (`3-build_map.R:89`), so R value 3 → C++ 2 → zeros C++ bins 0,1 = ages 1,2. VERIFIED:
+    `2 → [0,1,1,…]`, `3 → [0,0,1,…]`.
+  - **`Sel_norm_bin1 = -1`** (any negative → normalize by max). WHAM's age-specific block is a
+    bounded 0-1 parameter that saturated at 1.0 (ages 6-7), i.e. it is *already* max-normalized,
+    so max-normalization reproduces WHAM's scale **exactly** (VERIFIED to 6.5e-07 with
+    `sel_coff[3:10] = log(WHAM_sel[3:10])`). Range-mean normalization (`Sel_norm_bin1/2 >= 0`)
+    also works but gives a different scale (divides by the range *mean*), so it does NOT match.
+  - **`Sel_curve_pen1 = Sel_curve_pen2 = 0`** turns off the Ianelli monotonicity/curvature
+    penalties (WHAM's age-specific block has none). **Caveat:** the `avg_sel` normalization
+    penalty (`ceattle_v01_11.cpp:2780`, hardcoded weight 2, `+= 2*avg_sel^2`) is ALWAYS on for
+    NonParametric and WHAM has no equivalent. It pins the *scale* (mean(exp(sel))=1), which for a
+    survey is confounded with q — so it moves q, not shape. Small (0.197 at the WHAM inits) but
+    nonzero, and it is one of the objective-weighting differences (below).
+- **BT / ADF&G / Fishery double-logistic:** `sel_inf = a`, `log_sel_slp = -log(b)` where WHAM
+  `a,b = lo + (hi-lo)/(1+exp(-(logit_selpars[,13:16] + re)))`, `lo=-10, hi=20`. Decode VERIFIED
+  to reproduce `fit$rep$selAA` exactly. BT/ADF&G fix the descending limb (`a2=20, b2=exp(-1)`,
+  effectively no descending over ages 1-10) — map off `sel_inf[2,]` / `log_sel_slp[2,]`.
+- **Fishery time-varying ascending limb only:** WHAM has IID deviates on par 13 (ascending
+  inflection) + par 14 (ascending slope), 52 each. Rceattle `Time_varying_sel = "IID"` puts
+  deviates on **all four** double-logistic params; `"RandomWalkAscending"` restricts to the
+  ascending limb but forces a random walk (first deviate fixed). Neither matches, so: use
+  **IID** and then **map off the descending-limb deviates** (`sel_inf_dev[2,FISH,,]`,
+  `log_sel_slp_dev[2,FISH,,] <- NA`). This gives IID-on-ascending-only. VERIFIED: fishery
+  selectivity matches WHAM in every year (yr 26 to 1.7e-16).
+
+### Catchability — RandomWalk, not AR1
+
+WHAM's q1/q3 are AR1 with **rho par = 10 → tanh(10) ≈ 1**, i.e. effectively a **random walk**.
+Rceattle's native `Catchability = "AR1"` (est_index_q=6) is the *Rogers et al 2024 env-index-
+driven* variant — it also fits the deviates to an environmental index (`ceattle_v01_11.cpp:3037`)
+and `data_check` demands `Time_varying_q` be a valid `env_data` column. That is NOT WHAM's model.
+Use **`Catchability = "Estimated"` + `Time_varying_q = "RandomWalk"`** (`dnorm(dev_y-dev_{y-1},0,
+sd)`, cpp:3056) with the SDs fixed at 0.038 / 0.05 via `index_q_dev_log_sd`. The data build now
+does this. (One residual: RandomWalk fixes the year-1 deviate, so 51 free per index vs WHAM's 52.)
+Also note the **link differs** — WHAM applies q deviates on the *logit* scale, Rceattle on the
+*log* scale (`index_q = exp(index_log_q + index_q_dev)`). Near-identical when q ≪ q_upper (it is),
+but not exact.
+
+### Custom map mechanism — VERIFIED
+
+`fit_mod(map = ...)` accepts a prebuilt map. Do NOT call `build_map()` on the raw data list (it
+fails on `growth_model` before the data is cleaned). Instead take **`null$map`** from a first
+`fit_mod(estimateMode=3)` call (built on cleaned data), edit `map$mapList[[param]]` (NA = fix),
+then `map$mapFactor <- lapply(map$mapList, factor)`, and pass `map =`. Used to: fix `init_dev`
+(equilibrium), fix `R_log_sd` (sigmaR=1), drop fishery descending deviates, fix BT/ADF&G
+descending base params. Free-parameter counts then match WHAM (rec 52, F 52, Shelikof sel_coff 8,
+double-logistic base 8, fishery ascending devs 104, q devs ~102, index_log_q 6, mean rec 1).
+
+### § Phase 2 estimation diagnosis — THE OPEN PROBLEM
+
+Free estimation (`estimateMode=1`, `random_rec=FALSE`) converges but to a very different solution:
+SSB max |rel diff| **1.12**, terminal SSB **+64%**, recruitment/F ~35% mean error. The starting
+point (WHAM params) is exact in derived quantities, so this is an **objective-surface** problem,
+not a mapping bug.
+
+`jnll_comp` at the WHAM-mapped inits vs WHAM's components (this is the key clue):
+
+| component | Rceattle @ inits | WHAM | note |
+|---|---|---|---|
+| Index (agg)         | 101.10 | 100.47 | ✓ close |
+| Catch (agg)         | −107.81 | −107.83 | ✓ exact |
+| Composition         | 1009.87 | 1005.35 (`catch_acomp`+`index_acomp`) | ✓ close (multinomial const) |
+| Recruitment devs    | 109.31 | 94.21 (`nll_NAA`) | off ~15 |
+| **Selectivity devs**| **760.95** | **−414.71** (`nll_sel`) | **off ~1176** |
+| Catchability devs   | −202.02 | −187.81 (`nll_q`) | off ~14 |
+| NonPar sel penalty  | 0.20 | 0 | Rceattle-only (`avg_sel`) |
+| **TOTAL**           | **1671.6** | 979.3 (=489.67×2 conv.) | |
+
+The dominant discrepancy is the **selectivity-deviate penalty**: Rceattle +761 vs WHAM −415, a
+~1176 gap. WHAM's `nll_sel` is large-negative because it carries the Gaussian normalizing
+constants; Rceattle's slot-5 penalty is structured/scaled differently. Because this term dominates
+Rceattle's total objective, the minimizer trades away index/catch fit to shrink the selectivity
+deviates, dragging the whole solution (and SSB scale) away from WHAM. The recruitment-dev (+15)
+and q-dev (+14) offsets are the second-order contributors (year-1 rec penalty; logit-vs-log q).
+
+**2026-07-17 — FREE ESTIMATION MEASURED (from WHAM's params, sel penalty relaxed). Two
+independent drivers, now isolated. It does NOT converge to WHAM's solution:**
+
+| fishery `sel_dev_log_sd` (exp) | SSB max\|rel\| | terminal SSB rel | R max\|rel\| |
+|---|---|---|---|
+| 0.1 (WHAM-scale nominal) | 0.934 | +0.438 | 0.538 |
+| 0.744 (age-scale corrected) | 0.766 | +0.206 | 0.255 |
+| 2.0 | 0.666 | +0.088 | 0.189 |
+| ~unpenalized (1e4) | 0.670 | +0.087 | 0.184 |
+
+- **Driver A (dominant, structural): initial recruitment scale / R0.** Even with the selectivity
+  penalty ~off, early-year (1970–75) SSB is **~65% high** and terminal only ~9% — a uniform
+  scale, not a shape error. VERIFIED: free Rceattle estimates `rec_pars` (R0) = **15.228** vs
+  WHAM `mean_rec_pars` = **14.732**, ratio **1.642**, and the year-1 numbers at ages 2–10 are
+  inflated by *exactly* 1.642×. Cause = the flagged N1 structural difference: WHAM pins ages 2+ at
+  R0-equilibrium off a *single* free N1 (age-1) param, while Rceattle `initMode = 1` scales the
+  whole initial age vector by a *freely estimated* R0. The sparse early data don't pin R0, so the
+  two frameworks' recruitment penalties settle it at different values. **Not tunable** — needs the
+  initial condition constrained to WHAM (map/fix `rec_pars` + early `rec_dev` to WHAM's, or add a
+  WHAM-style single-parameter equilibrium-N1 option to the cpp). SSB shape correlation is 0.89.
+- **Driver B (secondary, tunable): the selectivity-deviate penalty scale below.** Widening the
+  fishery `sel_dev_log_sd` from 0.1 toward the age-scale-equivalent value cuts terminal SSB error
+  44% → 9%, confirming the corrected diagnosis. NB the knob is the **parameter**
+  `inits$sel_dev_log_sd[fishery]` (`= log SD`, already mapped off), NOT `Time_varying_sel_sd_prior`
+  (which only seeds it at build time and has no effect when prebuilt `inits` are passed).
+
+1. **Selectivity-deviate penalty (secondary) — 2026-07-14 diagnosis was WRONG; CORRECTED
+   2026-07-17.** The earlier lead blamed `ceattle_v01_11.cpp:2875` (`dnorm(., 0, 4*sel_dev_sd)`
+   on the ascending *slope*). **That is not the driver.** Decomposing the slot-5 = 760.95
+   penalty at the WHAM-mapped inits (reproduces to 760.9478, exact):
+
+   | slot-5 term | value |
+   |---|---|
+   | ascending **inflection** `dnorm(sel_inf_dev, 0, 0.1)` | **+819.05** |
+   | ascending **slope** `dnorm(log_sel_slp_dev, 0, 4*0.1)` (the "4×" term) | +13.71 |
+   | descending (deviates mapped to 0, constants only) | −71.81 |
+
+   The `4×` slope term is only 13.7 of 761 — and patching it to `1×` would *raise* it to ~145,
+   moving **away** from WHAM. The real cause is a **scale mismatch**: WHAM penalizes `selpars_re`
+   on the **logit scale** of a bounded transform (lo=−10, hi=20) at SD 0.1; Rceattle penalizes
+   `sel_inf_dev` on the **age scale** at SD 0.1. The Jacobian is `(hi−lo)·p·(1−p) ≈ 7.44`, so
+   Rceattle's age-scale deviate (sd ≈ 0.591) is ~7.4× WHAM's logit-scale deviate (sd ≈ 0.0795) —
+   penalized at the *same* 0.1 SD it is over-penalized ~55×. **WHAM's `nll_sel` is exactly
+   `-sum(dnorm(selpars_re, 0, 0.1, log))` over all 312 terms (104 free + 208 mapped zeros) =
+   −431.70 + 16.99 = −414.706** (verified to the digit). Fix options: (a) set the fishery
+   `Time_varying_sel_sd_prior` to the age-scale-equivalent SD `0.1 * 7.44 ≈ 0.744` so the *free*
+   optimum lands where WHAM's does (the constant offset in the objective is irrelevant to the
+   argmin — only relative weighting matters); (b) reparameterize the cpp deviate onto the bounded
+   logit scale to match WHAM structurally. **NOTE Phase 3 sidesteps this entirely** by pinning
+   WHAM's parameters, so OSA agreement needs none of it.
+2. Confirm `random_rec = FALSE` is the right choice (WHAM `input$random <- NULL` = penalized).
+   Try `random_rec = TRUE` (Laplace) as a cross-check — with fixed SDs the mode should be similar.
+3. The `avg_sel` NonParametric penalty (cpp:2780) has no WHAM analog. Small now, but under free
+   estimation it actively pulls the Shelikof scale. Consider whether it can be down-weighted.
+4. Only after the objective is reconciled should absolute agreement be judged — remember WHAM
+   itself sits at 489.67 here, not 474 (multimodal), so aim for derived-quantity agreement.
+
+### Files (native-parameterization work is in the repo, survives)
+
+- `2021 pollock update data.R` — updated: native selectivity config (Shelikof NonPar+maxnorm
+  +Bfs3, double-logistics, fishery IID, q RandomWalk) **+ survey comp Month = survey month**
+  (2026-07-17 fix; see § below). Rebuild before running the bridge.
+- `2021 pollock bridging.R` — Phase 1 (emp_sel, exact) + **Phase 2** (native params; fixed
+  validation exact, estimation diverges) + **Phase 3** (OSA cross-check, EXACT). Runs top to bottom.
+- `Data/2021pollock_wham.Rdata` — the 489.67 WHAM fit (reproduced by `Data/2021 Pollock WHAM.R`).
+
+## § 2026-07-17 — Phase 3 OSA cross-check (all VERIFIED by running code)
+
+Goal for this session: get an **exact** OSA-residual match to confirm Rceattle's one-step-ahead
+residuals against WHAM's (the reference the comp decomposition was ported from). Outcome: **done,
+machine precision** — n=1031 residuals, `r = 1.00000000`, max|diff| = 9.6e-13. Lives in
+`2021 pollock bridging.R` **Phase 3**; mirrors `Rceattle/tests/comparison/WHAM-OSA-comparison.R`.
+
+### Why exact is possible (and how)
+
+Both models are **fixed-effects** (WHAM `input$random = NULL`; Rceattle `random_rec = FALSE`),
+so observations are independent given the parameters and OSA residuals are **invariant to
+conditioning order** — WHAM's `conditional=` sequencing and Rceattle's `subset` ordering give
+the same answer. So the target is *exact equality*, not the growth template's "tight correlation".
+
+**The pinning trick (no C++ change).** OSA needs a *real* objective (`estimateMode < 3`;
+`osa_residuals()` rejects ≥3 because `jnll = dummy*dummy`). To hold every parameter at WHAM's
+values while keeping a real objective: `estimateMode = 1` **and map every parameter to `NA`
+except the inert `dummy`**. `dummy` never enters `jnll` when `estimateMode < 3`, so it has zero
+gradient — the optimizer moves nothing and the fit sits exactly at WHAM's params. Verified: SSB /
+catch / all indices reproduce WHAM to ~1e-16, `obj$fn()` = 1671.52 (a real number), 1 free param.
+
+### The four conditions for exactness — each VERIFIED
+
+1. **`bias_adjust_obs = 0`** (`fit_control`). Rceattle centers the lognormal index/catch at
+   `log(hat) − bias_adjust_obs·σ²/2` (`cpp:2409,2445`); WHAM has `bias_correct_oe = 0`. With the
+   default `1`, every aggregate OSA residual is offset by exactly `0.5·σ` (catch: 0.02498 =
+   0.5×0.05). Setting `0` → aggregates match to 1e-14.
+2. **`comp_offset = 0`** (`fit_control`). WHAM-style multinomial obsvec; the 1e-5 default would
+   not reproduce WHAM's observation vector. Same as the growth template.
+3. **Survey comp `Month` = survey month** (data-build fix). For empirical WAA (`growth_model = 0`)
+   the survey age-comp reads its timing month from the **comp row** (`cpp:1948`,
+   `mo = comp_n(comp_ind,0)`), NOT the fleet month. The old build set comp `Month = 0`, so the
+   survey comp got **no** `exp(−mo/12·Z)` decay → age-1 (M=1.39, the steepest decay) was
+   over-predicted (idx2 yr2001 age-1 0.4799 vs WHAM 0.3699). Setting comp `Month =
+   fracyr_indices·12` → survey comps match to 1e-16. **The fishery comp is unaffected** (Baranov
+   catch-at-age `F/Z·(1−e^−Z)·N` has no timing exponent), which is why it matched all along and
+   isolated the bug to surveys.
+4. **Shelikof q absorbs the max-normalization.** Rceattle max-normalizes the NonParametric block,
+   but WHAM's age-specific Shelikof saturates at `max = 0.99999935`, not 1 — so normalizing
+   inflates its selectivity by `1/max`. Scale is confounded with q, so set
+   `index_q_dev[1,] = log(q_wham · max)` and index 1 matches to 1e-16 (was 6.5e-07). (This is
+   also the source of the "Shelikof to 6.5e-07" residual in the Phase-2 fixed check.)
+
+### WHAM side — rebuild, don't refit
+
+The saved `fit` is a plain list (`opt/rep/parList/input`, **no `$obj`**), because
+`Data/2021 Pollock WHAM.R` optimizes the TMB object directly (`fit_wham(do.fit=TRUE)` crashes).
+So rebuild the obj from `fit$input` with `do.fit = FALSE`, `obj$fn(fit$opt$par)` to populate
+`last.par`, set `obj$env$last.par.best <- obj$env$last.par`, and hand it to
+`wham::make_osa_residuals()` with `model$is_sdrep <- TRUE` (sdreport is unnecessary for OSA and
+fails here anyway — the saturating Shelikof gives a singular Hessian). No basin-hopping needed.
+
+### Fleet / label / axis mapping (for the comparison merge)
+
+- Rceattle fleet **7** = fishery = WHAM **`fleet_1`** (`catchpaa` / `logcatch`); Rceattle indices
+  **1:6** = WHAM **`index_1:6`** (`indexpaa` / `logindex`).
+- WHAM `year` is **1-indexed** → calendar = `year + (styr − 1)` = `year + 1969`.
+- WHAM `bin` = age = Rceattle `age_length_bin`. WHAM keeps the last age (residual `NA`, sum-to-N);
+  Rceattle drops it — so WHAM has 10 bins/comp-year vs Rceattle's 9. Merge on finite residuals.
+- WHAM drops Shelikof age-1/age-2 comps (obs 1190→1134); its `index_1` comp is ages 3–10 only.
+
+### What Phase 3 does NOT resolve
+
+Phase 3 pins WHAM's parameters, so it needs neither the Phase-2 penalty reconciliation (lead #1,
+now corrected above) nor a converged free fit. The final deliverable — the two models *converging
+to the same solution from scratch* — still needs Phase 2's objective-weighting fix.
 
 ## Scratch artifacts (temp dir, will not survive)
 
