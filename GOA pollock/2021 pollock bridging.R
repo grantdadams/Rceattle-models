@@ -1,45 +1,31 @@
 # =============================================================================
 # Bridging the 2021 GOA pollock stock assessment from WHAM into Rceattle
 # =============================================================================
-# GOAL. Confirm that Rceattle reproduces the accepted WHAM ("pkwham") 2021 GOA
-# pollock model when BOTH models are held at the SAME parameter values -- and in
-# particular that their one-step-ahead (OSA) residuals are identical. OSA
-# residuals are the model-diagnostic of interest (Trijoulet et al. 2023; Stewart
-# & Monnahan 2025); this script is the cross-check that Rceattle's OSA machinery
-# agrees, observation for observation, with WHAM's reference implementation.
+# GOAL.
+# 1) Confirm that Rceattle reproduces the accepted WHAM ("pkwham") 2021 GOA
+# pollock model when BOTH models are held at the SAME parameter values. The models
+# do not converge to the same solution because of a structural difference in how
+# each initializes the population.
+# 2) Confirm their one-step-ahead (OSA) residuals are identical.
 #
-# SCOPE. We hold every parameter fixed at WHAM's converged solution. We do NOT
-# ask the two models to converge to the same solution from scratch -- that is a
-# separate, harder question (they don't, mainly because of a structural
-# difference in how each initializes the population; see the handoff). Fixing the
-# parameters is all the OSA comparison needs.
 #
-# APPROACH.
+# WORKFLOW.
 #   1. Map WHAM's converged parameters onto Rceattle's parameterization.
+#     - "Data/2021 Pollock WHAM.R" - create WHAM model
+#     - "2021 pollock update data.R"    - create Rceattle data object
 #   2. Hold Rceattle at that solution and confirm the population dynamics
 #      (numbers-at-age, SSB, F, catch, survey indices, selectivity) match WHAM.
 #   3. Compute OSA residuals from each model and compare them 1:1.
+#     - "2021 pollock bridging.R"        # this script
 #
-# REPRODUCE (from the 'GOA pollock' project root):
-#   # macOS: put the system toolchain first so the TMB build uses it
-#   export PATH=/usr/bin:$PATH
-#   # prerequisites, run once (each saves the .Rdata this script loads):
-#   Rscript "Data/2021 Pollock WHAM.R"       # -> Data/2021pollock_wham.Rdata
-#   Rscript "2021 pollock update data.R"     # -> Data/2021pollock_rceattle.Rdata
-#   Rscript "2021 pollock bridging.R"        # this script
-#
-# Companion (same idea, Pacific cod length model): the Rceattle package ships
-# tests/comparison/WHAM-OSA-comparison.R.
+# Same idea as tests/comparison/WHAM-OSA-comparison.R.
 
 library(Rceattle)
 library(wham)
 
 # -----------------------------------------------------------------------------
-# 0. Load the two models' shared inputs
+# 0. Load the models' inputs ----
 # -----------------------------------------------------------------------------
-# The Rceattle data list is built directly from the WHAM input (see
-# "2021 pollock update data.R"), so both models see byte-identical data --
-# a precondition for the derived quantities and residuals to agree.
 load("Data/2021pollock_wham.Rdata")        # WHAM 'fit': $opt $rep $parList $input
 load("Data/2021pollock_rceattle.Rdata")    # Rceattle data list 'pollock21'
 
@@ -51,39 +37,39 @@ M     <- exp(fit$input$par$M_a)            # fixed natural-mortality-at-age
 d     <- fit$input$data
 pl    <- fit$parList                       # WHAM's converged parameters
 
-# Fleet i in Rceattle maps to WHAM selectivity/prediction block wham_blk[i]:
-#   Rceattle 1-6 = surveys 1-6 (Shelikof, NMFS BT, ADF&G, age-1, age-2, summer AT)
-#   Rceattle 7   = fishery
-# In WHAM these are block 1 = fishery, blocks 2-7 = surveys 1-6.
+# Rceattle fleets:
+#   - 1-6 = surveys 1-6 (Shelikof, NMFS BT, ADF&G, age-1, age-2, summer AT)
+#   - 7   = fishery
+# WHAM fleets:
+#   - 1 = fishery
+#   - 2-7 = surveys 1-6
 wham_blk   <- c(2, 3, 4, 5, 6, 7, 1)               # Rceattle fleet -> WHAM block
 wham_label <- c(paste0("index_", 1:6), "fleet_1")  # Rceattle fleet -> WHAM OSA label
 
-# Surveys 4, 5, 6 have selectivity fixed a priori (age-1 index, age-2 index, and
-# the fully-selected summer acoustic survey). Those are supplied as empirical
-# selectivity in the data list; all other blocks are parameterized and mapped
-# from WHAM below.
+# Surveys 4, 5, 6 have selectivity fixed a priori
 pollock21$emp_sel <- pollock21$emp_sel[pollock21$emp_sel$Fleet_code %in% 4:6, ]
+
 
 # -----------------------------------------------------------------------------
 # 1. Map WHAM's converged parameters onto Rceattle's parameterization
 # -----------------------------------------------------------------------------
-# Build an un-optimized Rceattle object (estimateMode = 3) purely to obtain the
-# parameter skeleton (`inits`) with the right shapes; we then overwrite each
-# parameter with WHAM's converged value.
-null  <- fit_mod(data_list = pollock21, inits = NULL, file = NULL,
-                 estimateMode = 3, random_rec = FALSE, msmMode = 0, initMode = 1,
-                 fit_control = fit_control(phase = FALSE, verbose = 0))
-inits <- null$estimated_params
+# Build an un-optimized Rceattle object (estimateMode = 3) to get the
+# parameter skeleton (`inits`) with the right shapes
+nullmod  <- fit_mod(data_list = pollock21,
+                    inits = NULL,
+                    estimateMode = 3,
+                    random_rec = FALSE,
+                    msmMode = 0,
+                    initMode = 1,
+                    fit_control = fit_control(phase = FALSE, verbose = 0))
+inits <- nullmod$estimated_params
 
 # -- 1a. Recruitment and initial numbers-at-age -------------------------------
-# WHAM starts the population at unfished equilibrium in 1970 (F = 0 that year):
+# WHAM initializes unfished equilibrium in 1970 (F = 0 that year):
 # age-1 abundance is a free parameter (log_N1_pars[1]) and older ages decay at
-# natural mortality from the mean recruitment R0 = exp(mean_rec_pars). Annual
-# recruitment deviations are log_NAA[, 1].
-#   - Rceattle's equilibrium (initMode = 1) indexes M at the DEPARTING age while
-#     WHAM indexes the ARRIVING age; for age-varying M this differs, so the small
-#     unpenalized correction init_dev = M[1] - M[age] reconciles the two.
-#   - R_log_sd = log(sigmaR) = log(1) = 0 (WHAM fixes the recruitment SD at 1).
+# natural mortality from the mean recruitment R0 = exp(mean_rec_pars).
+#   - WHAM only uses age1 M (not age-varying)
+#   - WHAM fixes the recruitment SD at 1
 inits$rec_pars[1, 1]             <- pl$mean_rec_pars
 inits$rec_dev[1, 1]              <- pl$log_N1_pars[1] - pl$mean_rec_pars
 inits$rec_dev[1, 2:nyrs]         <- pl$log_NAA[, 1] - pl$mean_rec_pars
@@ -92,9 +78,7 @@ inits$R_log_sd                   <- pl$log_NAA_sigma
 inits$log_Finit[1]               <- -Inf              # F = 0 in the first year
 
 # -- 1b. Fishing mortality ----------------------------------------------------
-# WHAM models fishing mortality as a random walk: log F in the first year plus a
-# cumulative sum of annual deviations. Rceattle stores log F for each year, so we
-# accumulate the walk here.
+# WHAM models fishing mortality as a random walk
 inits$log_F[FISH, 1] <- pl$log_F1
 for (y in 2:nyrs)
   inits$log_F[FISH, y] <- inits$log_F[FISH, y - 1] + pl$F_devs[y - 1, 1]
@@ -107,19 +91,16 @@ for (y in 2:nyrs)
 #   * NMFS bottom trawl (survey 2), ADF&G (survey 3), and the fishery (fleet 7):
 #     double-logistic. WHAM parameterizes each limb by an inflection age (a) and a
 #     width (b); Rceattle uses the same inflection (sel_inf) and a log-slope
-#     (log_sel_slp = -log(b)). WHAM stores a, b on a bounded logit scale, decoded
-#     by wham_sel() below.
+#     (log_sel_slp = -log(b)). WHAM stores a, b on a bounded logit scale.
 #
 # WHAM double-logistic decode: sel_par = lower + (upper-lower)/(1+exp(-(logit+re)))
-# columns 13:16 hold ascending inflection (a1), ascending width (b1), descending
-# inflection (a2), descending width (b2). `re` is a time-varying deviation.
 wham_sel <- function(block, col, re = 0)
   d$selpars_lower[block, col] +
   (d$selpars_upper[block, col] - d$selpars_lower[block, col]) /
   (1 + exp(-(pl$logit_selpars[block, col] + re)))
 
 # Shelikof non-parametric: log-selectivity at ages 3-10 (ages 1-2 are zeroed by
-# the data list's Bin_first_selected = 3).
+# Bin_first_selected = 3).
 inits$sel_coff[1, 1, 3:nages] <- log(fit$rep$selAA[[2]][1, 3:nages])
 
 # NMFS BT (fleet 2, WHAM block 3) and ADF&G (fleet 3, WHAM block 4): both limbs.
@@ -131,9 +112,8 @@ for (fb in list(c(2, 3), c(3, 4))) {
   inits$log_sel_slp[2, fleet, 1] <- -log(wham_sel(block, 16))    # descending b2
 }
 
-# Fishery (fleet 7, WHAM block 1): double-logistic that is time-varying on the
-# ASCENDING limb only. Set the base curve, then the annual deviations in the
-# ascending inflection (a1) and width (b1). WHAM stores these as selpars_re:
+# Fishery (fleet 7, WHAM block 1): double-logistic with time-varying on the
+# ASCENDING limb only. WHAM stores these as selpars_re:
 # elements 1:52 are the a1 deviations, 53:104 the b1 deviations.
 a1 <- wham_sel(1, 13); b1 <- wham_sel(1, 14)
 inits$sel_inf[1, FISH, 1]     <- a1
@@ -149,51 +129,41 @@ for (y in 1:nyrs) {
 
 # -- 1d. Catchability ---------------------------------------------------------
 # WHAM applies survey catchability on the logit scale; Rceattle on the log scale
-# (index q = exp(index_log_q + index_q_dev)). Rather than convert the link, we
-# reproduce WHAM's realized annual q for each survey directly through the
-# deviation vector: constant-q surveys get a flat series, the time-varying ones
-# (Shelikof and ADF&G) get their trajectory.
-#   Shelikof exception: Rceattle max-normalizes the non-parametric selectivity,
-#   but WHAM's Shelikof saturates at max = 0.99999935 (not exactly 1), so
-#   normalizing inflates its selectivity by 1/max. Selectivity scale and q are
-#   confounded for a survey, so fold that max into q (q_rce = q_wham * max); the
-#   predicted index then matches WHAM exactly (otherwise it is off by ~6.5e-07).
+# (index q = exp(index_log_q + index_q_dev)).
+#   Shelikof: Rceattle max-normalizes the non-parametric selectivity,
+#   but WHAM's Shelikof normalizes at max = 0.99999935, so
+#   normalizing inflates its selectivity by 1/max.
 inits$index_log_q[1:6] <- 0
 for (i in 1:6) inits$index_q_dev[i, ] <- log(fit$rep$q[, i])
 inits$index_q_dev[1, ] <- log(fit$rep$q[, 1] * max(fit$rep$selAA[[2]][1, ]))
 
 # -- 1e. Fix EVERY parameter at the WHAM solution -----------------------------
-# We want a real (differentiable) objective evaluated exactly at WHAM's
-# parameters -- the OSA machinery needs it. Two facts make this clean:
-#   * For estimateMode >= 3 the template returns a placeholder objective
-#     (jnll = dummy^2), which oneStepPredict() cannot use. So we keep
-#     estimateMode = 1 (a real objective) instead.
-#   * We map every real parameter out (NA) and leave only the inert `dummy` free.
-#     `dummy` never enters the objective when estimateMode < 3, so the optimizer
-#     has nothing to move: the fit stays exactly at WHAM's parameters.
-map_fixed <- null$map
+map_fixed <- nullmod$map
 map_fixed$mapList <- lapply(map_fixed$mapList, function(x) { x[] <- NA; x })
-map_fixed$mapList$dummy <- 1
+map_fixed$mapList$dummy <- 1 # leave the inert `dummy` free
 map_fixed$mapFactor <- lapply(map_fixed$mapList, factor)
 
 # -----------------------------------------------------------------------------
 # 2. Hold Rceattle at the WHAM solution and confirm the dynamics match
 # -----------------------------------------------------------------------------
-# fit_control settings that make Rceattle's likelihood match WHAM's conventions:
-#   * bias_adjust_obs = 0 : center the lognormal index/catch likelihood at
-#     log(prediction), matching WHAM's bias_correct_oe = 0. (The default 1
-#     subtracts sigma^2/2 and would shift each aggregate OSA residual by 0.5*sigma.)
-#   * comp_offset = 0     : use the plain multinomial for age composition, so the
-#     observation vector fed to the OSA routine matches WHAM's exactly.
-#   * getsd = FALSE       : skip sdreport (not needed here; it is also singular
-#     because the Shelikof selectivity saturates at 1).
-pk <- fit_mod(data_list = pollock21, inits = inits, map = map_fixed, file = NULL,
-              estimateMode = 1, random_rec = FALSE, msmMode = 0, initMode = 1,
-              fit_control = fit_control(phase = FALSE, verbose = 0,
-                                        comp_offset = 0, bias_adjust_obs = 0,
+# fit_control to make Rceattle's likelihood match WHAM's conventions:
+#   * bias_adjust_obs = 0 :
+#   * comp_offset = 0     :
+pk <- fit_mod(data_list = pollock21,
+              inits = inits,
+              map = map_fixed,
+              estimateMode = 0,
+              random_rec = FALSE,
+              msmMode = 0,
+              initMode = 1,
+              fit_control = fit_control(phase = FALSE,
+                                        verbose = 0,
+                                        comp_offset = 0,
+                                        bias_adjust_obs = 0,
                                         getsd = FALSE))
 q <- pk$quantities
 
+# * Compare ----
 cat("\n=== Rceattle at the WHAM solution: max |relative difference| vs WHAM ===\n")
 cat(sprintf("  SSB              : %.2e\n", max(abs(q$ssb[1, 1:nyrs] / fit$rep$SSB - 1))))
 cat(sprintf("  fishing mortality: %.2e\n", max(abs(q$F_spp[1, 1:nyrs] / fit$rep$F[, 1] - 1))))
@@ -206,7 +176,7 @@ cat("Selectivity-at-age (year 1), max |difference| vs WHAM by fleet:\n")
 for (i in 1:7)
   cat(sprintf("  fleet %d          : %.2e\n", i,
               max(abs(q$sel_at_age[i, 1, , 1] - fit$rep$selAA[[wham_blk[i]]][1, ]))))
-# All of the above should print ~1e-13 or smaller (machine precision).
+
 
 # -----------------------------------------------------------------------------
 # 3. One-step-ahead (OSA) residuals from each model
@@ -214,7 +184,6 @@ for (i in 1:7)
 # Both models are fixed-effects here (WHAM input$random = NULL; Rceattle
 # random_rec = FALSE), so their observations are independent given the parameters
 # and OSA residuals are invariant to the order in which they are conditioned.
-# That is why an EXACT match is attainable, not merely a tight correlation.
 
 # -- 3a. Rceattle OSA residuals -----------------------------------------------
 rce_osa <- Rceattle::osa_residuals(pk, source = c("index", "catch", "comp"),
@@ -222,13 +191,10 @@ rce_osa <- Rceattle::osa_residuals(pk, source = c("index", "catch", "comp"),
 
 # -- 3b. WHAM OSA residuals ---------------------------------------------------
 # The saved WHAM 'fit' is a plain list (no TMB object), so rebuild the object
-# from fit$input and evaluate it at the converged parameters -- no refitting.
-# make_osa_residuals() reads obj$env$last.par.best; is_sdrep = TRUE just satisfies
-# its guard (sdreport is unnecessary for OSA, and singular here anyway).
 wham_obj <- wham::fit_wham(fit$input, do.osa = FALSE, do.fit = FALSE,
                            do.retro = FALSE, do.sdrep = FALSE,
                            MakeADFun.silent = TRUE)
-wham_obj$fn(fit$opt$par)                         # populate last.par at the optimum
+wham_obj$fn(fit$opt$par) # populate last.par at the optimum
 wham_obj$env$last.par.best <- wham_obj$env$last.par
 wham_obj$input <- fit$input; wham_obj$opt <- fit$opt; wham_obj$is_sdrep <- TRUE
 wham_osa <- wham::make_osa_residuals(
@@ -236,10 +202,10 @@ wham_osa <- wham::make_osa_residuals(
 wham_osa$year <- wham_osa$year + (pollock21$styr - 1L)   # WHAM year index -> calendar
 
 # -----------------------------------------------------------------------------
-# 4. Compare the two sets of OSA residuals (expect r = 1, differences ~1e-13)
+# 4. Compare OSA residuals
 # -----------------------------------------------------------------------------
-# Merge Rceattle and WHAM residuals on their shared keys (year, and age bin for
-# compositions) and report the correlation and the largest absolute difference.
+# Merge Rceattle and WHAM residuals on their shared columns (year, and age bin for
+# compositions)
 report <- function(label, m) {
   m <- m[is.finite(m$residual.rce) & is.finite(m$residual.wham), ]
   if (nrow(m) == 0) return(cat(sprintf("  %-16s: no overlap\n", label)))
@@ -249,9 +215,9 @@ report <- function(label, m) {
 }
 merge_agg <- function(rce_type, fleet, wham_type, wham_flt) {
   rce <- if (rce_type == "catch") rce_osa[rce_osa$source == "catch", ]
-         else rce_osa[rce_osa$source == "index" & rce_osa$fleet == fleet, ]
+  else rce_osa[rce_osa$source == "index" & rce_osa$fleet == fleet, ]
   wh  <- wham_osa[wham_osa$type == wham_type &
-                  (wham_type == "logcatch" | wham_osa$fleet == wham_flt), ]
+                    (wham_type == "logcatch" | wham_osa$fleet == wham_flt), ]
   merge(rce[, c("year", "residual")], wh[, c("year", "residual")],
         by = "year", suffixes = c(".rce", ".wham"))
 }
@@ -284,7 +250,7 @@ all_pairs <- rbind(
   do.call(rbind, lapply(c(1, 2, 3, 6), function(i)
     merge_comp(i, "indexpaa", wham_label[i])[, c("residual.rce", "residual.wham")])))
 all_pairs <- all_pairs[is.finite(all_pairs$residual.rce) &
-                       is.finite(all_pairs$residual.wham), ]
+                         is.finite(all_pairs$residual.wham), ]
 cat(sprintf("\nOVERALL: n=%d  r=%.8f  max|diff|=%.2e\n", nrow(all_pairs),
             stats::cor(all_pairs$residual.rce, all_pairs$residual.wham),
             max(abs(all_pairs$residual.rce - all_pairs$residual.wham))))
