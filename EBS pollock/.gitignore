@@ -1,4 +1,12 @@
 .Rproj.user
 .Rhistory
+.Rapp.history
 .RData
 .Ruserdata
+.DS_Store
+
+# Fitted model objects and run logs are regenerable by re-running the scripts;
+# a single saved Rceattle fit is ~50 MB, so they are kept out of the repo.
+*.rds
+*.log
+Rplots.pdf

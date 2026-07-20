@@ -1,25 +1,22 @@
 # =============================================================================
-# 2024 EBS pollock assessment in Rceattle (CEATTLE) - FINAL MODEL + ADMB MATCH
+# 2024 EBS pollock assessment in Rceattle (CEATTLE)
 # =============================================================================
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
-# This script fits the FREE-ESTIMATION Rceattle model and compares it to the
-# structurally-aligned ADMB reference ./ADMB/m23_rceattle_full/. See
-# "2024 EBS pollock bridging.R" for the forward-pass validation.
+# This script fits Rceattle and compares it to the aligned ADMB reference
+# ./ADMB/m23_rceattle_full/. See "2024 EBS pollock bridging.R" for validation.
 #
 # RESULT (vs ADMB/m23_rceattle_full): recruitment cor ~0.999, SSB cor ~0.99;
 # terminal R within ~0.2%. Evaluated at ADMB's parameters, every likelihood
-# component matches (catch kernel EXACT 3.256; rec/init penalties EXACT
-# 69.14 / 19.37; comps and indices match) - the two differ only by additive,
-# parameter-independent lognormal normalizing constants (Rceattle reports the
+# component matches or differ only by additive constants (Rceattle reports the
 # full -dnorm(); ADMB the bare kernel) plus ADMB's length-comp term (len_like).
 # i.e. the two are the SAME model; a good initial point is needed for Rceattle's
-# optimizer to reach the shared optimum basin (see the injection block below).
+# optimizer to reach the shared optimum basin given flatness in the likelihood.
 #
 # =============================================================================
-# ADMB SOURCE EDITS  (what was changed to align the ADMB model with Rceattle)
+# ADMB BRIDGING
 # -----------------------------------------------------------------------------
-# The reference ADMB "pm" (AMAK) model was edited in two stages. Directories:
+# The reference ADMB "pm" models are:
 #   ADMB/m23              - original 2024 SAFE (DoCovBTS covariance survey)
 #   ADMB/m23_rceattle     - stage 1: structural alignment
 #   ADMB/m23_rceattle_full- stage 2: likelihood alignment  <-- reference here
