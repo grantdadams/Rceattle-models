@@ -332,7 +332,7 @@ rpm <- function(parms) {
   Priors[1] <- -((srprior_a - 1.) * log(steepness) + (srprior_b - 1) * log(1. - steepness))
   bts_like <- BTS_likelihood(
     ob_bts, ot_bts, eb_bts, et_bts, # observed and expected values
-    inv_bts_cov,  var_ob_bts = ob_bts_std^2,  DoCovBTS = 1, do_bts_bio = TRUE  )
+    inv_bts_cov,  var_ob_bts = ob_bts_std^2,  DoCovBTS = DoCovBTS, do_bts_bio = TRUE  )
   ats_like <- ATS_likelihood(
     ob_ats, ot_ats, eb_ats, et_ats, # observed and expected values
     lvar_ats, lvarb_ats,  do_ats_bio = TRUE # flag for biology likelihood type) {

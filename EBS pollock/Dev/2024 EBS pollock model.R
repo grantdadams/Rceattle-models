@@ -110,5 +110,5 @@ SAFE2024_mod <- pollock_base
 SAFE2024_mod$quantities$ssb[1,1:length(1964:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 3)$Est
 SAFE2024_mod$quantities$R[1,1:length(1964:2024)] <- read_excel("Data/2024_ADMB_estimate.xlsx", sheet = 2)$Est
 
-plot_ssb(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
-plot_recruitment(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
+print(plot_ssb(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")) + ggplot2::ylab("SSB"))
+print(plot_recruitment(list(pollock_base, SAFE2024_mod), model_names = c("CEATTLE", "SAFE")) + ggplot2::ylab("Recruitment"))

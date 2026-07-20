@@ -103,8 +103,8 @@ bridge_mod6 <- Rceattle::fit_mod(data_list = bridge6,
                                  initMode = 2,
                                  msmMode = 0, # Single species mode
                                  phase = "default")
-plot_biomass(bridge_mod6); mtext(side = 3, "Biomass")
-plot_ssb(bridge_mod6); mtext(side = 3, "SSB")
+print(plot_biomass(bridge_mod6) + ggplot2::ggtitle("Biomass"))
+print(plot_ssb(bridge_mod6) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod6)
 
 
@@ -125,8 +125,8 @@ bridge_mod6 <- Rceattle::fit_mod(data_list = bridge6,
                                                     srr_prior_sd = 0.113),
                                  msmMode = 0, # Single species mode
                                  phase = "default")
-plot_biomass(bridge_mod6); mtext(side = 3, "Biomass")
-plot_ssb(bridge_mod6); mtext(side = 3, "SSB")
+print(plot_biomass(bridge_mod6) + ggplot2::ggtitle("Biomass"))
+print(plot_ssb(bridge_mod6) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod6)
 
 # Compare with SS
@@ -152,8 +152,8 @@ bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                  initMode = 2,
                                  msmMode = 0, # Single species mode
                                  phase = "default")
-plot_biomass(bridge_mod7); mtext(side = 3, "Biomass")
-plot_ssb(bridge_mod7); mtext(side = 3, "SSB")
+print(plot_biomass(bridge_mod7) + ggplot2::ggtitle("Biomass"))
+print(plot_ssb(bridge_mod7) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod7)
 
 
@@ -174,8 +174,8 @@ bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                                     srr_prior_sd = 0.113),
                                  msmMode = 0, # Single species mode
                                  phase = "default")
-plot_biomass(bridge_mod7); mtext(side = 3, "Biomass")
-plot_ssb(bridge_mod7); mtext(side = 3, "SSB")
+print(plot_biomass(bridge_mod7) + ggplot2::ggtitle("Biomass"))
+print(plot_ssb(bridge_mod7) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod7)
 
 # Compare with SS

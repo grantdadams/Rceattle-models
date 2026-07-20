@@ -366,7 +366,7 @@ mods  <- list(bridging_model_1, bridging_model_2, bridging_model_3, bridging_mod
 names <- c("Rceattle fix parms (fwd pass)", "Rceattle est non-par (M=0.074)",
            "Rceattle est logistic (M=0.074)", "Rceattle est logistic M", "ADMB (SAFE)")
 
-plot_biomass(mods, model_names = names);     mtext(side = 2, "Total biomass", line = 1.8)
-plot_ssb(mods, model_names = names);         mtext(side = 2, "Female SSB",    line = 1.8)
-plot_recruitment(mods, model_names = names); mtext(side = 2, "Recruitment",   line = 1.8)
+print(plot_biomass(mods, model_names = names) + ggplot2::ylab("Total biomass"))
+print(plot_ssb(mods, model_names = names) + ggplot2::ylab("Female SSB"))
+print(plot_recruitment(mods, model_names = names) + ggplot2::ylab("Recruitment"))
 plot_selectivity(bridging_model_3)

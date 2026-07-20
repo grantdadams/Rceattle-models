@@ -376,9 +376,9 @@ bridging_model_5$quantities$R <- bridging_model_5$quantities$R * 1000
 model_names = c("1. SAFE", "2. SAFE - adjusted", "3. CEATTLE - adjusted SAFE nll and MLEs", "4. CEATTLE adjusted SAFE nll", "5. CEATTLE q sd = 0.03086067", "6. CEATTLE q sd = 0.2")
 model_list = list(SAFE2024_mod, SAFE2024_init_mod, fixed_model, bridging_model_3, bridging_model_4, bridging_model_5)
 
-plot_biomass(model_list, model_names = model_names); mtext(side = 2, "Biomass", line = 1.8)
-plot_ssb(model_list, model_names = model_names); mtext(side = 2, "SSB", line = 1.8)
-plot_recruitment(model_list, model_names = model_names); mtext(side = 2, "Recruitment", line = 1.8)
+print(plot_biomass(model_list, model_names = model_names) + ggplot2::ylab("Biomass"))
+print(plot_ssb(model_list, model_names = model_names) + ggplot2::ylab("SSB"))
+print(plot_recruitment(model_list, model_names = model_names) + ggplot2::ylab("Recruitment"))
 
 # dev.off()
 # plot_selectivity(bridging_model_3)

@@ -16,7 +16,7 @@ pollock_base <- fit_mod(data_list = pollock23,
                         msmMode = 0, # Single species mode
                         verbose = 1,
                         initMode = 1,
-                        fit_control = fit_control(osa = TRUE),
+                        fit_control = fit_control(),
                         phase = TRUE)
 
 osa <- osa_residuals(pollock_base)

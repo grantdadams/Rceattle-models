@@ -52,7 +52,7 @@ SAFE2023_mod$quantities$ssb[1,1:nyrs] <- admb_ests$SpBiom
 SAFE2023_mod$quantities$R[1,1:nyrs] <- admb_ests$Recruitment
 
 
-plot_biomass(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Biomass", line = 1.8)
-plot_ssb(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "SSB", line = 1.8)
-plot_recruitment(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")); mtext(side = 2, "Recruitment", line = 1.8)
+print(plot_biomass(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")) + ggplot2::ylab("Biomass"))
+print(plot_ssb(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")) + ggplot2::ylab("SSB"))
+print(plot_recruitment(list(bridging_model_1, SAFE2023_mod), model_names = c("CEATTLE", "SAFE")) + ggplot2::ylab("Recruitment"))
 

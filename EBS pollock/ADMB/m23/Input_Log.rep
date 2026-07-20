@@ -21,7 +21,7 @@ GenGamm_Filename
 control_filename
 control.dat
 DoCovBTS
-0
+1
 SrType
 1
 Do_Combined
@@ -107,7 +107,7 @@ phase_selcoffs_ats_dev
 phase_natmort
 -6
 phase_q_bts
-3
+-1
 phase_q_std_area
 -4
 phase_q_ats
@@ -16682,7 +16682,7 @@ test_2
 "compweights.ctl"
 compweights.ctl
 phase_q_bts
-3
+-1
 natmort
  0.9 0.45 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3
 ctrl_flag

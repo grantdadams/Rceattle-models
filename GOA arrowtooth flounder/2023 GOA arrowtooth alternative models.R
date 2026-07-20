@@ -210,10 +210,10 @@ ceattle_ms_RE$quantities$M1[1,1:2,1]
 # Plot diagnostics ----
 # * Comp data ----
 dev.off()
-plot_comp(SAFE2023_mod, file = "Results/Figures/Diagnostics/Comp/Final_ADMB_"); legend("topright", legend = substitute(paste(bold('ADMB'))), bty = "n")
-plot_comp(ceattle_ss_RE, file = "Results/Figures/Diagnostics/Comp/Final_ss_"); legend("topright", legend = substitute(paste(bold('CEATTLE single-spp (fix M)'))), bty = "n")
-plot_comp(ceattle_ss_M_RE, file = "Results/Figures/Diagnostics/Comp/Final_ss_M_"); legend("topright", legend = substitute(paste(bold('CEATTLE single-spp (est M)'))), bty = "n")
-plot_comp(ceattle_ms_RE, file = "Results/Figures/Diagnostics/Comp/Final_ms_"); legend("topright", legend = substitute(paste(bold('CEATTLE multi-spp'))), bty = "n")
+plot_comp(SAFE2023_mod, file = "Results/Figures/Diagnostics/Comp/Final_ADMB_", model_names = "ADMB")
+plot_comp(ceattle_ss_RE, file = "Results/Figures/Diagnostics/Comp/Final_ss_", model_names = "CEATTLE single-spp (fix M)")
+plot_comp(ceattle_ss_M_RE, file = "Results/Figures/Diagnostics/Comp/Final_ss_M_", model_names = "CEATTLE single-spp (est M)")
+plot_comp(ceattle_ms_RE, file = "Results/Figures/Diagnostics/Comp/Final_ms_", model_names = "CEATTLE multi-spp")
 
 source("R/Functions/Pearson plot function.R", echo=TRUE)
 plot_pearson(SAFE2023_mod, file = "Results/Figures/Diagnostics/Comp/Final_ADMB_")
@@ -243,10 +243,10 @@ plot_logindex(model_list, model_names = model_names, file = "Results/Figures/Dia
 
 
 # * Selectivity ----
-plot_selectivity(SAFE2023_mod); legend(y = 0.15, x = 12.5, legend = substitute(paste(bold('ADMB'))), bty = "n")
-plot_selectivity(ceattle_ss_RE); legend(y = 0.15, x = 12.5, legend = substitute(paste(bold('CEATTLE single-spp (fix M)'))), bty = "n")
-plot_selectivity(ceattle_ss_M_RE); legend(y = 0.15, x = 12.5, legend = substitute(paste(bold('CEATTLE single-spp (est M)'))), bty = "n")
-plot_selectivity(ceattle_ms_RE); legend(y = 0.15, x = 12.5, legend = substitute(paste(bold('CEATTLE multi-spp'))), bty = "n")
+print(plot_selectivity(SAFE2023_mod) + ggplot2::ggtitle("ADMB"))
+print(plot_selectivity(ceattle_ss_RE) + ggplot2::ggtitle("CEATTLE single-spp (fix M)"))
+print(plot_selectivity(ceattle_ss_M_RE) + ggplot2::ggtitle("CEATTLE single-spp (est M)"))
+print(plot_selectivity(ceattle_ms_RE) + ggplot2::ggtitle("CEATTLE multi-spp"))
 
 
 # * Retrospectives ----
