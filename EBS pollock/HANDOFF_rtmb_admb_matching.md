@@ -1,3 +1,18 @@
+> ## ⚠️ UPDATED 2026-07-15 — read `HANDOFF_admb_match_session2.md` first
+>
+> **Correction:** this document calls `HANDOFF_pollock_bridging.md` "(the ADMB→Rceattle
+> forward-pass bridge, still valid)". **It is not valid.** That bridge sets
+> `estDynamics = 1`, which fixes N from `NByageFixed` rather than computing it — so its
+> "exact" trajectory match tested the likelihood *given* N, never the dynamics. See the
+> banner on that file.
+>
+> Superseded since: the ADMB target is now `ADMB/m23_rceattle` (structurally aligned to
+> Rceattle — weight submodel off, BTS dev_vectors → plain vectors, mean recruitment,
+> F freely estimated + F penalty removed), **not** `ADMB/m23`. Reference: **1224 active
+> params, objective 740.525106862990, max grad 3.77e-04**. Parameters, variances and
+> penalties are now reconciled with Rceattle **exactly** (1218 = 1224 − 6); the fit
+> still fails. Two real Rceattle bugs were found and fixed along the way.
+
 # Handoff: RTMB vs ADMB EBS pollock, and what Rceattle should match
 
 Last updated: 2026-06-19. Supersedes the BTS conclusion in `OVERNIGHT_REPORT.md`

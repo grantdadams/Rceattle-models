@@ -1,3 +1,19 @@
+> ## ⚠️ UPDATED 2026-07-15 — read `HANDOFF_admb_match_session2.md` first
+>
+> **The forward-pass claim below is WRONG and must not be relied on.** This document
+> says the forward pass "matches the population trajectory ... exactly". It does not
+> test the dynamics at all: `_rceattle_fwdpass.R` sets **`estDynamics = 1`, which FIXES
+> N from `NByageFixed` instead of computing it**. N was *injected*, so the ~6-sig-fig
+> agreement only ever showed that the likelihood is right *given* N — never that the
+> dynamics reproduce. Any conclusion resting on "the dynamics are proven identical" is
+> void. A valid forward pass requires `NByageFixed` refreshed from
+> `ADMB/m23_rceattle/pm.rep`; it remains the cleanest model-vs-optimizer split and is
+> **still to be done**.
+>
+> Also superseded: the ADMB target is now `ADMB/m23_rceattle` (structurally aligned to
+> Rceattle), **not** `ADMB/m23`. Reference: **1224 active params, objective
+> 740.525106862990, max grad 3.77e-04**.
+
 # Handoff: 2024 EBS pollock ADMB ("pm"/AMAK) → Rceattle bridging
 
 Last updated: 2026-06-02.

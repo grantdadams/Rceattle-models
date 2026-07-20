@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle\" && sed -n '2760,2870p' src/TMB/selectivity.hpp 2>/dev/null || grep -rn \"case 2:\" src/TMB/selectivity.hpp | head; echo \"=== find selectivity fn file ===\"; grep -rln \"sel_coff\" src/TMB/*.hpp)",
+      "Read(//Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle/**)",
+      "Bash(cd \"/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle\" && grep -n \"case 2\\\\|case 9\\\\|case 1:\\\\|norm\\\\|max_sel\\\\|Sel_norm\\\\|sel_norm\\\\|/= \\\\|cap\" src/TMB/selectivity.hpp | head -50)",
+      "Read(//Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle/src/TMB/**)",
+      "Bash(cd \"/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle\" && grep -n \"emp_sel\\\\|estDynamics\\\\|Sel_curve_pen1\" R/1-data_check.R R/0-clean_data.R R/5-rearrange_data.R 2>/dev/null | grep -i \"emp_sel\\\\|Sel_curve_pen1\" | head -20; echo \"=== cpp emp_sel usage ===\"; grep -n \"emp_sel\\\\|sel_at_age\\(flt, sex, bin, yr\\) = emp\\\\|case 0:\" src/TMB/selectivity.hpp | head)"
+    ]
+  }
+}
