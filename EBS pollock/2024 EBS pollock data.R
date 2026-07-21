@@ -74,7 +74,6 @@ library(Rceattle)
 library(dplyr)
 library(readxl)
 
-AD <- "ADMB/m23_rceattle_full"
 n_selages_fsh <- 12; bts_styr <- 1982; ats_styr <- 1994
 
 # -----------------------------------------------------------------------------
@@ -160,7 +159,10 @@ est$fleet_control$Catchability[fcn == "ATS"]                 <- "1"             
 est$fleet_control$Catchability[fcn %in% c("BTS_1", "ATS_1")] <- "3"                 # analytical
 est$fleet_control$Index_loglike[fcn == "BTS"] <- "MVN"                              # DoCovBTS
 est$fleet_control$Catchability[fcn == "BTS"]  <- "AnalyticalArith"
-est$index_cov <- list(BTS = as.matrix(read.table("ADMB/data/cov_2024.dat")))
+# BTS survey biomass variance-covariance matrix (42x42, VAST-derived, 1982-2023).
+# It is embedded in the written xlsx (index_cov round-trips), so the fit reads it
+# from the xlsx; the source matrix ships with the model in Data/.
+est$index_cov <- list(BTS = as.matrix(read.table("Data/BTS_survey_covariance_2024.dat")))
 
 # -- ATS biomass index: the xlsx Log_sd is a CV (std/obs), but ADMB's lognormal
 #    variance is lvarb_ats = log(CV^2 + 1) (the exact CV -> log-scale-SD conversion,
