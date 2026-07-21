@@ -106,20 +106,31 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 # log(mean recruitment) runs away (SSB -> 1e12). Fit in two stages instead:
 #   A. time-varying selectivity OFF (base selectivity only) to pin the scale;
 #   B. deviates ON, seeded from A.
-# From default parameters this converges (log_avgrec ~ 9.63) and matches ADMB to
-# ~0.1-0.2% in SSB for 1978-2024 and to ~0.3% in recruitment across all years. The
-# 1964-1977 initial biomass sits ~10% below ADMB (1964 SSB -10%): the initial
-# age-structure deviates (init_dev) are only weakly identified (the survey q's are
-# solved analytically so pin only shape, and the 1965-1976 CPUE is the sole early
-# index), so the optimizer settles in a local basin ~8.5 nll above ADMB's.
+# From default parameters this converges reliably (log_avgrec ~ 9.63) and matches
+# ADMB to ~0.1-0.2% in SSB for 1978-2024 and to ~0.3% in recruitment across all
+# years -- but it settles in a LOCAL optimum ~8 nll above ADMB's global. The two
+# optima differ almost entirely in two directions (component nll, local - global):
+#     fishery selectivity deviates +6.6 (default start over-flexes the time-varying
+#                                        fishery selectivity; ATS/BTS match ADMB)
+#     initial age structure        +1.0 (init_dev ~0.05-0.15 more negative, higher penalty)
+#     compositions                 +1.3
+#     survey indices               -0.5 (the local optimum fits the indices marginally better)
+# i.e. from a flat start the optimizer trades a little index fit for more fishery
+# selectivity flexibility and a lower initial abundance. The 1964-1977 biomass is the visible
+# consequence of the init_dev shift and sits ~10% below ADMB (1964 SSB -10%); early
+# recruitment and the 1978-2024 dynamics are essentially unchanged. This block is
+# only weakly identified because the survey catchabilities are solved analytically
+# (pinning selectivity/abundance shape, not level) and the 1965-1976 CPUE -- with a
+# freely estimated q -- is the sole early-period abundance index, so the absolute
+# size of the pre-1964 cohorts is poorly determined.
 #
-# The two objective functions are equivalent up to an additive constant: at ADMB's
-# MLE, injecting its parameters reproduces every likelihood component to machine
+# It is a local-optimum / weak-identification artifact, NOT a model difference: the
+# two objective functions are equivalent up to an additive constant. At ADMB's MLE,
+# injecting its parameters reproduces every likelihood component to machine
 # precision (indices, comps, catch, selectivity likelihoods/penalties incl. the
-# AMAK avgsel term, recruitment and initial-age penalties) and SSB/R/N to ~1e-6.
-# Seeding from ADMB's MLE and re-optimizing therefore returns there (SSB 0.04%,
-# R 0.04%, cor 1.0000, all years). The residual from a default start is thus
-# early-period multimodality in a weakly identified block, not a model difference.
+# AMAK avgsel term, recruitment and initial-age penalties) and SSB/R/N to ~1e-6, and
+# seeding from ADMB's MLE and re-optimizing returns there (SSB 0.04%, R 0.04%,
+# cor 1.0000, all years).
 M1Fun <- build_M1(updateM1 = TRUE, M1_model = 0)
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
