@@ -180,6 +180,16 @@ est$index_data$Year[est$index_data$Fleet_name == "ATS_1" & est$index_data$Year =
 est$index_data$Year[est$index_data$Fleet_name %in% c("ATS", "ATS_1") &
                       est$index_data$Year == -2020] <- 2020
 
+# -- Drop the base xlsx's Japanese CPUE copy. The base data attaches the 1965-1976
+#    CPUE to the FISHERY fleet (Fleet_code 1) as an index, and it is fit as a fishery
+#    index likelihood. ADMB fits the CPUE exactly ONCE (cpue_like). Immediately below
+#    we (re)add it as a dedicated CPUE survey fleet mirroring the fishery selectivity
+#    with its own estimated q, so leaving the base copy would DOUBLE-COUNT the CPUE
+#    (its 12 obs sit in 1965-1976, the only early-period index, so the double-count
+#    over-constrains the initial age structure and pulls the early-year fit off ADMB).
+fishery_code <- est$fleet_control$Fleet_code[fcn == "Fishery"]
+est$index_data <- est$index_data[est$index_data$Fleet_code != fishery_code, ]
+
 # -- Japanese fishery CPUE index (1965-1976). ADMB fits this as a fishery-selected
 #    biomass index (pred_cpue = wt_fsh * natage * sel_fsh * q_cpue) with its own
 #    estimated catchability. It is the ONLY abundance index before the BTS starts
