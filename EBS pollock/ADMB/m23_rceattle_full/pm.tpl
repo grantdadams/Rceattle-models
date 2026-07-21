@@ -1641,7 +1641,9 @@ PRELIMINARY_CALCS_SECTION
       if (igear==1)
       {
         oac_fsh(i)=oac_fsh_data(i)/sum(oac_fsh_data(i));
-        age_like_offset(igear)-=sam_fsh(i)*oac_fsh(i)*log(oac_fsh(i) +MN_const);
+        // MODIFIED (m23_rceattle_full): multinomial multiplier (o+MN_const) not o,
+        // matching Rceattle MultinomialAFSC = N*(o+c)*(log(o+c)-log(p+c)).
+        age_like_offset(igear)-=sam_fsh(i)*(oac_fsh(i)+MN_const)*log(oac_fsh(i) +MN_const);
       }
       else if (igear==2)
       {
@@ -1649,7 +1651,7 @@ PRELIMINARY_CALCS_SECTION
         ot_bts(i)       = sum(oac_bts_data(i)(mina_bts,nages)); // mina_bts is for totals
         ob_bts(i)       = obs_bts_data(i)            ;
         oac_bts(i )     = oac_bts_data(i)/sum(oac_bts_data(i));
-        age_like_offset(igear)-=sam_bts(i)*oac_bts(i)*log(oac_bts(i) +MN_const);
+        age_like_offset(igear)-=sam_bts(i)*(oac_bts(i)+MN_const)*log(oac_bts(i) +MN_const);
       }
       else if (igear==3)
       {
@@ -1658,7 +1660,7 @@ PRELIMINARY_CALCS_SECTION
         oa1_ats(i)                 = oac_ats_data(i,1); // set observed age 1 index
         ot_ats(i)                  = sum(oac_ats_data(i)(mina_ats,nages));
         oac_ats(i)(mina_ats,nages) = oac_ats_data(i)(mina_ats,nages)/sum(oac_ats_data(i)(mina_ats,nages));
-        age_like_offset(igear)     -= sam_ats(i)*oac_ats(i)(mina_ats,nages)*
+        age_like_offset(igear)     -= sam_ats(i)*(oac_ats(i)(mina_ats,nages)+MN_const)*
                                    log(oac_ats(i)(mina_ats,nages) +MN_const);
       }
     }     
@@ -3886,8 +3888,14 @@ FUNCTION Selectivity_Likelihood
     // sel_like_dev(2) += 12.5*norm2(first_difference(sel_slp_bts_dev)); 
     if(ctrl_flag(19)>0.){
       dvar_matrix lnseltmp = trans(log_sel_bts);
+      // MODIFIED (m23_rceattle_full): restrict the BTS selectivity random-walk
+      // penalty to the survey period (styr_bts..endyr_r). The full-range
+      // first_difference(lnseltmp(j)) also penalized the styr_bts-1 -> styr_bts
+      // boundary jump from the (never-fit) pre-survey flat log_sel_bts=0 to the
+      // first survey-year logistic -- a matrix-init artifact that acted as a
+      // spurious anchor pulling the first survey year's selectivity toward flat.
       for (j=q_amin;j<q_amax;j++)
-        sel_like_dev(2) += ctrl_flag(26)*norm2(first_difference(lnseltmp(j))); 
+        sel_like_dev(2) += ctrl_flag(26)*norm2(first_difference(lnseltmp(j)(styr_bts,endyr_r)));
     } else {
       sel_like_dev(2) += 50.*norm2(first_difference(sel_a50_bts_dev)); 
       sel_like_dev(2) += 50.*norm2(first_difference(sel_slp_bts_dev)); 
@@ -4112,14 +4120,16 @@ FUNCTION Multinomial_Likelihood
     {
       switch (igear)
       {
+        // MODIFIED (m23_rceattle_full): multinomial multiplier (o+MN_const) not o,
+        // matching Rceattle MultinomialAFSC = N*(o+c)*(log(o+c)-log(p+c)).
         case 1:
-          age_like(igear) -= sam_fsh(i)*oac_fsh(i)*log(eac_fsh(i) + MN_const);
+          age_like(igear) -= sam_fsh(i)*(oac_fsh(i)+MN_const)*log(eac_fsh(i) + MN_const);
           break;
         case 2:
-          age_like(igear) -= sam_bts(i)*oac_bts(i)*log(eac_bts(i) + MN_const);
+          age_like(igear) -= sam_bts(i)*(oac_bts(i)+MN_const)*log(eac_bts(i) + MN_const);
           break;
         case 3:
-          age_like(igear) -= sam_ats(i)*oac_ats(i)(mina_ats,nages) * log(eac_ats(i)(mina_ats,nages) + MN_const);
+          age_like(igear) -= sam_ats(i)*(oac_ats(i)(mina_ats,nages)+MN_const) * log(eac_ats(i)(mina_ats,nages) + MN_const);
           break;
       }
     }     
@@ -4134,13 +4144,13 @@ FUNCTION Multinomial_Likelihood
         switch (igear)
         {
           case 1:
-          age_like_yr(igear,i) -= sam_fsh(i)*oac_fsh(i)*log(eac_fsh(i) + MN_const);
+          age_like_yr(igear,i) -= sam_fsh(i)*(oac_fsh(i)+MN_const)*log(eac_fsh(i) + MN_const);
           break;
         case 2:
-          age_like_yr(igear,i) -= sam_bts(i)*oac_bts(i)*log(eac_bts(i) + MN_const);
+          age_like_yr(igear,i) -= sam_bts(i)*(oac_bts(i)+MN_const)*log(eac_bts(i) + MN_const);
           break;
         default:
-          age_like_yr(igear,i) -= sam_ats(i)*oac_ats(i)(mina_ats,nages)*log(eac_ats(i)(mina_ats,nages) +MN_const);
+          age_like_yr(igear,i) -= sam_ats(i)*(oac_ats(i)(mina_ats,nages)+MN_const)*log(eac_ats(i)(mina_ats,nages) +MN_const);
           break;
         }
       }     
