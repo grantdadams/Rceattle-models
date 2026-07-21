@@ -3,220 +3,155 @@
 # =============================================================================
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
-# This script fits Rceattle and compares it to the aligned ADMB reference
-# ./ADMB/m23_rceattle_full/. See "2024 EBS pollock bridging.R" for validation.
 #
-# RESULT (vs ADMB/m23_rceattle_full): recruitment cor ~0.999, SSB cor ~0.99;
-# terminal R within ~0.2%. Evaluated at ADMB's parameters, every likelihood
-# component matches or differ only by additive constants (Rceattle reports the
-# full -dnorm(); ADMB the bare kernel) plus ADMB's length-comp term (len_like).
-# i.e. the two are the SAME model; a good initial point is needed for Rceattle's
-# optimizer to reach the shared optimum basin given flatness in the likelihood.
+# Builds the model configuration that aligns Rceattle with the ADMB reference
+# ./ADMB/m23_rceattle_full/ and writes it to
+# Data/2024_EBS_pollock_m23_rceattle_full.xlsx. Run this once; the fitting
+# script ("2024 EBS pollock.R") reads the xlsx rather than rebuilding it.
+# The ADMB-side edits this configuration is matched to are catalogued below.
 #
 # =============================================================================
 # ADMB BRIDGING
 # -----------------------------------------------------------------------------
-# The reference ADMB "pm" models are:
-#   ADMB/m23              - original 2024 SAFE (DoCovBTS covariance survey)
+# The bridging ADMB "pm" models are:
+#   ADMB/m23              - 2024 SAFE (DoCovBTS = TRUE)
 #   ADMB/m23_rceattle     - stage 1: structural alignment
-#   ADMB/m23_rceattle_full- stage 2: likelihood alignment  <-- reference here
-# Each edit is flagged "MODIFIED (m23_rceattle...)" in ADMB/*/pm.tpl.
+#   ADMB/m23_rceattle_full- stage 2: likelihood alignment
+# Each edit is flagged with "MODIFIED (m23_rceattle...)" in ADMB/*/pm.tpl.
 #
-# Stage 1 - m23_rceattle (structural; makes the DYNAMICS/parameterisation match)
-#   S1. log_avg_F FIXED (phase < 0); log_F_devs a plain bounded vector (sum-to-
+# Stage 1 - m23_rceattle (structural alignment)
+#   S1. log_avg_F turned off (phase < 0); log_F_devs a plain bounded vector (sum-to-
 #       zero removed) so F = exp(log_avg_F + log_F_devs) has exactly one free
-#       parameter per year, as in Rceattle (control.dat ctrl_flag(4)=0 => no F
-#       penalty).                                             (pm.tpl ~L1204/1264)
+#       parameter per year (control.dat ctrl_flag(4)=0 => no F penalty).
 #   S2. BTS selectivity deviation vectors declared as plain bounded vectors with
-#       the first year pinned at 0 (sum-to-zero removed).      (pm.tpl ~L1296/1709)
-#   S3. Weight-at-age submodel likelihood (wt_like) EXCLUDED from the objective
-#       (it is a data-independent constant here).              (pm.tpl ~L1721/6581)
-#   S4. initMode-2 initial-age cascade: log_initage(a)=log_initage(a-1)-M(styr,a-1)
+#       the first year pinned at 0 (sum-to-zero removed)
+#   S3. Weight-at-age submodel likelihood (wt_like) excluded from the objective.
+#   S4. initial-age geometric series: log_initage(a)=log_initage(a-1)-M(styr,a-1)
 #       + log_initdevs (equilibrium + init devs, matching Rceattle initMode = 2).
 #
-# Stage 2 - m23_rceattle_full (likelihood; makes the OBJECTIVE comparable)
+# Stage 2 - (likelihood alignment)
 #   L1. rec_like(2)/(4) rewritten as FULL normal log-likelihoods
-#         norm2/(2 sigma^2) + n*log(sigma) + n*0.5*log(2*pi),  with sigr = 1,
-#       i.e. exactly Rceattle's rec/init penalty at sigma_rec_prior = 1, BAP = 0.
-#                                                              (pm.tpl ~L3457)
-#   L2. rec_like(1) FORCED TO 0 (unconditionally). Under SrType = 3 it was a
-#       second, windowed rec-dev penalty (SR_resids == log_rec_devs); Rceattle
-#       applies only ONE rec-dev penalty. Also phase_sr = -1.  (pm.tpl ~L3477/3491/3547)
-#   L3. steepness DEACTIVATED (control.dat phase_steepness = -1). Closes the
-#       parameter count: 1223 - 5 projection rec_devs = 1218 = Rceattle.
-#   L4. eb_ats (ATS biomass index) sums ages mina_ats..nages, EXCLUDING age-1 -
-#       removes the age-1 double-count (age-1 was in BOTH the biomass index and
-#       the dedicated age-1 index ea1_ats).                    (pm.tpl ~L2953)
-#   L5. pred_avo sums ages mina_ats..nages, EXCLUDING age-1 (AVO borrows the ATS
-#       selectivity; matches Rceattle Bin_first_selected = 2). (pm.tpl ~L2898)
-#   L6. log_q_avo BOUNDED [-15, 0]. avo_like is natural-scale normal with an
-#       absolute sigma, so q_avo -> 0 is a zero-gradient trap; the bound keeps it
-#       at its true optimum (~exp(-8)).                        (pm.tpl ~L1230)
-#   L7. When ignore_last_ats_age1 (last-year ATS numbers CV > 0.4, = 1.81 in
-#       2024), the age-1 index q (qtmp) is computed over the SAME 1..n_ats_r-1
-#       range as the likelihood (the dropped 2024 excluded from q AND fit),
-#       consistent with Rceattle's negative-year convention. (pm.tpl ~L4023)
+#         norm2/(2 sigma^2) + n*log(sigma) + n*0.5*log(2*pi),  with sigr = 1.
+#   L2. rec_like(1) set to 0. Under SrType = 3 it was a
+#       second, rec-dev penalty for Ricker curve.
+#   L3. steepness turned off (control.dat phase_steepness = -1).
+#   L4. eb_ats (ATS biomass index) sums ages mina_ats:nages and now excludes age-1.
+#       Age-1 was in BOTH the biomass index and the dedicated age-1 index ea1_ats.
+#   L5. pred_avo sums ages mina_ats..nages and now excludes age-1. AVO borrows the ATS
+#       selectivity. FIXME: may want an AVO age-1 index?
+#   L6. log_q_avo bounded [-15, 0]. avo_like is normal with an
+#       absolute sigma, so q_avo -> 0 is a zero-gradient funnel; the bound keeps it
+#       at its true optimum (~exp(-8)).
+#   L7. When ignore_last_ats_age1 = TRUE, the age-1 index q (qtmp) is now computed
+#       over the SAME 1:n_ats_r-1 range as the likelihood (the dropped 2024
+#       excluded from q AND fit).
 #
 # Rebuild the reference:
 #   cd ADMB/m23_rceattle_full && export PATH=/usr/local/bin:$PATH \
 #     && admb pm && ./pm -nox -iprint 150
 # =============================================================================
 
+
 library(Rceattle)
-library(dplyr)
-library(readxl)
 
 AD <- "ADMB/m23_rceattle_full"
-n_selages_fsh <- 12; bts_styr <- 1982; ats_styr <- 1994
+n_selages_fsh <- 12
 
 # -----------------------------------------------------------------------------
-# Data
+# Data ----
 # -----------------------------------------------------------------------------
-mydata <- Rceattle::read_data(file = "Data/2024_EBS_pollock.xlsx")
-styr <- mydata$styr; endyr <- mydata$endyr; nages <- mydata$nages
-yrs  <- styr:endyr; nyr <- length(yrs)
-keep_age <- c("Species_name", "Species", "Sex", "Year", paste0("Age", 1:nages))
-mydata$NByageFixed <- mydata$NByageFixed[, intersect(keep_age, colnames(mydata$NByageFixed))]
-mydata$spawn_month <- 3                                     # ADMB yrfrac 0.25
+est   <- read_data("Data/2024_EBS_pollock_m23_rceattle_full.xlsx")
+styr  <- est$styr
+endyr <- est$endyr
+yrs   <- styr:endyr
+nyr   <- length(yrs)
 
-est <- mydata
-est$estDynamics <- 0
-fcn <- est$fleet_control$Fleet_name
-
-# -- observation errors --------------------------------------------------------
-# NOTE: the xlsx index Log_sd is ALREADY a CV / log-sd (0.05-0.56; ADMB sdnr ~1).
-# Do NOT divide it by Observation. catch Log_sd = 0.05 (ADMB ctrl_flag(1)=200 =>
-# sigma = 1/sqrt(2*200) = 0.05). ATS age-1 index sigma = age1_sigma_ats = 1.
-est$catch_data$Log_sd <- 0.05
-est$index_data$Log_sd[est$index_data$Fleet_name %in% c("BTS_1", "ATS_1")] <- 1
-est$fleet_control$Fleet_type[fcn %in% c("BTS_1", "ATS_1")] <- 2
-est$age_error[1:nages, 3:(nages + 2)] <- diag(nages)       # ageing error off
-est$sigma_rec_prior <- 1                                   # full-normal rec penalty (ADMB L1)
-
-# -- selectivity forms (AMAK "pm"): Fishery = Ianelli non-parametric,
-#    BTS = logistic + free age-1, ATS/AVO = non-parametric ascending-constrained.
-#    Penalty weights come from ADMB ctrl_flags / selvar24.dat.
-est$fleet_control$Selectivity[fcn == "Fishery"]               <- "NonParametricPM"
-est$fleet_control$Time_varying_sel[fcn == "Fishery"]          <- "RandomWalk"
-est$fleet_control$N_sel_bins[fcn == "Fishery"]                <- n_selages_fsh
-est$fleet_control$Sel_curve_pen1[fcn == "Fishery"]            <- 12.5    # ctrl_flag(13)
-est$fleet_control$Sel_curve_pen2[fcn == "Fishery"]            <- 1/60    # ctrl_flag(11)/nch
-est$fleet_control$Sel_curve_pen3                              <- 0
-est$fleet_control$Sel_curve_pen3[fcn == "Fishery"]            <- 1       # ctrl_flag(10)/group
-est$fleet_control$Sel_norm_bin1[fcn == "Fishery"]             <- NA
-est$fleet_control$Time_varying_sel_sd_prior[fcn == "Fishery"] <- 0.5     # selvar24.dat
-
-est$fleet_control$Selectivity[fcn == "BTS"]                <- "LogisticPM"
-est$fleet_control$Time_varying_sel[fcn == "BTS"]           <- "RandomWalk"
-est$fleet_control$Sel_curve_pen1[fcn == "BTS"]             <- 2          # ctrl_flag(26)
-est$fleet_control$Sel_curve_pen2[fcn == "BTS"]             <- 0
-est$fleet_control$Sel_curve_pen3[fcn == "BTS"]             <- 8          # age-1-dev RW weight
-est$fleet_control$Sel_norm_bin1[fcn == "BTS"]              <- 3          # penalty age-range lo
-est$fleet_control$Sel_norm_bin2[fcn == "BTS"]              <- 14         # penalty age-range hi
-est$fleet_control$Sel_start_year[fcn == "BTS"]             <- bts_styr
-est$fleet_control$Bin_first_selected[fcn == "BTS"]         <- 1
-est$fleet_control$Time_varying_sel_sd_prior[fcn == "BTS"]  <- 1
-
-for (fl in c("ATS", "AVO")) {
-  est$fleet_control$Selectivity[fcn == fl]               <- "NonParametricPM"
-  est$fleet_control$Time_varying_sel[fcn == fl]          <- "RandomWalk"
-  est$fleet_control$N_sel_bins[fcn == fl]                <- 8
-  est$fleet_control$Sel_curve_pen1[fcn == fl]            <- -1           # penalise INCREASING
-  est$fleet_control$Sel_curve_pen2[fcn == fl]            <- 1
-  est$fleet_control$Sel_curve_pen3[fcn == fl]            <- 0
-  est$fleet_control$Sel_norm_bin1[fcn == fl]             <- NA
-  est$fleet_control$Bin_first_selected[fcn == fl]        <- 2            # exclude age-1 (ADMB L4/L5)
-  est$fleet_control$Sel_pen_first_bin[fcn == fl]         <- 2            # mina_ats
-  est$fleet_control$Sel_start_year[fcn == fl]            <- ats_styr
-  est$fleet_control$Time_varying_sel_sd_prior[fcn == fl] <- 0.138        # selvar24.dat
+# -----------------------------------------------------------------------------
+# Empirical selectivity start ----
+# -----------------------------------------------------------------------------
+# The fishery selectivity likelihood is multimodal: from the default (flat)
+# start the optimizer settles ~9 nll units above the basin ADMB reaches. Seed the
+# non-parametric fishery coefficients from the data instead -- the mean observed
+# fishery age composition divided by numbers-at-age (a throwaway default fit),
+# normalised and log-centred. This is the selectivity shape the catch data imply,
+# so the fit reaches ADMB's basin without needing ADMB's own MLE.
+fsh  <- est$fleet_control$Fleet_code[est$fleet_control$Fleet_name == "Fishery"]
+m0   <- Rceattle::fit_mod(data_list = est, inits = NULL, file = NULL,
+  estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = 2,
+  M1Fun = build_M1(updateM1 = TRUE, M1_model = 0),
+  fit_control = fit_control(verbose = 0, phase = TRUE,
+                            bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3))
+N   <- m0$quantities$N_at_age[1, 1, , 1:nyr]
+cd  <- est$comp_data[est$comp_data$Fleet_code == fsh & est$comp_data$Year > 0 &
+                     est$comp_data$Age0_Length1 == 0, ]   # age comps only (exclude length comp)
+cc  <- grep("^Comp_", colnames(cd), value = TRUE)[1:est$nages]
+sy  <- matrix(NA_real_, nrow(cd), est$nages)
+for (i in seq_len(nrow(cd))) {
+  yi <- which(yrs == cd$Year[i]); if (!length(yi)) next
+  pa <- as.numeric(cd[i, cc]); pa <- pa / sum(pa, na.rm = TRUE)
+  s  <- pa / pmax(N[, yi], 1e-8); sy[i, ] <- s / max(s, na.rm = TRUE)
 }
-
-# -- survey timing + catchability ---------------------------------------------
-est$index_data <- est$index_data %>%
-  mutate(Month = case_when(Fleet_name %in% c("BTS", "BTS_1", "ATS", "ATS_1") ~ 6, TRUE ~ 0))
-est$comp_data <- est$comp_data %>%
-  mutate(Month = case_when(Fleet_name == "BTS" ~ 6, Fleet_name == "ATS" ~ 6, TRUE ~ Month))
-est$fleet_control$Catchability <- as.character(est$fleet_control$Catchability)
-est$fleet_control$Catchability[fcn == "ATS"]                 <- "1"                 # estimated
-est$fleet_control$Catchability[fcn %in% c("BTS_1", "ATS_1")] <- "3"                 # analytical
-est$fleet_control$Index_loglike[fcn == "BTS"] <- "MVN"                              # DoCovBTS
-est$fleet_control$Catchability[fcn == "BTS"]  <- "AnalyticalArith"
-est$index_cov <- list(BTS = as.matrix(read.table("ADMB/data/cov_2024.dat")))
-
-# -- composition likelihood: ADMB offset (AFSC) multinomial (NOT full multinomial)
-est$fleet_control$Comp_loglike <- "MultinomialAFSC"
-
-# -- BTS age-1: ADMB keeps age-1 IN the BTS comps and has NO BTS age-1 index; the
-#    xlsx relocated it into a separate BTS_1 index (verified identical to the raw
-#    comp age-1 count). Restore it to the comps and drop the redundant BTS_1 index.
-b1 <- est$index_data[est$index_data$Fleet_name == "BTS_1", c("Year", "Observation")]
-for (r in which(est$comp_data$Fleet_name == "BTS")) {
-  o <- b1$Observation[abs(b1$Year) == abs(est$comp_data$Year[r])]
-  if (length(o) == 1) est$comp_data[r, "Comp_1"] <- o
-}
-est$fleet_control$Fleet_type[fcn == "BTS_1"] <- 0
-
-# -- ATS age-1 index (ATS_1): ADMB's ignore_last_ats_age1 drops the terminal 2024
-#    observation (last-year ATS numbers CV = 1.81 > 0.4, ADMB L7). Exclude it via
-#    the negative-year convention (year < 0 => predicted but not fitted, and
-#    excluded from the analytical q). Also flip the ATS/ATS_1 index -2020 -> 2020
-#    (ADMB yrs_ats_data has 2020 and fits it; the ATS comps already fit 2020).
-est$index_data$Year[est$index_data$Fleet_name == "ATS_1" & est$index_data$Year == 2024]  <- -2024
-est$index_data$Year[est$index_data$Fleet_name %in% c("ATS", "ATS_1") &
-                      est$index_data$Year == -2020] <- 2020
-
-# -----------------------------------------------------------------------------
-# Initialisation: seed the estimation at the ADMB MLE so the optimizer reaches
-# the shared optimum basin. Rceattle and ADMB have the same likelihood, but the
-# pre-survey (1964-1981) block {fishery sel, initial N, early F} is weakly
-# identified and multimodal; from a default start Rceattle lands in a worse local
-# minimum. Seeding the fishery selectivity increments + rec / F / init-devs at the
-# ADMB values reaches the basin ADMB's phased optimizer found.
-#   (NonParametricPM = type 9 is a carry-forward walk np_unc(yr)=np_unc(yr-1)+dev,
-#    so sel_coff_dev is the per-year INCREMENT, 0 at non-change years.)
-# -----------------------------------------------------------------------------
-pl <- readLines(file.path(AD, "pm.par"))
-gp <- function(nm) { i <- which(pl == paste0("# ", nm, ":"))[1]; v <- c(); j <- i + 1
-  while (j <= length(pl) && !grepl("^#", pl[j])) {
-    v <- c(v, as.numeric(strsplit(trimws(pl[j]), "[[:space:]]+")[[1]])); j <- j + 1 }; v }
-
-inits <- build_params(est)
-inits$rec_pars[1, 1]    <- gp("log_avgrec")
-inits$rec_dev[1, 1:nyr] <- gp("log_rec_devs")
-inits$log_F[1, 1:nyr]   <- gp("log_avg_F") + gp("log_F_devs")
-idv <- gp("log_initdevs"); inits$init_dev[1, 1:length(idv)] <- idv
-inits$index_log_q[2]    <- gp("log_q_avo")
-# fishery selectivity: base coffs at styr + per-year increments (change years)
-coffs <- gp("sel_coffs_fsh")
-devs  <- matrix(gp("sel_devs_fsh"), ncol = n_selages_fsh, byrow = TRUE)  # 60 x 12
-ych   <- 1965:2024                                                       # change years
-inits$sel_coff[1, 1, 1:n_selages_fsh] <- coffs
-inits$sel_coff_dev[1, 1, 1:n_selages_fsh, ] <- 0
-for (k in seq_along(ych)) {
-  yi <- which(yrs == ych[k]) + 1L                # ADMB applies dev(i) to year i+1
-  if (!is.na(yi) && yi <= nyr) inits$sel_coff_dev[1, 1, 1:n_selages_fsh, yi] <- devs[k, ]
-}
+sel_bar <- colMeans(sy, na.rm = TRUE)[1:n_selages_fsh]
+ls      <- log(pmax(sel_bar / max(sel_bar), 1e-3)); ls <- ls - mean(ls)
+inits   <- build_params(est)
+inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 
 # =============================================================================
-# FIT: free estimation, M fixed at the ADMB age schedule
+# FIT (two-stage) ----
 # =============================================================================
+# The BTS/ATS survey q are solved analytically (arithmetic mean-ratio, matching
+# ADMB DoCovBTS), so no index pins the *absolute* population scale -- it is only
+# weakly identified by the catch + comps + M. From the default start, freeing the
+# time-varying selectivity deviates in one shot opens a flat scale direction and
+# log(mean recruitment) runs away (SSB -> 1e12). Fit in two stages instead:
+#   A. time-varying selectivity OFF (base selectivity only) to pin the scale;
+#   B. deviates ON, seeded from A.
+# From default parameters this converges (log_avgrec ~ 9.63) and matches ADMB to
+# ~0.1-0.2% in SSB for 1978-2024 and to ~0.3% in recruitment across all years. The
+# 1964-1977 initial biomass sits ~10% below ADMB (1964 SSB -10%): the initial
+# age-structure deviates (init_dev) are only weakly identified (the survey q's are
+# solved analytically so pin only shape, and the 1965-1976 CPUE is the sole early
+# index), so the optimizer settles in a local basin ~8.5 nll above ADMB's.
+#
+# The two objective functions are equivalent up to an additive constant: at ADMB's
+# MLE, injecting its parameters reproduces every likelihood component to machine
+# precision (indices, comps, catch, selectivity likelihoods/penalties incl. the
+# AMAK avgsel term, recruitment and initial-age penalties) and SSB/R/N to ~1e-6.
+# Seeding from ADMB's MLE and re-optimizing therefore returns there (SSB 0.04%,
+# R 0.04%, cor 1.0000, all years). The residual from a default start is thus
+# early-period multimodality in a weakly identified block, not a model difference.
+M1Fun <- build_M1(updateM1 = TRUE, M1_model = 0)
+ctl   <- fit_control(verbose = 1, phase = TRUE,
+                     bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
+
+est_A <- est
+est_A$fleet_control$Time_varying_sel <- "Off"   # base selectivity only
+ebs_A <- Rceattle::fit_mod(data_list = est_A, inits = inits, file = NULL,
+  estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = 2,
+  M1Fun = M1Fun, fit_control = ctl)
+
 ebs_2024 <- Rceattle::fit_mod(
   data_list    = est,
-  inits        = inits,
+  inits        = ebs_A$obj$env$parList(),   # seed deviates fit from the scaled base fit
   file         = NULL,
   estimateMode = 0,
   random_rec   = FALSE,
   msmMode      = 0,
-  verbose      = 1,
-  phase        = TRUE,
   initMode     = 2,
-  M1Fun        = build_M1(updateM1 = TRUE, M1_model = 0),
-  fit_control  = fit_control(bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
+  M1Fun        = M1Fun,
+  fit_control  = fit_control(
+    verbose      = 1,
+    phase        = TRUE,
+    bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
 )
 
 # =============================================================================
-# COMPARISON vs ADMB (m23_rceattle_full)
+# COMPARISON ----
 # =============================================================================
+# The bridge covers the HINDCAST (styr:endyr). estimateMode = 0 also runs a
+# harvest-control-rule projection past endyr, but the projection horizon and its
+# reference points (Amendment-56 SPR proxies) use Rceattle's HCR machinery and are
+# not reconciled against ADMB's projection here -- only the hindcast SSB/R/N below.
 rl <- readLines(file.path(AD, "pm.rep"))
 get_admb <- function(key) {                                # [Year, val] block
   i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
@@ -226,6 +161,22 @@ get_admb <- function(key) {                                # [Year, val] block
     rows[[length(rows) + 1]] <- v[1:2]; j <- j + 1 }
   setNames(as.data.frame(do.call(rbind, rows)), c("Year", "val"))
 }
+
+# pm.rep has no total-biomass series, so build it as numbers-at-age x population
+# weight -- the same pop_wt_index weight Rceattle's biomass uses -- so the two are
+# on the same footing (the comparison then isolates differences in N-at-age).
+get_admb_mat <- function(key, ncol) {                      # [year x ncol] block
+  i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
+  while (j <= length(rl)) {
+    v <- suppressWarnings(as.numeric(strsplit(trimws(rl[j]), " +")[[1]]))
+    if (any(is.na(v)) || length(v) < ncol) break
+    rows[[length(rows) + 1]] <- v[1:ncol]; j <- j + 1 }
+  do.call(rbind, rows)
+}
+admb_N <- get_admb_mat("N", est$nages)                     # rows = years, cols = ages
+wt_pop <- est$weight[est$weight$Wt_index == est$pop_wt_index, ]
+wt_pop <- as.matrix(wt_pop[match(yrs, wt_pop$Year), paste0("Age", 1:est$nages)])
+admb_biomass <- data.frame(Year = yrs, val = rowSums(admb_N * wt_pop))
 cmp <- function(rvec, admb, lab) {
   d <- merge(data.frame(Year = yrs, R = as.numeric(rvec)), admb, by = "Year")
   d$pct <- 100 * (d$R - d$val) / d$val
@@ -236,18 +187,22 @@ cmp <- function(rvec, admb, lab) {
                 y, d$R[d$Year == y], d$val[d$Year == y], d$pct[d$Year == y]))
 }
 q <- ebs_2024$quantities
-cat(sprintf("\nObjective = %.3f\n", ebs_2024$opt$opt$objective))
+cat(sprintf("\nObjective = %.3f\n", ebs_2024$opt$objective))
 cmp(q$ssb[1, 1:nyr], get_admb("SSB"), "SSB")
 cmp(q$R[1, 1:nyr],   get_admb("R"),   "R  ")
+cmp(q$biomass[1, 1:nyr], admb_biomass, "Biomass")
 
-# ADMB reference as a pseudo-Rceattle object for overlay plots
+# * Plot ----
+# ADMB reference as a pseudo-Rceattle object
 SAFE2024 <- ebs_2024
-SAFE2024$quantities$ssb[1, 1:nyr] <- get_admb("SSB")$val
-SAFE2024$quantities$R[1, 1:nyr]   <- get_admb("R")$val
+SAFE2024$quantities$ssb[1, 1:nyr]     <- get_admb("SSB")$val
+SAFE2024$quantities$R[1, 1:nyr]       <- get_admb("R")$val
+SAFE2024$quantities$biomass[1, 1:nyr] <- admb_biomass$val
+
 mods  <- list(ebs_2024, SAFE2024)
 names <- c("Rceattle (est)", "ADMB m23_rceattle_full")
-# plot_*() return ggplot objects (Rceattle >= 4.7.0), so print them; the axis
-# labels come from the plot rather than a trailing mtext() on a base device.
+
+print(plot_biomass(mods, model_names = names) + ggplot2::ylab("Total biomass"))
 print(plot_ssb(mods, model_names = names) + ggplot2::ylab("Female SSB"))
 print(plot_recruitment(mods, model_names = names) + ggplot2::ylab("Recruitment"))
-print(plot_selectivity(ebs_2024))
+# print(plot_selectivity(ebs_2024))

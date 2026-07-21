@@ -46,6 +46,25 @@
 #       over the SAME 1:n_ats_r-1 range as the likelihood (the dropped 2024
 #       excluded from q AND fit).
 #
+# Stage 3 - (selectivity-penalty / composition alignment)
+#   A. BTS selectivity random-walk penalty restricted to the survey period
+#      (first_difference over styr_bts:endyr_r) so the flat pre-survey years and
+#      the survey-start boundary are outside the penalty.
+#   B. Age-composition multinomial multiplier (oac + MN_const) rather than oac,
+#      matching Rceattle's MultinomialAFSC = N*(o+c)*(log(o+c)-log(p+c)).
+#
+# Rceattle-side data encoding (set in the body below to match ADMB's data file /
+# likelihood; these are configuration choices, not code edits):
+#   - Fishery terminal-year length comp is NOT fit (ADMB use_endyr_len = 0).
+#   - AVO acoustic index observations in million-tonnes (ADMB obs_avo), matching
+#     the absolute-SD normal likelihood; the base xlsx stored thousand-tonnes.
+#   - Japanese CPUE fit exactly once, as a dedicated survey fleet mirroring the
+#     fishery selectivity (the base xlsx also carried it on the fishery fleet).
+#   - BTS/ATS age-comp sample sizes truncated to integer (ADMB init_ivector).
+#   - 2020 ATS age-comp sample size = 1 (ADMB sam_ats), not 0 (COVID-year survey).
+#   - ATS biomass index Log_sd = sqrt(log(CV^2 + 1)) (ADMB lvarb_ats CV->log-SD).
+#   - AMAK avgsel base-level selectivity penalty enabled (Sel_avgsel_pen = 10).
+#
 # Rebuild the reference:
 #   cd ADMB/m23_rceattle_full && export PATH=/usr/local/bin:$PATH \
 #     && admb pm && ./pm -nox -iprint 150
@@ -124,6 +143,13 @@ for (fl in c("ATS", "AVO")) {
   est$fleet_control$Time_varying_sel_sd_prior[fcn == fl] <- 0.138        # selvar24.dat
 }
 
+# AMAK "avgsel" base-level selectivity penalty, ADMB fff += 10*square(avgsel_*)
+# with avgsel = log(mean(exp(base coffs))) (pm.tpl:5535 etc.). Applied to the
+# non-parametric (type 9) fleets; only the lead fleet of each shared block
+# accumulates it (Fishery for block 1, AVO for the AVO/ATS block). ~0 for the
+# fishery, ~0.129 for the ATS coefficients.
+est$fleet_control$Sel_avgsel_pen[fcn %in% c("Fishery", "ATS", "AVO")] <- 10
+
 # -- survey timing + catchability ---------------------------------------------
 est$index_data <- est$index_data %>%
   mutate(Month = case_when(Fleet_name %in% c("BTS", "BTS_1", "ATS", "ATS_1") ~ 6, TRUE ~ 0))
@@ -135,6 +161,14 @@ est$fleet_control$Catchability[fcn %in% c("BTS_1", "ATS_1")] <- "3"             
 est$fleet_control$Index_loglike[fcn == "BTS"] <- "MVN"                              # DoCovBTS
 est$fleet_control$Catchability[fcn == "BTS"]  <- "AnalyticalArith"
 est$index_cov <- list(BTS = as.matrix(read.table("ADMB/data/cov_2024.dat")))
+
+# -- ATS biomass index: the xlsx Log_sd is a CV (std/obs), but ADMB's lognormal
+#    variance is lvarb_ats = log(CV^2 + 1) (the exact CV -> log-scale-SD conversion,
+#    pm.tpl:1689-1691), and Rceattle's lognormal likelihood uses Log_sd directly as
+#    the log-scale SD. Convert CV -> sqrt(log(CV^2 + 1)) so the ATS biomass variance
+#    matches ADMB exactly (the +0.01 inside-log offset is negligible at this scale).
+ats_rows <- est$index_data$Fleet_name == "ATS"
+est$index_data$Log_sd[ats_rows] <- sqrt(log(est$index_data$Log_sd[ats_rows]^2 + 1))
 
 # -- AVO acoustic index: ADMB avo_like is a natural-scale normal with an ABSOLUTE
 #    observation SD (ob_avo_std, pm_24.dat), not a lognormal CV. Fit it with
@@ -160,6 +194,20 @@ est$index_data$Observation[avo_rows] <- est$index_data$Observation[avo_rows] / 1
 
 # -- composition likelihood: ADMB offset (AFSC) multinomial (NOT full multinomial)
 est$fleet_control$Comp_loglike <- "MultinomialAFSC"
+
+# -- ADMB reads the survey age-comp sample sizes as integer vectors
+#    (init_ivector sam_bts / sam_ats), which TRUNCATES the fractional
+#    (McAllister-Ianelli-weighted) sample sizes in the data. The fishery sample
+#    size is a float (init_vector sam_fsh) and is left as-is. Truncate the BTS/ATS
+#    comp sample sizes to match so the multinomial weights are identical.
+for (fl in c("BTS", "ATS"))
+  est$comp_data$Sample_size[est$comp_data$Fleet_name == fl] <-
+    trunc(est$comp_data$Sample_size[est$comp_data$Fleet_name == fl])
+# The 2020 ATS age comp (COVID-year survey) is stored with sample size 0 in the
+# xlsx (effectively excluded), but ADMB's data file fits it with sample size 1
+# (sam_ats(2020) = 1). Restore it so the ATS multinomial matches ADMB exactly.
+est$comp_data$Sample_size[est$comp_data$Fleet_name == "ATS" &
+                          est$comp_data$Year == 2020] <- 1
 
 # -- BTS age-1: ADMB keeps age-1 IN the BTS comps and has NO BTS age-1 index; the
 #    xlsx relocated it into a separate BTS_1 index (verified identical to the raw
