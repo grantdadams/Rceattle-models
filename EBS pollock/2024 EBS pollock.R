@@ -55,6 +55,7 @@
 library(Rceattle)
 
 n_selages_fsh <- 12
+AD <- "ADMB/m23_rceattle_full"   # ADMB reference (used only for the validation comparison below)
 
 # -----------------------------------------------------------------------------
 # Data ----
@@ -156,67 +157,62 @@ ebs_2024 <- Rceattle::fit_mod(
 )
 
 # =============================================================================
-# COMPARISON (optional -- validation against the ADMB reference) ----
+# COMPARISON (validation against the ADMB reference) ----
 # =============================================================================
-# The build and fit above are self-contained (no ADMB inputs). This block only
-# VALIDATES the Rceattle fit against the ADMB m23_rceattle_full reference and runs
-# only when that reference (pm.rep) is present; it is never needed to build or fit
-# the model. The bridge covers the HINDCAST (styr:endyr) -- estimateMode = 0 also
-# runs an HCR projection past endyr, but the projection horizon and its reference
-# points (Amendment-56 SPR proxies) use Rceattle's HCR machinery and are not
-# reconciled against ADMB here.
+# Estimation above is self-contained -- it does NOT seed from ADMB parameters (the
+# fishery selectivity is started from the data, not ADMB's MLE). This block only
+# VALIDATES the resulting fit against the ADMB m23_rceattle_full reference. The
+# bridge covers the HINDCAST (styr:endyr) -- estimateMode = 0 also runs an HCR
+# projection past endyr, but the projection horizon and its reference points
+# (Amendment-56 SPR proxies) use Rceattle's HCR machinery and are not reconciled
+# against ADMB's projection here -- only the hindcast SSB/R/N below.
 q <- ebs_2024$quantities
 cat(sprintf("\nObjective = %.3f\n", ebs_2024$opt$objective))
 
-admb_rep <- "ADMB/m23_rceattle_full/pm.rep"
-if (file.exists(admb_rep)) {
-  rl <- readLines(admb_rep)
-  get_admb <- function(key) {                              # [Year, val] block
-    i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
-    while (j <= length(rl)) {
-      v <- suppressWarnings(as.numeric(strsplit(trimws(rl[j]), " +")[[1]]))
-      if (any(is.na(v)) || length(v) < 2) break
-      rows[[length(rows) + 1]] <- v[1:2]; j <- j + 1 }
-    setNames(as.data.frame(do.call(rbind, rows)), c("Year", "val"))
-  }
-  # pm.rep has no total-biomass series, so build it as numbers-at-age x population
-  # weight -- the same pop_wt_index weight Rceattle's biomass uses -- so the two are
-  # on the same footing (the comparison then isolates differences in N-at-age).
-  get_admb_mat <- function(key, ncol) {                    # [year x ncol] block
-    i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
-    while (j <= length(rl)) {
-      v <- suppressWarnings(as.numeric(strsplit(trimws(rl[j]), " +")[[1]]))
-      if (any(is.na(v)) || length(v) < ncol) break
-      rows[[length(rows) + 1]] <- v[1:ncol]; j <- j + 1 }
-    do.call(rbind, rows)
-  }
-  admb_N <- get_admb_mat("N", est$nages)                   # rows = years, cols = ages
-  wt_pop <- est$weight[est$weight$Wt_index == est$pop_wt_index, ]
-  wt_pop <- as.matrix(wt_pop[match(yrs, wt_pop$Year), paste0("Age", 1:est$nages)])
-  admb_biomass <- data.frame(Year = yrs, val = rowSums(admb_N * wt_pop))
-  cmp <- function(rvec, admb, lab) {
-    d <- merge(data.frame(Year = yrs, R = as.numeric(rvec)), admb, by = "Year")
-    d$pct <- 100 * (d$R - d$val) / d$val
-    cat(sprintf("\n%s: cor = %.4f | mean|%%| = %.1f | max|%%| = %.1f\n",
-                lab, cor(d$R, d$val), mean(abs(d$pct)), max(abs(d$pct))))
-    for (y in c(1964, 1978, 1990, 2008, 2024))
-      cat(sprintf("  %d: Rceattle = %8.1f  ADMB = %8.1f  (%+.1f%%)\n",
-                  y, d$R[d$Year == y], d$val[d$Year == y], d$pct[d$Year == y]))
-  }
-  cmp(q$ssb[1, 1:nyr], get_admb("SSB"), "SSB")
-  cmp(q$R[1, 1:nyr],   get_admb("R"),   "R  ")
-  cmp(q$biomass[1, 1:nyr], admb_biomass, "Biomass")
-
-  # * Plot -- ADMB reference as a pseudo-Rceattle object
-  SAFE2024 <- ebs_2024
-  SAFE2024$quantities$ssb[1, 1:nyr]     <- get_admb("SSB")$val
-  SAFE2024$quantities$R[1, 1:nyr]       <- get_admb("R")$val
-  SAFE2024$quantities$biomass[1, 1:nyr] <- admb_biomass$val
-  mods  <- list(ebs_2024, SAFE2024)
-  names <- c("Rceattle (est)", "ADMB m23_rceattle_full")
-  print(plot_biomass(mods, model_names = names) + ggplot2::ylab("Total biomass"))
-  print(plot_ssb(mods, model_names = names) + ggplot2::ylab("Female SSB"))
-  print(plot_recruitment(mods, model_names = names) + ggplot2::ylab("Recruitment"))
-} else {
-  message("ADMB reference '", admb_rep, "' not found; skipping the ADMB comparison.")
+rl <- readLines(file.path(AD, "pm.rep"))
+get_admb <- function(key) {                                # [Year, val] block
+  i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
+  while (j <= length(rl)) {
+    v <- suppressWarnings(as.numeric(strsplit(trimws(rl[j]), " +")[[1]]))
+    if (any(is.na(v)) || length(v) < 2) break
+    rows[[length(rows) + 1]] <- v[1:2]; j <- j + 1 }
+  setNames(as.data.frame(do.call(rbind, rows)), c("Year", "val"))
 }
+# pm.rep has no total-biomass series, so build it as numbers-at-age x population
+# weight -- the same pop_wt_index weight Rceattle's biomass uses -- so the two are
+# on the same footing (the comparison then isolates differences in N-at-age).
+get_admb_mat <- function(key, ncol) {                      # [year x ncol] block
+  i <- grep(paste0("^", key, "$"), rl)[1]; rows <- list(); j <- i + 1
+  while (j <= length(rl)) {
+    v <- suppressWarnings(as.numeric(strsplit(trimws(rl[j]), " +")[[1]]))
+    if (any(is.na(v)) || length(v) < ncol) break
+    rows[[length(rows) + 1]] <- v[1:ncol]; j <- j + 1 }
+  do.call(rbind, rows)
+}
+admb_N <- get_admb_mat("N", est$nages)                     # rows = years, cols = ages
+wt_pop <- est$weight[est$weight$Wt_index == est$pop_wt_index, ]
+wt_pop <- as.matrix(wt_pop[match(yrs, wt_pop$Year), paste0("Age", 1:est$nages)])
+admb_biomass <- data.frame(Year = yrs, val = rowSums(admb_N * wt_pop))
+cmp <- function(rvec, admb, lab) {
+  d <- merge(data.frame(Year = yrs, R = as.numeric(rvec)), admb, by = "Year")
+  d$pct <- 100 * (d$R - d$val) / d$val
+  cat(sprintf("\n%s: cor = %.4f | mean|%%| = %.1f | max|%%| = %.1f\n",
+              lab, cor(d$R, d$val), mean(abs(d$pct)), max(abs(d$pct))))
+  for (y in c(1964, 1978, 1990, 2008, 2024))
+    cat(sprintf("  %d: Rceattle = %8.1f  ADMB = %8.1f  (%+.1f%%)\n",
+                y, d$R[d$Year == y], d$val[d$Year == y], d$pct[d$Year == y]))
+}
+cmp(q$ssb[1, 1:nyr], get_admb("SSB"), "SSB")
+cmp(q$R[1, 1:nyr],   get_admb("R"),   "R  ")
+cmp(q$biomass[1, 1:nyr], admb_biomass, "Biomass")
+
+# * Plot -- ADMB reference as a pseudo-Rceattle object
+SAFE2024 <- ebs_2024
+SAFE2024$quantities$ssb[1, 1:nyr]     <- get_admb("SSB")$val
+SAFE2024$quantities$R[1, 1:nyr]       <- get_admb("R")$val
+SAFE2024$quantities$biomass[1, 1:nyr] <- admb_biomass$val
+mods  <- list(ebs_2024, SAFE2024)
+names <- c("Rceattle (est)", "ADMB m23_rceattle_full")
+print(plot_biomass(mods, model_names = names) + ggplot2::ylab("Total biomass"))
+print(plot_ssb(mods, model_names = names) + ggplot2::ylab("Female SSB"))
+print(plot_recruitment(mods, model_names = names) + ggplot2::ylab("Recruitment"))
