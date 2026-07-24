@@ -1,14 +1,11 @@
 # =============================================================================
-# 2024 EBS pollock assessment in Rceattle (CEATTLE)
+# 2024 EBS pollock assessment in Rceattle
 # =============================================================================
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
 #
 # Builds the model configuration that aligns Rceattle with the ADMB reference
-# ./ADMB/m23_rceattle_full/ and writes it to
-# Data/2024_EBS_pollock_m23_rceattle_full.xlsx. Run this once; the fitting
-# script ("2024 EBS pollock.R") reads the xlsx rather than rebuilding it.
-# The ADMB-side edits this configuration is matched to are catalogued below.
+# ./ADMB/m23_rceattle_full/
 #
 # =============================================================================
 # ADMB BRIDGING
