@@ -94,7 +94,7 @@ not ADREPORTed in the production TMB template.
 > `s{i}_gradient.RData` layout). Adding a RCEATTLE branch that reads the
 > `*_rceattle_*.RDS` files above is part of the upstream contribution.
 
-## Modelling choices worth reviewing with the team
+## Modelling choices worth reviewing
 
 - **Mean recruitment, not Beverton–Holt.** The OM uses Beverton–Holt
   (`SRmodel = 1`, h = 0.75). RCEATTLE fits mean recruitment with deviations; the

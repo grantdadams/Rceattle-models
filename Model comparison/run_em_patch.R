@@ -1,5 +1,5 @@
 # =============================================================================
-# run_em_patch.R -- dispatch line to add to ASSAMC's R/run_em.R
+# run_em_patch.R -- line to add to ASSAMC's R/run_em.R
 #
 # This file is NOT sourced by the demo. It documents the single edit required
 # in the Age_Structured_Stock_Assessment_Model_Comparison (ASSAMC) package so

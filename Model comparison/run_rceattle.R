@@ -1,40 +1,30 @@
 # =============================================================================
 # run_rceattle() -- RCEATTLE estimation model for the ASSAMC OM-EM comparison.
 #
-# Drop-in analogue of run_fims() / run_wham() from the
-# Age_Structured_Stock_Assessment_Model_Comparison (ASSAMC) package. It is
-# written so it can be copied verbatim into that package's R/ folder; the only
-# addition needed there is one dispatch line in run_em.R (see run_em_patch.R).
-#
-# Contract (identical to run_fims / run_wham):
-#   * signature run_rceattle(maindir, subdir, om_sim_num, casedir, em_bias_cor)
+# analogue of run_fims() / run_wham() from the ASSAMC package.
+# Written so it can be copied verbatim into ASSAMC:
+#   * run_rceattle(maindir, subdir, om_sim_num, casedir, em_bias_cor)
 #   * loop over 1..om_sim_num replicates in a parallel foreach
 #   * each worker load()s casedir/output/OM/OM{i}.RData -> om_input, om_output,
 #     em_input
 #   * fit three recruitment scenarios and saveRDS() a fixed set of result files
 #     into casedir/output/<subdir>/s{i}/
-#   * no return value (side effects only)
+#   * no return value
 #
 # The three scenarios mirror FIMS/WHAM. All use RCEATTLE mean recruitment
 # (build_srr(srr_fun = 0): recruitment = R0 * exp(rec_dev), effective steepness
-# ~ 0.99) -- the numerically robust canonical RCEATTLE form. The scenarios
-# differ only in how the recruitment deviations are treated, which is the axis
-# the manuscript compares:
+# ~ 0.99). The EM scenarios differ only in how the recruitment deviations are treated:
 #
 #   random_effects                  rec_dev random effects, sigmaR estimated
 #   random_effects_sigmaR_constant  rec_dev random effects, sigmaR fixed
 #   fixed_effects                   rec_dev penalised fixed effects, sigmaR fixed
-#
-# Depends only on the released (main-branch) RCEATTLE public API. Assumes the
-# translator om_to_rceattle() (in om_to_rceattle.R) is available; source it
-# alongside this file.
 #
 # Requires: Rceattle, foreach, doParallel, parallel.
 # =============================================================================
 
 utils::globalVariables(c("om_input", "om_output", "em_input", "om_sim"))
 
-# Scenario identifiers, reused for the saved file names.
+# Scenario identifiers, reused for the file names.
 RCEATTLE_SCENARIOS <- c(
   "random_effects",
   "random_effects_sigmaR_constant",
@@ -44,11 +34,7 @@ RCEATTLE_SCENARIOS <- c(
 
 #' Seed RCEATTLE starting parameters at OM truth
 #'
-#' FIMS and WHAM both initialise the EM parameters at the operating-model truth
-#' before fitting; we do the same so the optimiser starts from a sane scale
-#' (the default R0 is orders of magnitude off this stock's abundance, which
-#' otherwise collapses the population and NaNs the objective). Only recruitment
-#' level and deviations are seeded; everything else keeps the RCEATTLE default.
+#' Initialise the recruitment and rec devs parameters before fitting.
 #'
 #' @param data_list An Rceattle data_list from om_to_rceattle().
 #' @param om_input The OM truth list (for R0 and logR.resid).
@@ -65,7 +51,7 @@ seed_rceattle_inits <- function(data_list, om_input) {
 #' Fit one RCEATTLE recruitment scenario
 #'
 #' @param data_list Rceattle data_list.
-#' @param inits Seeded parameter list from seed_rceattle_inits().
+#' @param inits Initialized parameter list from seed_rceattle_inits().
 #' @param scenario One of RCEATTLE_SCENARIOS.
 #' @param initMode Initial-age-structure mode (default 1 = equilibrium).
 #' @param time_limit Wall-clock seconds after which a fit is abandoned (returns
@@ -79,13 +65,8 @@ fit_rceattle_scenario <- function(data_list, inits, scenario, initMode = 1,
   random_rec <- scenario %in%
     c("random_effects", "random_effects_sigmaR_constant")
 
-  # Optimiser / uncertainty knobs. The fit_control() defaults (loopnum = 5,
-  # getJointPrecision = TRUE) re-optimise five times and build the full joint
-  # precision matrix -- both very expensive for a random-effects model and
-  # unnecessary here. One optimisation loop is enough, but we keep one Newton
-  # step (newtonsteps = 1) so the final marginal gradient is tightened well
-  # below ASSAMC's convergence threshold (check_convergence.R uses < 0.1) and
-  # RCEATTLE is not penalised on the headline convergence-rate metric.
+  # Optimiser controls. The fit_control() defaults (loopnum = 5,
+  # getJointPrecision = TRUE)
   ctl <- Rceattle::fit_control(
     getsd = TRUE, getJointPrecision = FALSE,
     loopnum = 1, newtonsteps = 1, phase = FALSE, verbose = 0)
@@ -94,7 +75,7 @@ fit_rceattle_scenario <- function(data_list, inits, scenario, initMode = 1,
   common <- list(
     data_list  = data_list,
     inits      = inits,
-    msmMode    = 0,                              # single species
+    msmMode    = 0,                                  # single species
     random_rec = random_rec,
     recFun     = Rceattle::build_srr(srr_fun = 0),   # mean recruitment
     initMode   = initMode
@@ -104,11 +85,8 @@ fit_rceattle_scenario <- function(data_list, inits, scenario, initMode = 1,
   # is what the two default scenarios want (random_effects: R_log_sd estimated;
   # fixed_effects: random_rec = FALSE already maps R_log_sd off and treats
   # rec_dev as penalised fixed effects). For the sigmaR-constant scenario we
-  # keep rec_dev as random effects but hold R_log_sd fixed at its seeded value
-  # log(sigma_rec_prior). build_map() needs the data_list that fit_mod()
-  # prepares internally (growth switches + rearrange_data()), so rather than
-  # calling it standalone we do a cheap build-only fit (estimateMode = 3) to get
-  # the correctly-constructed map, then map R_log_sd off and refit.
+  # keep rec_dev as random effects but hold R_log_sd fixed at its initial value
+  # log(sigma_rec_prior).
   map <- NULL
   if (scenario == "random_effects_sigmaR_constant") {
     build <- do.call(Rceattle::fit_mod, c(common, list(
@@ -147,9 +125,6 @@ fit_rceattle_scenario <- function(data_list, inits, scenario, initMode = 1,
 #' with a point estimate and standard error. Standard errors come from the
 #' sdreport for the ADREPORTed quantities (ssb, biomass, R); F_spp is not
 #' ADREPORTed in the production TMB template, so its uncertainty is NA.
-#'
-#' NOTE: the exact column schema the manuscript's read_plot_data.R expects for
-#' a new EM must be reconciled with the FIMS team; this is a reasonable default.
 #'
 #' @param fit A fitted "Rceattle" object (single species).
 #' @param nyrs Number of hindcast years to report (defaults to all model years).
@@ -209,13 +184,8 @@ count_na_standard_errors <- function(sdreport) {
 #' Condition number of the Hessian
 #'
 #' Same quantity as the run_fims.R helper (kappa of the Hessian), but read from
-#' the value RCEATTLE already computes safely inside fit_mod() during its own
-#' convergence check (fit$convergence$checks$hessian_conditioning). We
-#' deliberately do NOT re-invoke `obj$env$spHess(random = TRUE)` on the returned,
-#' already-sdreported object: that re-evaluates the AD Hessian and can trigger an
-#' uncatchable segfault for random-effects models (it took down the whole R
-#' process in testing). Falls back to the dense Hessian only for fixed-effects
-#' models (no random effects), otherwise NA.
+#' the value RCEATTLE already computes inside fit_mod() during its own
+#' convergence check (fit$convergence$checks$hessian_conditioning).
 #'
 #' @param fit A fitted "Rceattle" object.
 get_condition_number <- function(fit) {
