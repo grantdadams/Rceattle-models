@@ -131,7 +131,10 @@ est$index_data$Log_sd[ats_rows] <- sqrt(log(est$index_data$Log_sd[ats_rows]^2 + 
 #    Index_loglike = "Normal" (residual obs - q*pred ~ N(0, ob_avo_std^2)) and
 #    supply ob_avo_std directly in Log_sd (provided, not estimated).
 est$fleet_control$Index_loglike[fcn == "AVO"]     <- "Normal"
-est$fleet_control$Estimate_index_sd[fcn == "AVO"] <- "Fixed"
+# All index SDs are provided (not estimated). Set the WHOLE column as a string alias:
+# a per-fleet string assignment would coerce the numeric column to character and leave
+# "0" strings on the untouched fleets, which strict (dev-line) validators reject.
+est$fleet_control$Estimate_index_sd <- "Fixed"
 ob_avo_std <- setNames(
   c(0.407974331, 0.79543824, 0.292865177, 0.390095688, 0.579193251, 0.447677778,
     0.371938445, 0.390115995, 0.58024587, 0.406257388, 0.379092753, 0.317389245,
