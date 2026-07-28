@@ -1,18 +1,16 @@
 # =============================================================================
-# 2025 EBS pollock — model diagnostics
+# 2024 EBS pollock — model diagnostics
 # =============================================================================
-# Fits the EBS pollock ADMB-bridge model and runs the Rceattle diagnostic
-# battery: convergence checks, data/fit/residual plots, OSA residuals,
-# retrospectives (Mohn's rho), jitters, a self-test, and a likelihood profile.
+# Fits the EBS pollock ADMB-bridge model and runs the Rceattle diagnostic battery:
+# convergence checks, data/fit/residual plots, OSA residuals, retrospectives
+# (Mohn's rho), jitters, a self-test, and a likelihood profile.
 # https://grantdadams.github.io/Rceattle/articles/model-diagnostics.html
 #
-# The fit reproduces the two-stage optimization used by the comparison script
-# ("2024 EBS pollock.R"): because the survey catchabilities are solved
-# analytically, freeing the time-varying selectivity deviations from a flat start
-# opens a weakly-identified scale direction, so the fishery selectivity is
-# started from the data and the time-varying deviations are switched on only
-# after a base-selectivity fit has pinned the scale. Point this at the rolled-
-# forward 2025 workbook once its placeholders are filled.
+# The fit is the two-stage optimization of the comparison script ("2024 EBS
+# pollock.R") -- analytical survey q leave the scale weakly identified, so the
+# fishery selectivity is started from the data and the time-varying deviations are
+# switched on only after a base fit pins the scale. Point XLSX at the rolled-forward
+# workbook once its placeholders are filled.
 # =============================================================================
 
 library(Rceattle)
@@ -80,9 +78,8 @@ osa_diagnostics(osa)                       # SDNR + lower/upper tail (Stewart & 
 plot(osa)                                  # Q-Q (with SDNR/tail annotation) + residual-by-year
 
 # * Retrospectives ----
-# Slow: each peel is a full refit. .refit_like() refits single-stage (no two-stage
-# warm start), so an occasional peel may settle in the early-period local optimum
-# discussed in "2024 EBS pollock.R"; inspect the peel trajectories.
+# Slow (each peel is a full refit). Peels refit single-stage, so one may settle in the
+# early-period local optimum from "2024 EBS pollock.R"; inspect the peel trajectories.
 mod_retro <- retrospective(Rceattle = mod, peels = 5)
 mod_retro$mohns                            # Mohn's rho per quantity
 plot_biomass(mod_retro$Rceattle_list)

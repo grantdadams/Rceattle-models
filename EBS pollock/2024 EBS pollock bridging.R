@@ -112,9 +112,9 @@ sel_ats <- get_sel("sel_ats")             # AVO uses ATS selectivity (pm.tpl)
 # =============================================================================
 fp <- mydata
 fp$estDynamics <- 0
-fp$fleet_control$Selectivity <- 0              # empirical selectivity for all fleets
+fp$fleet_control$Selectivity <- "Fixed"        # empirical selectivity for all fleets
 fcn <- fp$fleet_control$Fleet_name
-fp$fleet_control$Fleet_type[fcn %in% c("BTS_1", "ATS_1")] <- 2   # age-1 abundance indices
+fp$fleet_control$Fleet_type[fcn %in% c("BTS_1", "ATS_1")] <- "Survey"   # age-1 abundance indices
 fp$age_error[1:nages, 3:(nages + 2)] <- diag(nages)              # ageing error off (identity)
 
 # -- inject ADMB realized selectivity via emp_sel (diff #8). emp_sel uses
@@ -136,7 +136,7 @@ fp$emp_sel <- es
 fp$index_data <- fp$index_data %>%
   mutate(Month = case_when(Fleet_name %in% c("BTS", "BTS_1", "ATS", "ATS_1") ~ 6, TRUE ~ 0))
 fp$fleet_control$Catchability <- as.character(fp$fleet_control$Catchability)
-fp$fleet_control$Catchability[fcn %in% c("BTS", "ATS", "AVO", "BTS_1", "ATS_1")] <- 3
+fp$fleet_control$Catchability[fcn %in% c("BTS", "ATS", "AVO", "BTS_1", "ATS_1")] <- "Analytical"
 
 # -- map the ADMB population MLEs (diff #5, #6) --------------------------------
 inits <- build_params(fp)

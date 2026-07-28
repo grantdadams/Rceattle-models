@@ -1,21 +1,18 @@
 # =============================================================================
-# 2025 EBS pollock — environment-linked recruitment via DSEM
+# 2024 EBS pollock — environment-linked recruitment via DSEM
 # =============================================================================
-# Fits the EBS pollock model with a dynamic structural equation model (DSEM)
-# linking environmental indices to recruitment, and compares an environment-free
-# (IID) recruitment structure against the full environment-linked SEM by AIC.
+# Links environmental indices to recruitment with a dynamic structural equation
+# model (DSEM) and compares environment-free (IID) vs environment-linked recruitment
+# by AIC.
 #
 # REQUIRES the DSEM build of Rceattle (a separate branch):
-#   remotes::install_version("dsem", version = "3.0.0")     # this version
+#   remotes::install_version("dsem", version = "3.0.0")
 #   remotes::install_github("grantdadams/Rceattle@dev-DSEM")
 #
-# NOTE — departure from the ADMB bridge. The assessment model
-# ("2024 EBS pollock.R") treats recruitment deviations as PENALISED fixed effects
-# (random_rec = FALSE, sigma_rec fixed = 1) to match ADMB. A DSEM instead models
-# the recruitment deviations as RANDOM effects whose process error / environmental
-# covariance it estimates, so this script sets random_rec = TRUE. Everything else
-# (fleets, selectivity, survey likelihoods, the MVN BTS covariance) is inherited
-# unchanged from the ADMB-bridge workbook.
+# NOTE -- departs from the ADMB bridge: the assessment ("2024 EBS pollock.R") treats
+# recruitment deviations as penalised fixed effects (random_rec = FALSE), but a DSEM
+# models them as random effects, so this sets random_rec = TRUE. Everything else is
+# inherited unchanged from the bridge workbook.
 # =============================================================================
 
 library(Rceattle)   # dev-DSEM

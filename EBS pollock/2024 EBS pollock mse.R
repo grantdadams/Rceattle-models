@@ -25,7 +25,7 @@ ebs_pollock$estDynamics = 0
 ebs_pollock$index_data$Log_sd <- ebs_pollock$index_data$Log_sd/ebs_pollock$index_data$Observation
 ebs_pollock$catch_data$Catch <- ebs_pollock$catch_data$Catch*1000
 ebs_pollock$catch_data$Log_sd <- 0.05
-ebs_pollock$fleet_control$Fleet_type[5:6] <- 2     # Setting age-1 data as survey
+ebs_pollock$fleet_control$Fleet_type[5:6] <- "Survey"   # Setting age-1 data as survey
 ebs_pollock$fleet_control$proj_F_prop[1] <- 1
 
 
