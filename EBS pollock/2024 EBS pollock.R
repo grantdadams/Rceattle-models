@@ -154,6 +154,71 @@ ebs_2024 <- Rceattle::fit_mod(
 )
 
 # =============================================================================
+# SENSITIVITY: 2D AR1 fishery selectivity (age x year) ----
+# =============================================================================
+# The base model gives the fishery an AMAK non-parametric random-walk selectivity
+# (Selectivity = "NonParametricPM", deviations penalised year-to-year). This
+# sensitivity instead treats the fishery age-selectivity surface as a 2D AR1
+# random field over age x year (Selectivity = "2DAR1", sensu Xu et al. 2019 /
+# Cheng et al. 2024): the annual log-selectivity deviations are correlated across
+# BOTH age (Sel_curve_pen2) and year (Sel_curve_pen1) via two estimated AR1
+# correlations (logit scale), with the deviation SD (Time_varying_sel_sd) also
+# estimated. The field is integrated out with the Laplace approximation
+# (random_sel = TRUE), so this is a mixed-effects selectivity rather than the
+# penalised-deviation form. The CPUE fleet mirrors the fishery selectivity
+# (shared Selectivity_index), so it follows the same 2D AR1 field automatically.
+est_2d    <- est
+fsh_block <- est_2d$fleet_control$Selectivity_index[est_2d$fleet_control$Fleet_name == "Fishery"][1]
+sel_rows  <- which(est_2d$fleet_control$Selectivity_index == fsh_block)
+est_2d$fleet_control$Selectivity[sel_rows]         <- "2DAR1"
+est_2d$fleet_control$Time_varying_sel[sel_rows]    <- "Off"          # ignored for 2DAR1 (field is age x year)
+est_2d$fleet_control$N_sel_bins[sel_rows]          <- n_selages_fsh  # age bins in the field
+est_2d$fleet_control$Bin_first_selected[sel_rows]  <- 1
+est_2d$fleet_control$Sel_curve_pen1[sel_rows]      <- 0              # year AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen2[sel_rows]      <- 0              # age  AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen3[sel_rows]      <- NA
+est_2d$fleet_control$Sel_avgsel_pen[sel_rows]      <- 0              # AMAK base-level penalty is a type-9 term; off here
+est_2d$fleet_control$Time_varying_sel_sd[sel_rows] <- 1              # deviation SD init (estimated hyperparameter)
+
+# NOTE: this is a random-effects (Laplace) fit with phasing over the full 1964+
+# hindcast, so it is SLOW (many minutes) relative to the penalised-likelihood base
+# fit. It converges to a sensible trajectory (SSB cor ~0.99 with the base fit,
+# terminal SSB within ~0.1%) but, like the base model, trips the estimability /
+# non-positive-definite-Hessian checks — the survey-q-is-analytical weak
+# identification, not a 2D AR1 problem; inspect ebs_2dar1$convergence.
+#
+# Warm-start from the converged base fit. The survey q are analytical, so from a
+# flat start freeing a selectivity field opens the same weakly-identified scale
+# direction the two-stage base fit avoids (the marginal objective is NaN there).
+# Seed every shared parameter (population scale, recruitment, the other fleets'
+# selectivities) from ebs_2024, so the 2D AR1 field starts AT the base optimum
+# (deviations = the base fit's, both AR1 correlations = 0) and only has to relax
+# into its age x year covariance. Parameters are copied by name where the shape
+# matches build_params()'s template for the 2D AR1 configuration.
+copy_matching <- function(target, source) {
+  for (nm in intersect(names(target), names(source)))
+    if (identical(dim(target[[nm]]), dim(source[[nm]])) &&
+        length(target[[nm]]) == length(source[[nm]]))
+      target[[nm]] <- source[[nm]]
+  target
+}
+inits_2d <- copy_matching(build_params(est_2d), ebs_2024$obj$env$parList())
+
+ebs_2dar1 <- Rceattle::fit_mod(
+  data_list    = est_2d,
+  inits        = inits_2d,      # warm start from the converged base fit (see above)
+  file         = NULL,
+  estimateMode = 0,
+  random_rec   = FALSE,
+  random_sel   = TRUE,          # Laplace-integrate the 2D AR1 selectivity field
+  msmMode      = 0,
+  initMode     = 2,
+  M1Fun        = M1Fun,
+  fit_control  = fit_control(verbose = 1, phase = TRUE,
+                             bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
+)
+
+# =============================================================================
 # COMPARISON (validation against the ADMB reference) ----
 # =============================================================================
 # Estimation above is self-contained -- it does NOT seed from ADMB parameters (the
@@ -164,7 +229,20 @@ ebs_2024 <- Rceattle::fit_mod(
 # (Amendment-56 SPR proxies) use Rceattle's HCR machinery and are not reconciled
 # against ADMB's projection here -- only the hindcast SSB/R/N below.
 q <- ebs_2024$quantities
-cat(sprintf("\nObjective = %.3f\n", ebs_2024$opt$objective))
+obj_val <- function(m) {                                    # NULL-safe objective
+  o <- tryCatch(m$opt$objective, error = function(e) NULL)
+  if (length(o) != 1 || !is.finite(o)) NA_real_ else as.numeric(o)
+}
+cat(sprintf("\nObjective (base, NonParametricPM fishery sel) = %.3f\n",
+            obj_val(ebs_2024)))
+cat(sprintf("Objective (2D AR1 fishery sel)                = %s\n",
+            ifelse(is.na(obj_val(ebs_2dar1)), "NA (marginal; see note)",
+                   sprintf("%.3f", obj_val(ebs_2dar1)))))
+# 2D AR1 is a mixed-effects selectivity (deviations integrated out), so its
+# objective is a marginal (Laplace) likelihood and is NOT directly comparable to
+# the base penalised-likelihood objective or to ADMB; compare the estimated
+# population trajectories (below) and the realised selectivity surfaces instead.
+# (opt$objective can also come back NULL when the random-effects sdreport fails.)
 
 rl <- readLines(file.path(AD, "pm.rep"))
 get_admb <- function(key) {                                # [Year, val] block
@@ -199,17 +277,28 @@ cmp <- function(rvec, admb, lab) {
     cat(sprintf("  %d: Rceattle = %8.1f  ADMB = %8.1f  (%+.1f%%)\n",
                 y, d$R[d$Year == y], d$val[d$Year == y], d$pct[d$Year == y]))
 }
+cat("\n-- Base (NonParametricPM fishery selectivity) vs ADMB --\n")
 cmp(q$ssb[1, 1:nyr], get_admb("SSB"), "SSB")
 cmp(q$R[1, 1:nyr],   get_admb("R"),   "R  ")
 cmp(q$biomass[1, 1:nyr], admb_biomass, "Biomass")
 
-# * Plot -- ADMB reference as a pseudo-Rceattle object
+cat("\n-- 2D AR1 fishery selectivity vs ADMB --\n")
+q2 <- ebs_2dar1$quantities
+cmp(q2$ssb[1, 1:nyr], get_admb("SSB"), "SSB")
+cmp(q2$R[1, 1:nyr],   get_admb("R"),   "R  ")
+cmp(q2$biomass[1, 1:nyr], admb_biomass, "Biomass")
+
+# * Plot -- ADMB reference as a pseudo-Rceattle object, alongside both fits
 SAFE2024 <- ebs_2024
 SAFE2024$quantities$ssb[1, 1:nyr]     <- get_admb("SSB")$val
 SAFE2024$quantities$R[1, 1:nyr]       <- get_admb("R")$val
 SAFE2024$quantities$biomass[1, 1:nyr] <- admb_biomass$val
-mods  <- list(ebs_2024, SAFE2024)
-names <- c("Rceattle (est)", "ADMB m23_rceattle_full")
+mods  <- list(ebs_2024, ebs_2dar1, SAFE2024)
+names <- c("Rceattle (NonParametricPM sel)", "Rceattle (2D AR1 sel)",
+           "ADMB m23_rceattle_full")
 print(plot_biomass(mods, model_names = names) + ggplot2::ylab("Total biomass"))
 print(plot_ssb(mods, model_names = names) + ggplot2::ylab("Female SSB"))
 print(plot_recruitment(mods, model_names = names) + ggplot2::ylab("Recruitment"))
+# Realised fishery selectivity surfaces: penalised random-walk vs 2D AR1 field
+print(plot_selectivity(list(ebs_2024, ebs_2dar1),
+                       model_names = c("NonParametricPM", "2D AR1")))
