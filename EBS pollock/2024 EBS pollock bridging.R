@@ -6,7 +6,7 @@
 # Reference assessment = the STRUCTURALLY-ALIGNED ADMB model in
 # ./ADMB/m23_rceattle_full/ (pm.tpl / pm.par / pm.rep). That model is the 2024
 # SAFE "pm" (AMAK) model, edited so its equations and likelihoods match
-# Rceattle's (the edits are catalogued in "2024 EBS pollock data.R"). Mirrors the
+# Rceattle's (the edits are catalogued in "2024 EBS pollock setup data.R"). Mirrors the
 # GOA Northern rockfish / BSAI Alaska plaice bridging scripts.
 #
 #   Model 1 (forward pass): Rceattle population dynamics FIXED to the ADMB MLEs.
