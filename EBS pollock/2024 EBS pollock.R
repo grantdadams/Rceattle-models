@@ -13,7 +13,7 @@
 # The bridging ADMB "pm" models are:
 #   ADMB/m23              - 2024 SAFE (DoCovBTS = TRUE)
 #   ADMB/m23_rceattle     - stage 1: structural alignment
-#   ADMB/m23_rceattle_full- stage 2: likelihood alignment
+#   ADMB/m23_rceattle_full- stage 2: likelihood, data, parameter alignment
 # Each edit is flagged with "MODIFIED (m23_rceattle...)" in ADMB/*/pm.tpl.
 #
 # Stage 1 - m23_rceattle (structural alignment)
@@ -42,10 +42,6 @@
 #   L7. When ignore_last_ats_age1 = TRUE, the age-1 index q (qtmp) is now computed
 #       over the SAME 1:n_ats_r-1 range as the likelihood (the dropped 2024
 #       excluded from q AND fit).
-#
-# Rebuild the reference:
-#   cd ADMB/m23_rceattle_full && export PATH=/usr/local/bin:$PATH \
-#     && admb pm && ./pm -nox -iprint 150
 # =============================================================================
 
 
@@ -67,9 +63,9 @@ nyr   <- length(yrs)
 # Empirical selectivity start ----
 # -----------------------------------------------------------------------------
 # The fishery selectivity likelihood is multimodal; from a flat start the optimizer
-# lands ~9 nll above ADMB's basin. Seed the non-parametric fishery coefficients from
+# lands ~9 nll above ADMB's nll. We initialize the non-parametric fishery coefficients from
 # the data instead -- mean observed fishery age comp / numbers-at-age (a throwaway
-# fit), normalised and log-centred -- so the fit reaches ADMB's basin without its MLE.
+# fit), normalised and log-centred -- so the fit reaches ADMB's nll without its MLE.
 fsh  <- est$fleet_control$Fleet_code[est$fleet_control$Fleet_name == "Fishery"]
 m0   <- Rceattle::fit_mod(data_list = est,
                           inits = NULL,
@@ -101,9 +97,8 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 # =============================================================================
 # FIT (two-stage) ----
 # =============================================================================
-# The survey q are analytical, so no index pins the absolute scale. Freeing the
-# time-varying selectivity deviates from a flat start opens that scale direction and
-# recruitment runs away (SSB -> 1e12); fit in two stages instead:
+# Initializing the fishery time-varying selectivity deviates from default (0)
+# does not find the best optimum, so we fit in two stages instead:
 #   A. time-varying selectivity OFF (base only) to pin the scale;
 #   B. deviates ON, seeded from A.
 # This converges reliably and matches ADMB to ~0.1-0.2% (SSB) / ~0.3% (R) for
@@ -111,21 +106,28 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 # extra fishery-selectivity flex (+6.6) and a lower initial abundance (init_dev, +1.0),
 # so 1964 SSB sits ~10% below ADMB while modern dynamics are essentially unchanged.
 # It is a weak-identification artifact, not a model difference: at ADMB's MLE the
-# injected parameters reproduce every likelihood component to ~1e-6, and re-optimising
-# from there returns to it (SSB/R cor 1.0000).
+# model reproduces every likelihood component to ~1e-6.
 M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
 
+# - Stage 1
 est_A <- est
-est_A$fleet_control$Time_varying_sel <- "Off"   # base selectivity only
-ebs_A <- Rceattle::fit_mod(data_list = est_A, inits = inits, file = NULL,
-                           estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium",
-                           M1Fun = M1Fun, fit_control = ctl)
+est_A$fleet_control$Time_varying_sel <- "Off"   # No time-varying deviates
+ebs_A <- Rceattle::fit_mod(data_list = est_A,
+                           inits = inits,
+                           file = NULL,
+                           estimateMode = 0,
+                           random_rec = FALSE,
+                           msmMode = 0,
+                           initMode = "NonEquilibrium",
+                           M1Fun = M1Fun,
+                           fit_control = ctl)
 
+# - Stage 2
 ebs_2024 <- Rceattle::fit_mod(
   data_list    = est,
-  inits        = ebs_A$obj$env$parList(),   # seed deviates fit from the scaled base fit
+  inits        = ebs_A$obj$env$parList(),   # initialize deviates fit from the scaled base fit
   file         = NULL,
   estimateMode = 0,
   random_rec   = FALSE,
@@ -145,8 +147,9 @@ ebs_2024 <- Rceattle::fit_mod(
 # over age x year (Selectivity = "2DAR1"; Xu et al. 2019 / Cheng et al. 2024): annual
 # log-selectivity deviations correlated across age (Sel_curve_pen2) and year
 # (Sel_curve_pen1) via two estimated AR1 rhos, deviation SD (Time_varying_sel_sd)
-# estimated, field integrated out with the Laplace approximation (random_sel = TRUE).
-# CPUE mirrors the fishery selectivity (shared Selectivity_index), so it follows.
+# estimated, integrated out (random_sel = TRUE). CPUE mirrors the fishery selectivity
+# (shared Selectivity_index), so it follows.
+# FIXME: CPUE should use the baranov, but does not
 est_2d    <- est
 fsh_block <- est_2d$fleet_control$Selectivity_index[est_2d$fleet_control$Fleet_name == "Fishery"][1]
 sel_rows  <- which(est_2d$fleet_control$Selectivity_index == fsh_block)
@@ -154,19 +157,23 @@ est_2d$fleet_control$Selectivity[sel_rows]         <- "2DAR1"
 est_2d$fleet_control$Time_varying_sel[sel_rows]    <- "Off"          # ignored for 2DAR1 (field is age x year)
 est_2d$fleet_control$N_sel_bins[sel_rows]          <- n_selages_fsh  # age bins in the field
 est_2d$fleet_control$Bin_first_selected[sel_rows]  <- 1
-est_2d$fleet_control$Sel_curve_pen1[sel_rows]      <- 0              # year AR1 rho (logit scale), estimated
-est_2d$fleet_control$Sel_curve_pen2[sel_rows]      <- 0              # age  AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen1[sel_rows]      <- 0              # Initial year AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen2[sel_rows]      <- 0              # Initial age AR1 rho (logit scale), estimated
+est_2d$fleet_control$Time_varying_sel_sd[sel_rows] <- 1              # deviation SD init
 est_2d$fleet_control$Sel_curve_pen3[sel_rows]      <- NA
 est_2d$fleet_control$Sel_avgsel_pen[sel_rows]      <- 0              # AMAK base-level penalty is a type-9 term; off here
-est_2d$fleet_control$Time_varying_sel_sd[sel_rows] <- 1              # deviation SD init (estimated hyperparameter)
 
-# Warm-start from the converged base fit: a flat start gives a NaN marginal objective
-# (the analytical-q scale direction again), so seed every shared parameter from
-# ebs_2024 -- the 2D AR1 field then starts at the base optimum (AR1 rhos = 0) and only
-# relaxes into its age x year covariance. Copied by name where the shape matches.
-# SLOW (random-effects Laplace + phasing); converges to SSB cor ~0.99 with the base
-# (terminal within ~0.1%) but trips the same estimability / non-PD-Hessian checks as
-# the base -- weak identification, not a 2D AR1 problem (see ebs_2dar1$convergence).
+# Self-contained initialization -- does NOT use the base fit. A flat AR1 field (all
+# deviations 0) gives a NaN marginal objective, so the field must be built up before it
+# is integrated out. Fit it first as PENALISED effects (random_sel = FALSE -- an
+# ordinary likelihood, so no NaN and no scale runaway), then turn on the Laplace
+# integration seeded from that non-zero field. Both stages start from the data-driven
+# empirical selectivity (`inits`), so the 2D AR1 sensitivity stands alone. SLOW
+# (Laplace + phasing, ~25 min). Not anchored to the base fit, it settles in its own
+# optimum -- SSB cor ~0.97 with the base (terminal ~3% lower), flexing the historical
+# fishery selectivity somewhat more than the base random walk. Like the base it trips
+# the estimability / non-PD-Hessian checks -- weak identification (analytical survey q),
+# not a 2D AR1 problem (see ebs_2dar1$convergence).
 copy_matching <- function(target, source) {
   for (nm in intersect(names(target), names(source)))
     if (identical(dim(target[[nm]]), dim(source[[nm]])) &&
@@ -174,11 +181,18 @@ copy_matching <- function(target, source) {
       target[[nm]] <- source[[nm]]
   target
 }
-inits_2d <- copy_matching(build_params(est_2d), ebs_2024$obj$env$parList())
 
+# Stage 1: AR1 field as penalised effects (random_sel = FALSE) -- builds a non-zero field.
+ebs_2dar1_pen <- Rceattle::fit_mod(
+  data_list = est_2d, inits = inits, file = NULL,
+  estimateMode = 0, random_rec = FALSE, random_sel = FALSE,
+  msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun, fit_control = ctl)
+
+# Stage 2: integrate the field out (random_sel = TRUE), seeded from the penalised fit.
+inits_2d <- copy_matching(build_params(est_2d), ebs_2dar1_pen$obj$env$parList())
 ebs_2dar1 <- Rceattle::fit_mod(
   data_list    = est_2d,
-  inits        = inits_2d,      # warm start from the converged base fit (see above)
+  inits        = inits_2d,
   file         = NULL,
   estimateMode = 0,
   random_rec   = FALSE,
@@ -193,10 +207,6 @@ ebs_2dar1 <- Rceattle::fit_mod(
 # =============================================================================
 # COMPARISON (validation against the ADMB reference) ----
 # =============================================================================
-# Estimation above is self-contained (fishery sel started from the data, not ADMB's
-# MLE); this block only validates the fit against ADMB m23_rceattle_full over the
-# hindcast. estimateMode = 0 also runs an HCR projection past endyr, but that horizon
-# and its Amendment-56 SPR reference points are Rceattle's and not reconciled here.
 q <- ebs_2024$quantities
 obj_val <- function(m) {                                    # NULL-safe objective
   o <- tryCatch(m$opt$objective, error = function(e) NULL)
