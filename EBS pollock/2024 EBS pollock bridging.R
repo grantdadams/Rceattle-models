@@ -33,7 +33,7 @@
 #     maturity * sex_ratio); do NOT pre-halve maturity.
 #  3. SSB / population weight. ssb_wt_index = 5 ("SSB wt"), pop_wt_index = 3.
 #  4. NATURAL MORTALITY. Age schedule 0.9 (age1), 0.45 (age2), 0.3 (age3-15),
-#     time-invariant; fixed here (M1_model = 0).
+#     time-invariant; fixed here (M1_model = "fixed").
 #  5. FISHING MORTALITY. F_at_age = exp(log_F[fleet,yr]) * sel_at_age, so
 #     log_F = log_avg_F + log_F_devs reproduces ADMB Fmort.
 #  6. RECRUITMENT. Mean recruitment (SrType = 3): R = exp(log_avgrec + rec_dev).
@@ -155,8 +155,8 @@ bridging_model_1 <- Rceattle::fit_mod(
   msmMode      = 0,
   verbose      = 1,
   phase        = FALSE,
-  initMode     = 2,           # unfished-equilibrium initial-age cascade + init devs
-  M1Fun        = build_M1(updateM1 = TRUE, M1_model = 0)   # M fixed at age schedule
+  initMode     = "NonEquilibrium",           # unfished-equilibrium initial-age cascade + init devs
+  M1Fun        = build_M1(updateM1 = TRUE, M1_model = "fixed")   # M fixed at age schedule
 )
 
 # -----------------------------------------------------------------------------

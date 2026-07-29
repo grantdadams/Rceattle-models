@@ -40,7 +40,7 @@ pollock_om <- Rceattle::fit_mod(data_list = ebs_pollock,
                                   msmMode = 0,     # Single species mode
                                   verbose = 1,
                                   phase = TRUE,
-                                  initMode = 2)    # Unfished equilibrium with init_dev's turned on
+                                  initMode = "NonEquilibrium")    # Unfished equilibrium with init_dev's turned on
 
 
 # Fit estimation model (EM) ----
@@ -59,7 +59,7 @@ pollock_em <- Rceattle::fit_mod(data_list = ebs_pollock,
                                                 Flimit = 0.35, # F35%
                                                 Plimit = 0.2,     # No fishing when SB<SB20
                                                 Alpha = 0.05),
-                                initMode = 2)    # Unfished equilibrium with init_dev's turned on
+                                initMode = "NonEquilibrium")    # Unfished equilibrium with init_dev's turned on
 
 
 # Plot models ----

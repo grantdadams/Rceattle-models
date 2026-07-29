@@ -42,12 +42,12 @@ plot_data(est)
 # Same data-driven start the assessment uses, so the selectivity scale is pinned
 # from the outset (see "2024 EBS pollock.R"). Without it the flat default start
 # can open a weakly-identified scale direction when recruitment is a random effect.
-M1Fun <- build_M1(updateM1 = TRUE, M1_model = 0)
+M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
 fsh <- est$fleet_control$Fleet_code[est$fleet_control$Fleet_name == "Fishery"]
 m0  <- fit_mod(data_list = est, inits = NULL, file = NULL, estimateMode = 0,
-               random_rec = FALSE, msmMode = 0, initMode = 2, M1Fun = M1Fun,
+               random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
                fit_control = ctl)
 N   <- m0$quantities$N_at_age[1, 1, , 1:nyr]
 cd  <- est$comp_data[est$comp_data$Fleet_code == fsh & est$comp_data$Year > 0 &
@@ -95,7 +95,7 @@ ebs_sem <- "
 # * IID SEM ----
 ebs_iid <- fit_mod(
   data_list  = est, inits = inits, file = NULL,
-  estimateMode = 0, random_rec = TRUE, msmMode = 0, initMode = 2, M1Fun = M1Fun,
+  estimateMode = 0, random_rec = TRUE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
   dsem = build_DSEM(sem = ebs_iid_sem, family = "fixed",
                     sigmaR_prior_sd = 0.5),   # SD prior aids convergence with sparse env data
   fit_control = ctl)
@@ -104,7 +104,7 @@ summary(ebs_iid); AIC(ebs_iid)
 # * Full SEM ----
 ebs_dsem <- fit_mod(
   data_list  = est, inits = inits, file = NULL,
-  estimateMode = 0, random_rec = TRUE, msmMode = 0, initMode = 2, M1Fun = M1Fun,
+  estimateMode = 0, random_rec = TRUE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
   dsem = build_DSEM(sem = ebs_sem, family = "fixed",
                     sigmaR_prior_sd = 0.5),
   fit_control = ctl)

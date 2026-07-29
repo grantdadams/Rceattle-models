@@ -21,7 +21,7 @@ n_selages_fsh <- 12
 # Data ----
 est   <- read_data(XLSX)
 styr  <- est$styr; endyr <- est$endyr; yrs <- styr:endyr; nyr <- length(yrs)
-M1Fun <- build_M1(updateM1 = TRUE, M1_model = 0)
+M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
 
@@ -30,7 +30,7 @@ ctl   <- fit_control(verbose = 1, phase = TRUE,
 # fit), normalised and log-centred — the selectivity shape the catch data imply.
 fsh <- est$fleet_control$Fleet_code[est$fleet_control$Fleet_name == "Fishery"]
 m0  <- fit_mod(data_list = est, inits = NULL, file = NULL, estimateMode = 0,
-               random_rec = FALSE, msmMode = 0, initMode = 2, M1Fun = M1Fun,
+               random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
                fit_control = ctl)
 N   <- m0$quantities$N_at_age[1, 1, , 1:nyr]
 cd  <- est$comp_data[est$comp_data$Fleet_code == fsh & est$comp_data$Year > 0 &
@@ -51,10 +51,10 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 est_A <- est
 est_A$fleet_control$Time_varying_sel <- "Off"          # base selectivity only (pin scale)
 mod_A <- fit_mod(data_list = est_A, inits = inits, file = NULL, estimateMode = 0,
-                 random_rec = FALSE, msmMode = 0, initMode = 2, M1Fun = M1Fun,
+                 random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
                  fit_control = ctl)
 mod   <- fit_mod(data_list = est, inits = mod_A$obj$env$parList(), file = NULL,
-                 estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = 2,
+                 estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium",
                  M1Fun = M1Fun, fit_control = ctl)
 
 # Diagnostics ----

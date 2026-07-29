@@ -10,7 +10,7 @@
 # in ADMB/*/pm.tpl):
 #   Structural: log_avg_F off + plain log_F_devs (one free F/yr); BTS sel-dev
 #     vectors plain with year 1 pinned; wt_like excluded; initial-age geometric
-#     series = equilibrium + init devs (Rceattle initMode = 2).
+#     series = equilibrium + init devs (Rceattle initMode = "NonEquilibrium").
 #   Likelihood: rec_like full normal (sigr = 1); Ricker rec penalty + steepness off;
 #     ATS biomass index and AVO exclude age-1; log_q_avo bounded [-15,0]; terminal
 #     ATS age-1 obs dropped from q and fit.
