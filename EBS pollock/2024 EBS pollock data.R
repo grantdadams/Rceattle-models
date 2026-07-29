@@ -190,6 +190,13 @@ est$index_data <- est$index_data[est$index_data$Fleet_code != fishery_code, ]
 #    (1982), so it pins the early numbers-at-age / initial age structure. Added as a
 #    survey fleet mirroring the fishery selectivity (pred = wt_fsh*natage*sel_fsh*q_cpue)
 #    with an estimated q; cpue_like is a natural-scale normal, absolute SD in Log_sd.
+# NOTE: the fleet_control column names below (Q_index, Q_prior, Q_sd_prior,
+# Time_varying_q_sd_prior, Index_sd_prior) are the deprecated spellings. They still
+# work on the release package but are auto-upgraded to canonical names on the dev
+# line (dev-data-workflow / perf-profiling), so this block errors there. TODO: migrate
+# to the canonical names (Q_index -> Catchability_index, Q_prior -> Catchability_init,
+# Q_sd_prior -> Catchability_prior_sd, Time_varying_q_sd_prior -> Time_varying_q_sd,
+# Index_sd_prior -> Index_sd) so data.R re-runs on the dev line too.
 cpue_row <- est$fleet_control[fcn == "Fishery", ]          # inherit fishery selectivity
 cpue_row$Fleet_name <- "CPUE"
 cpue_row$Fleet_code <- max(est$fleet_control$Fleet_code) + 1L
