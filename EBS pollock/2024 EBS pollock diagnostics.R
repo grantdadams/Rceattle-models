@@ -1,16 +1,15 @@
 # =============================================================================
 # 2024 EBS pollock — model diagnostics
 # =============================================================================
-# Fits the EBS pollock ADMB-bridge model and runs the Rceattle diagnostic battery:
+# Fits the EBS pollock ADMB-bridge model and runs the Rceattle diagnostics:
 # convergence checks, data/fit/residual plots, OSA residuals, retrospectives
 # (Mohn's rho), jitters, a self-test, and a likelihood profile.
 # https://grantdadams.github.io/Rceattle/articles/model-diagnostics.html
 #
 # The fit is the two-stage optimization of the comparison script ("2024 EBS
-# pollock.R") -- analytical survey q leave the scale weakly identified, so the
+# pollock.R") -- analytical survey q leaves the scale weakly identified, so the
 # fishery selectivity is started from the data and the time-varying deviations are
-# switched on only after a base fit pins the scale. Point XLSX at the rolled-forward
-# workbook once its placeholders are filled.
+# switched on only after a base fit pins the scale.
 # =============================================================================
 
 library(Rceattle)
@@ -50,11 +49,23 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 # Two-stage fit ----
 est_A <- est
 est_A$fleet_control$Time_varying_sel <- "Off"          # base selectivity only (pin scale)
-mod_A <- fit_mod(data_list = est_A, inits = inits, file = NULL, estimateMode = 0,
-                 random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium", M1Fun = M1Fun,
+mod_A <- fit_mod(data_list = est_A,
+                 inits = inits,
+                 file = NULL,
+                 estimateMode = 0,
+                 random_rec = FALSE,
+                 msmMode = 0,
+                 initMode = "NonEquilibrium",
+                 M1Fun = M1Fun,
                  fit_control = ctl)
-mod   <- fit_mod(data_list = est, inits = mod_A$obj$env$parList(), file = NULL,
-                 estimateMode = 0, random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium",
+
+mod   <- fit_mod(data_list = est,
+                 inits = mod_A$obj$env$parList(),
+                 file = NULL,
+                 estimateMode = 0,
+                 random_rec = FALSE,
+                 msmMode = 0,
+                 initMode = "NonEquilibrium",
                  M1Fun = M1Fun, fit_control = ctl)
 
 # Diagnostics ----
@@ -97,10 +108,8 @@ plot_biomass(c(list(mod), mod_sims),
              model_names = c("fit", names(mod_sims)))
 
 # * Likelihood profile ----
-# Recruitment is a penalised deviation here (random_rec = FALSE, sigma_rec fixed),
-# so there is no sigmaR to profile; profile natural mortality (M1) instead.
 prof_M <- profile(fitted = mod, param = "M1",
-                  slots = list(c(1, 1, 1)),
+                  slots = list(c(1, 1, 1)), # sp, sex, age
                   values = list(seq(0.20, 0.50, by = 0.025)))
 plot(prof_M$grid$slot_1, prof_M$nll - min(prof_M$nll, na.rm = TRUE),
      type = "l", xlab = "M1", ylab = "dNLL")
