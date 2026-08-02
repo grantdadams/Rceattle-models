@@ -19,6 +19,9 @@
 library(Rceattle)
 library(dplyr)
 
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 load("Data/2021pollock_wham.Rdata")   # 'fit' from Data/2021 Pollock WHAM.R
 dat <- fit$input$data
 

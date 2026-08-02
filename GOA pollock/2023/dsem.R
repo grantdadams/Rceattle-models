@@ -12,6 +12,9 @@ library(TMB)
 # Index 6 (Summer acoustic): 16 = index, 17 = age-comp, 17 = length-comp
 
 # Load 2023 model ----
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 load("Data/Pollock23.Rdata")
 parList <- fit$obj$env$parList(fit$obj$env$last.par.best) # HEAD "a506609"
 pollock23 <- Rceattle::read_data( file = "Data/Pollock_2023.xlsx")

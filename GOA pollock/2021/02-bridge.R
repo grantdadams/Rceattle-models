@@ -26,6 +26,9 @@ library(wham)
 # -----------------------------------------------------------------------------
 # 0. Load the models' inputs ----
 # -----------------------------------------------------------------------------
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 load("Data/2021pollock_wham.Rdata")        # WHAM 'fit': $opt $rep $parList $input
 load("Data/2021pollock_rceattle.Rdata")    # Rceattle data list 'pollock21'
 

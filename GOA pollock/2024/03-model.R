@@ -7,6 +7,9 @@ library(dplyr)
 
 # Read in data ----
 # - The data can be modified in excel or R
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 mydata_pollock <- Rceattle::read_data( file = "Data/GOA_24_pollock_single_species_1970-2024.xlsx")
 
 

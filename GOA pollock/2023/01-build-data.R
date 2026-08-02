@@ -1,4 +1,7 @@
 # Load data ----
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 pollock23 <- read_data("Data/GOA_23_pollock_single_species_1970-2023.xlsx")
 pollock23$index_data$Observation <- pollock23$index_data$Observation * 1e6
 pollock23$fleet_control$Q_sd_prior[2] = 0.1

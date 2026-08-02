@@ -3,6 +3,9 @@ library(Rceattle)
 ################################################
 # Pollock
 ################################################
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 pollock23 <- Rceattle::read_data( file = "Data/Pollock_2023.xlsx")
 pollock23$fleet_control$Comp_loglike = 0
 

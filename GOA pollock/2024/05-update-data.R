@@ -5,6 +5,9 @@ library(tidyr)
 library(TMB)
 
 # Load data ----
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 pollock23 <- read_data("Data/Pollock_2023.xlsx")
 load("Data/2024pollock.Rdata")
 

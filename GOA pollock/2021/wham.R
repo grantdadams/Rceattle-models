@@ -22,6 +22,9 @@ library(wham)
 library(dplyr)
 
 # Run from the 'GOA pollock' project root
+# Anchor to the model folder so the relative paths resolve.
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+
 dir <- "Data/pkwham"
 
 # Build input ----
