@@ -1,2 +1,0 @@
-load("/Users/grantadams/Documents/GitHub/Rceattle-models/GOA pollock/Data/Pollock23.Rdata")
-fit$rep$Z

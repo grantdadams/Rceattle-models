@@ -10,4 +10,6 @@ GOA/Model runs/GOA_18.5.1/Models/Random_effects_models_3iter_w_hessian.7z
 *.dll
 ADMB_models/.DS_Store
 .DS_Store
-GOA cod/Data/goa_pcod/ss3-source-code-main
+GOA cod/Data/goa_pcod/ss3-source-code-mainRplots.pdf
+.Rapp.history
+Rplots.pdf
