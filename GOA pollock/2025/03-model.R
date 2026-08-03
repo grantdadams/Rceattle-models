@@ -1,9 +1,8 @@
 # =============================================================================
-# GOA pollock 2025 -- final Rceattle model + comparison against Cole Monnahan's
-# goa_pk (the "SAFE" model). Fits the production configuration (Dirichlet-
-# multinomial comps, grammar AR1/Ecov catchability on the Shelikof survey,
-# selectivity priors, initMode = "FishedEquilibrium") and overlays the SAFE
-# derived quantities for a side-by-side comparison.
+# GOA pollock 2025 --  compares Rceattle against goa_pk SAFE model).
+# Fits the production configuration (DM comps, AR1/Ecov catchability
+# on the Shelikof survey index, selectivity priors, initMode = "FishedEquilibrium")
+# and overlays the SAFE derived quantities.
 #
 # Run "2025 pollock build data.R" (-> GOA_25_pollock.Rdata) and, for the
 # comparison, have Cole's fitted goa_pk object in Data/2024pollock.Rdata.

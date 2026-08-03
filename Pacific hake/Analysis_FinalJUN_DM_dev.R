@@ -1,111 +1,157 @@
 ########################################################################
-## Analysis_FinalJUN_DM.R adapted to run on the modern Rceattle
-## (branch: integrate-hake-suit-styr-ddw, off dev-data-workflow v4.11.0).
+## Pacific hake multispecies predation model: hake + arrowtooth (ATF) +
+## sablefish (SBF), Dirichlet-multinomial (DM) composition data.
 ##
-## Three differences from the original Hake_test-era script are required
-## because the package's data/likelihood plumbing has moved on:
+## Hake is the focal, fully-estimated stock; arrowtooth and sablefish enter as
+## predators whose numbers-at-age are fixed inputs and who impose predation
+## mortality on hake. The fit needs three things set up before it will run:
 ##
-##   1. diet DM is set via `Diet_loglike`, NOT `diet_ll_type`.
-##      dev derives `diet_ll_type` from `Diet_loglike` in rearrange_data(),
-##      so a manual `diet_ll_type <- 1` is silently overwritten.
+##   1. DM likelihoods for the age-composition and diet-composition data
+##      (`Comp_distribution` and `Diet_distribution`).
 ##
-##   2. The DM composition weights need a prior. Hake_test HARDCODED
-##      `dnorm(comp_weights, 0, 2)` (and `dnorm(diet_comp_weights, 0, 2)`) on
-##      every DM fleet; dev makes that prior OPT-IN via build_composition().
-##      Without it the under-dispersed Hake_survey comps drive the DM alpha to
-##      +Inf (gradient ~800, jnll unstable at ~1704). Re-adding the identical
-##      N(0,2) prior via build_composition() below reproduces Hake_test's
-##      regularisation: the fit converges (max|grad| ~2e-3) with the weight
-##      FREE, and jnll = 2133.8 vs 2128.2 recorded on Hake_test (0.27%; the
-##      small residual is the DM effective-N normalisation, comp_n vs
-##      sum(obs) -- scientifically negligible). NOTE: dev fam="lognormal"
-##      evaluates the prior on the log-scale weight, exactly matching
-##      Hake_test's dnorm(comp_weights, ...).
+##   2. A weakly-informative prior on the DM overdispersion weights. The Hake
+##      survey age-comps are under-dispersed relative to a multinomial, so
+##      without a prior the DM weight is unidentifiable and runs to the
+##      multinomial limit and the fit will not converge. A N(0, 2) prior on the
+##      log-scale weight, added with build_composition(), keeps it identifiable.
 ##
-##   3. per-predator suit_styr/suit_endyr vectors are supported natively now
-##      (that is the feature this branch adds), so the c(1980,2013,2005) /
-##      c(2019,2018,2008) windows work unchanged.
+##   3. A separate suitability-averaging window per predator (hake 1980-2019,
+##      arrowtooth 2013-2018, sablefish 2005-2008), passed as the per-predator
+##      vectors suit_styr / suit_endyr.
 ##
-## The NByageFixed age-column padding in the workbook is trimmed on read
-## automatically (read_data change on this branch) — no manual fix needed.
-########################################################################
+## The fixed numbers-at-age sheet in the workbook is padded with empty age
+## columns; read_data() trims these on read, so no manual fix is needed.
+# ---------------------------------------------------------------------------
+# The fit is close to, but not identical to, the original hake_test model. The
+# differences (~0.1-2% in total likelihood) come from improvements:
+#   * recruitment and initial-age deviations are mean-unbiased (centred so mean
+#     recruitment equals R0), rather than centered wrong (previous bug)
+#   * DM parameterization moved to standard Thorson setup.
+# ---------------------------------------------------------------------------
 
+# Load data ----
 library(Rceattle)
-
 SBF_ATF_hakedata_DM <- read_data(file = "300426_SBF_ATF_Hake_Final.xlsx")
 
-## --- DM for composition data ---
-SBF_ATF_hakedata_DM$fleet_control$Comp_loglike <- 1L   # DM age comps (1 = DirichletMultinomial)
-SBF_ATF_hakedata_DM$Diet_loglike <- rep(1L, SBF_ATF_hakedata_DM$nspp)  # DM diet comps (dev derives diet_ll_type from this)
+# Dirichlet-multinomial for the composition data ----
+SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- "DirichletMultinomial"  # age-composition
+SBF_ATF_hakedata_DM$Diet_distribution <- rep(1L, SBF_ATF_hakedata_DM$nspp)     # diet (1 = DirichletMultinomial)
 
-## --- Re-add Hake_test's DM-weight priors (dnorm(weight, 0, 2)) ----------
-## fam = "lognormal" evaluates the prior on the log-scale weight, i.e.
-## dnorm(comp_weights, 0, 2) / dnorm(diet_comp_weights, 0, 2) exactly.
+# Prior on DM weights ----
+# A N(0, 2) prior on the log-scale weight for every fleet's age-comps and every
+# predator's diet keeps the DM weights identifiable (see setup note 2 above).
 comp_flts <- SBF_ATF_hakedata_DM$fleet_control$Fleet_code
 compFun <- build_composition(linkages = list(
-  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = comp_flts,
+  theta_comp = linkage_spec(~ 1, by = ~ fleet,
+                            fleet   = comp_flts,
                             priors = list(`(Intercept)` = prior_lognormal(0, 2))),
-  theta_diet = linkage_spec(~ 1, by = ~ species, species = seq_len(SBF_ATF_hakedata_DM$nspp),
+  theta_diet = linkage_spec(~ 1, by = ~ species,
+                            species = seq_len(SBF_ATF_hakedata_DM$nspp),
                             priors = list(`(Intercept)` = prior_lognormal(0, 2)))))
 
-## --- Single-species DM run (M1 fixed) ---------------------------------
+# 1. Single-species: no future F ----
 ss_run_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
-                     inits = NULL, file = NULL, compFun = compFun,
-                     estimateMode = 0, random_rec = FALSE, msmMode = 0,
-                     phase = TRUE, verbose = 1)
-ss_run_DM$quantities$jnll   # 2133.8 (Hake_test recorded 2128.156; 0.27%)
+                     inits = NULL,
+                     compFun = compFun,
+                     estimateMode = "Estimate",
+                     msmMode = "SingleSpecies",
+                     random_rec = FALSE,
+                     initMode = "NonEquilibrium",
+                     fit_control = fit_control(phase = TRUE, verbose = 1))
+summary(ss_run_DM)   # 2139 (original 2128)
 
-## --- Multispecies M-estimation run, EMPIRICAL suitability (suitMode = 0) ----
+# 2. Single-species: category 1 HCR ----
+ss_run_DM_hcr <- fit_mod(data_list = SBF_ATF_hakedata_DM,
+                     inits = NULL,
+                     compFun = compFun,
+                     estimateMode = "Estimate",
+                     msmMode = "SingleSpecies",
+                     random_rec = FALSE,
+                     initMode = "NonEquilibrium",
+                     HCR = build_hcr(HCR = 6, # Cat 1 HCR
+                                     Flimit = c(0.45, 0.45,  0.3), # F45%
+                                     Ptarget = c(0.4, 0.4, 0.25), # Target is 40% B0
+                                     Plimit = c(0.1, 0.1, 0.05), # No fishing when SB<SB10
+                                     Pstar = 0.45,
+                                     Sigma = 0.5),
+                     fit_control = fit_control(phase = TRUE, verbose = 1))
+summary(ss_run_DM_hcr)
+
+# 3. MSVPA with estimated M ----
 ms_run_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
-                     inits = ss_run_DM$estimated_params, compFun = compFun,
-                     M1Fun = build_M1(M1_model = 1, updateM1 = FALSE,
-                                      M1_use_prior = FALSE, M2_use_prior = FALSE),
-                     file = NULL, estimateMode = 0, niter = 3,
-                     random_rec = FALSE, msmMode = 1, suitMode = 0,
+                     inits = ss_run_DM$estimated_params,
+                     compFun = compFun,
+                     M1Fun = build_M1(M1_model = "sex_age_invariant"),  # estimate M without prior
+                     estimateMode = "Estimate",
+                     msmMode = "MSVPA",
+                     suitMode = "Empirical",
+                     niter = 3,
+                     random_rec = FALSE,
                      suit_styr  = c(1980, 1980, 1980),
                      suit_endyr = c(2019, 2019, 2019),
-                     initMode = 2, verbose = 1)
-ms_run_DM$quantities$jnll    # 2142 (recorded 2188); M1 ~0.304 matches recorded 0.30
+                     initMode = "NonEquilibrium",
+                     fit_control = fit_control(phase = FALSE, verbose = 1))
+summary(ms_run_DM)   # 2142 (original 2188); estimated M ~0.30
 
-## --- Hand-tuned predation run: LN suitability, only log_phi free ------------
-## IMPORTANT: reuse ms_run_DM$map (gam_a/gam_b stay mapped OFF, i.e. FIXED at the
-## hand-set prey-size preferences below) and re-enable ONLY log_phi. Rebuilding
-## the map here instead would freely estimate gam_a/gam_b and drive the
-## vulnerabilities to the boundary (1.0).
+# 4. Estimated suitability ----
+# Prey-size preference (gam_a / gam_b) are fixed; only the
+# predator-prey vulnerabilities are estimated, and only for the two interaction that
+# exist (arrowtooth eating hake, sablefish eating hake). Every other link is fixed to
+# very small value (i.e. "predator does not eat this prey").
+#
+# Reusing ms_run_DM$map to keep gam_a / gam_b fixed.
 inits <- ms_run_DM$estimated_params
 map   <- ms_run_DM$map
-inits$log_gam_a <- c(0, log(3.7), log(3.1))    # mean log pred/prey weight ratio
+inits$log_gam_a <- c(0, log(3.7), log(3.1))    # mean predator/prey weight ratio
 inits$log_gam_b <- c(0, log(1.83), log(1.120))
-inits$log_phi[1, 2] <- inits$log_phi[2, 2] <- inits$log_phi[1, 3] <- -999  # disallowed links
+
+# log_phi[predator, prey]; -999 = predator does not eat this prey
+inits$log_phi[1, 2] <- inits$log_phi[2, 2] <- inits$log_phi[1, 3] <- -999
 inits$log_phi[3, 3] <- inits$log_phi[2, 3] <- inits$log_phi[3, 2] <- -999
+
+# Estimate only [2,1] arrowtooth->hake and [3,1] sablefish->hake; fix the rest.
 map$mapList$log_phi[] <- seq_len(length(map$mapList$log_phi))
 map$mapList$log_phi[1, 1] <- map$mapList$log_phi[1, 2] <- map$mapList$log_phi[2, 2] <- NA
 map$mapList$log_phi[1, 3] <- map$mapList$log_phi[3, 3] <- NA
-map$mapList$log_phi[2, 3] <- map$mapList$log_phi[3, 2] <- NA   # free only [2,1] ATF->hake, [3,1] SBF->hake
+map$mapList$log_phi[2, 3] <- map$mapList$log_phi[3, 2] <- NA
 map$mapFactor$log_phi <- factor(map$mapList$log_phi)
 
 run_ms_CSL_Mest_prior_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
-                     inits = inits, map = map, compFun = compFun,
-                     M1Fun = build_M1(M1_model = 1, M1_use_prior = TRUE,
-                                      M_prior = 0.2, M_prior_sd = 0.1),
-                     file = NULL, estimateMode = 0, niter = 3, random_rec = FALSE,
-                     msmMode = 1, loopnum = 5, phase = TRUE,
-                     suitMode   = c(0, 4, 4),                 # empirical + lognormal
-                     suit_styr  = c(1980, 2013, 2005),        # hake, ATF, sablefish
+                     inits = inits,
+                     map = map,
+                     compFun = compFun,
+                     M1Fun = build_M1(M1_model = "sex_age_invariant",
+                                      M1_use_prior = TRUE,
+                                      M_prior = 0.2,
+                                      M_prior_sd = 0.1),
+                     estimateMode = "Estimate",
+                     msmMode = "TypeIIMSVPA",
+                     suitMode = c("Empirical", "LognormalWeight", "LognormalWeight"),
+                     suit_styr  = c(1980, 2013, 2005),   # hake, arrowtooth, sablefish
                      suit_endyr = c(2019, 2018, 2008),
-                     initMode = 2, verbose = 1)
-run_ms_CSL_Mest_prior_DM$quantities$jnll           # 2262.3 (recorded 2259.1; 0.14%)
-run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # 0.817, 0.769 (recorded 0.8451, 0.7673)
+                     initMode = "NonEquilibrium",
+                     niter = 3,
+                     random_rec = FALSE,
+                     fit_control = fit_control(
+                         loopnum = 5,
+                         phase = TRUE,
+                         verbose = 1))
+summary(run_ms_CSL_Mest_prior_DM)           # 2262 (original 2259)
+run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # arrowtooth->hake 0.82, sablefish->hake 0.77
+                                                   #   (original 0.85, 0.77)
 
-## The sensitivity/weighting/retro blocks then follow the original
-## Analysis_FinalJUN_DM.R (diet_comp_weights = c(NA,2,3), retrospective(),
-## plot_diet_comp2(), ...), carrying `map`/`compFun` forward.
-##
-## Residual gaps vs Hake_test are NOT integration errors -- they are two
-## process-side conventions dev deliberately corrected (do not revert):
-##   * rec_dev/init_dev lognormal bias correction centred at -sigma^2/2 (dev,
-##     mean-unbiased) vs +sigma^2/2 (Hake_test);
-##   * initMode=2 plus-group survival divides by (1 - exp(-M1 - Finit)) (dev,
-##     fished-equilibrium) vs (1 - exp(-M1)) (Hake_test).
-## Plus the standard diet DM parameterisation exp(theta) (dev) vs
-## N*invlogit(theta) (Hake_test). Together these explain the ~0.1-2% residuals.
+
+
+# MSE ----
+# Current management applied against multi-species model ----
+mse1 <- run_mse(om = run_ms_CSL_Mest_prior_DM,
+                em = ss_run_DM_hcr,
+                nsim = 10, cores = 1,
+                assessment_period = 1,
+                sampling_period = c(1, 2), # Fishery samples yearly, survey every other year
+
+                simulate_data = TRUE,
+                sample_rec = TRUE
+
+                )
+

@@ -1,23 +1,12 @@
 # =============================================================================
-# GOA pollock 2025 -- bridge Cole Monnahan's goa_pk model into Rceattle,
-# expressing the three new-for-2025 features through the linkage grammar:
-#   * Dirichlet-multinomial age composition  -> Comp_distribution = "DirichletMultinomial"
-#   * Rogers (2024) AR1 catchability on q1    -> build_catchability(ar1 + observe)
-#   * normal priors on logistic selectivity   -> build_selectivity(priors)
-# and initializing the population off first-year recruitment via the new
-# initMode = "FishedEquilibrium" (replacing the 2024 bridge's manual
-# `init_dev[1,] <- dev_log_recruit[1]` workaround).
+# GOA pollock 2025 -- bridge "goa_pk" to Rceattle:
 #
-# Verification is two-stage, in the federal-rigor tradition of the 2021 WHAM
-# bridge:
-#   (A) FORWARD-PASS EXACT -- map Cole's MLE parList onto the Rceattle parameters,
+# Two models are set-up
+#   (A) FORWARD-PASS -- map goa_pk's MLE parList onto the Rceattle parameters,
 #       hold them fixed (estimateMode = "DebugBuild"), and confirm the derived quantities and
-#       per-component likelihoods match Cole's `fit$rep` to ~1e-6. The one
-#       intended deviation is the initial age-structure: we FIX Cole's nonstandard
-#       M-indexing (initN(j) uses M(j+1)), so the initial ages differ by exactly
-#       that correction -- verified in isolation below.
-#   (B) FREE ESTIMATION -- refit with the grammar and confirm convergence to
-#       (essentially) Cole's objective and parameters.
+#       per-component likelihoods match `fit$rep` to ~1e-6. The one fix to goa_pk
+#       was the wrong M-indexing for initialization.
+#   (B) ESTIMATION -- fit from default and confirm convergence to goa_pk's objective.
 #
 # Requires: Data/GOA_25_pollock.Rdata (from "2025 pollock build data.R") and
 # Data/2024pollock_mfix.Rdata (Cole's CORRECTED goa_pk fit: M-index fix + catch

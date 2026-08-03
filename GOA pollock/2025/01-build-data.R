@@ -1,48 +1,34 @@
 # =============================================================================
 # GOA pollock 2025 -- build the Rceattle data list
 #
-# Converts Cole Monnahan's `read_dat()` / `prepare_pk_input()` data assembly
-# (afsc-assessments/GOApollock, origin/main, source/goa_pk.cpp) into an Rceattle
-# `data_list`, and writes the canonical xlsx the bridging / model scripts read.
+# Converts `read_dat()` / `prepare_pk_input()` into an Rceattle
+# `data_list`, and writes the xlsx file the bridging / model scripts read.
 #
-# The "2025 model" is Cole's `data/2024/` run (the Nov-2024 assessment that sets
-# the 2025 catch; endyr = 2024, dat file pk24_12.txt). It is the current
-# production model and the first to carry all three features we reproduce with
-# the linkage grammar:
+# The "2025 model" uses pk24_12.txt and has:
 #   * Dirichlet-multinomial age composition (fishery + surveys 1,2,3,6);
-#   * Rogers et al. (2024) AR1 catchability on the Shelikof acoustic survey,
-#     linked to an environmental covariate (Ecov);
+#   * Rogers et al. (2024) AR1 catchability on the Shelikof acoustic survey.
 #   * normal priors on the logistic selectivity parameters.
 #
-# The raw inputs are identical to the 2024 Rceattle bridge, so we take Cole's
-# fitted goa_pk object (`Data/2024pollock.Rdata`) -- which already ran
+# The inputs are identical to my previous 2024 Rceattle bridge, so this
+# uses (`Data/2024pollock.Rdata`) -- which already ran
 # `read_dat()` -- as the authoritative data source, and the existing
 # `GOA_24_..._1970-2024.xlsx` as the structural skeleton (fleet_control, species
 # controls, weight / comp metadata, maturity, ageing error, hard-coded M). All
 # data blocks are then rebuilt from Cole's object so the conversion is explicit.
 #
-# UNITS: goa_pk carries biomass/recruitment in millions; Rceattle in absolute
-# numbers, so survey indices are scaled by 1e6 (catch is already in tons).
-# WEIGHT-AT-AGE cross-mapping in goa_pk: wt_pop = wt_srv2 (bottom-trawl),
-# wt_spawn = wt_srv1 (Shelikof); carried by pop_wt_index / ssb_wt_index.
+# Units: goa_pk biomass/recruitment in millions; Rceattle in absolute
+# numbers, so survey indices are scaled by 1e6 (catch is in tons).
+# Population weight: wt_pop = wt_srv2 (bottom-trawl), wt_spawn = wt_srv1 (Shelikof);
+# Indexed by by pop_wt_index / ssb_wt_index in Rceattle.
 # =============================================================================
 
 library(Rceattle)
 library(dplyr)
 library(tidyr)
 
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
-
-# ---- Sources ---------------------------------------------------------------
-# Cole's CORRECTED goa_pk fit (holds `input$dat` = read_dat() output, and
-# `obj$env$data` = the data passed to MakeADFun, with multN already doubled on
-# srv1/3/6 per data/2024/run_assessment.R). We load the corrected (mfix) fit so
-# all three scripts share one goa_pk source; the raw data blocks this script
-# extracts are the same in the original and corrected fits (the corrections are
-# to parameters and to normalizations this script re-applies anyway), so the
-# assembled data_list is identical either way.
-load("Data/2024pollock_mfix.Rdata")       # -> `fit`  (corrected goa_pk)
-pk <- read_data("Data/GOA_24_pollock_single_species_1970-2024.xlsx")   # skeleton
+# ---- Inputs ---------------------------------------------------------------
+load("Data/2024pollock_mfix.Rdata")       # corrected goa_pk model
+pk <- read_data("Data/GOA_24_pollock_single_species_1970-2024.xlsx")   # data
 dat  <- fit$input$dat
 edat <- fit$obj$env$data
 endyr <- 2024L
@@ -53,22 +39,14 @@ yrs   <- 1970:endyr
 pk$endyr <- endyr
 pk$fleet_control$Fleet_type[4:5] <- "Off"  # age-1 / age-2 Shelikof indices off (log_q4/q5 mapped NA)
 
-# ---- Aging-error matrix: normalize rows to sum to 1 (row-stochastic) --------
-# The source age_trans has a ~1e-4 deficit in the middle ages (true-ages 5-8).
-# Rceattle re-normalizes the predicted comps and goa_pk (via its run script) now
-# normalizes age_trans the same way, so making the matrix a proper aging-error
-# distribution here aligns both to machine precision.
+# ---- Aging-error matrix: normalize rows to sum to 1 --------
+# age_trans has a missing ~1e-4 across ages 5-8.
+# Rceattle re-normalizes the predicted comps and I updated goa_pk to
+# normalize age_trans to align models.
 ae_cols <- paste0("Obs_age", ages)
 pk$age_error[, ae_cols] <- pk$age_error[, ae_cols] / rowSums(pk$age_error[, ae_cols])
 
 # ---- Maturity-at-age: use goa_pk's `mat` vector (the 2024 ogive) ------------
-# The GOA_24 skeleton carries a slightly older maturity ogive; goa_pk computes
-# female spawning biomass with its own `mat` vector (0.5*mat*wt_spawn). Rceattle
-# forms SSB as maturity * sex_ratio(0.5) * ssb-weight, so overwriting maturity
-# with goa_pk's mat makes the female spawning biomass match exactly (otherwise
-# SSB runs ~1-3% low, year-varying with the age structure). SSB does not enter
-# the hindcast likelihood (recruitment is SSB-independent here), so this moves
-# the reported SSB without changing the fit.
 pk$maturity[1, paste0("Age", ages)] <- dat$mat
 
 # ---- Catch (tons; single fishery = fleet 8) --------------------------------
@@ -79,16 +57,14 @@ catch_data$Log_sd <- dat$cattot_log_sd    # catch CV (0.05)
 pk$catch_data <- catch_data
 
 # ---- Environmental covariate for the AR1 (QAR1) catchability ---------------
-# Standardized Ecov index (pk24_12.txt), observed 1983-2024. Consumed by the
+# Standardized Ecov index (pk24_12.txt), observed 1983-2024. Used by the
 # ar1()/Rogers-2024 catchability linkage in the bridging script.
 pk$env_data <- data.frame(Year = dat$Ecov_obs_year, QcovPol = dat$Ecov_obs)
 
 # ---- Composition (age + length) --------------------------------------------
-# goa_pk fleets -> Rceattle Fleet_code: fishery = 8; srv1 = 1 (Shelikof AT),
-# srv2 = 2 (NMFS BT), srv3 = 3 (ADF&G), srv6 = 6 (summer AT). Sample_size is the
-# multinomial N, which doubles as the Dirichlet-multinomial input sample size
-# (already x2 on srv1/3/6). Month is the month-of-year (1-12) the survey is
-# observed: Rceattle applies exp(-(Month/12) Z) survey timing, so goa_pk's
+# Fleet_codex: fishery = 8; srv1 = 1 (Shelikof AT),
+# srv2 = 2 (NMFS BT), srv3 = 3 (ADF&G), srv6 = 6 (summer AT).
+# Rceattle applies exp(-(Month/12) Z) survey timing, so goa_pk's
 # fraction-of-year yrfrct is scaled to a month here (yrfrct * 12).
 acomp <- function(fl, yrv, N, mon, props) {
   colnames(props) <- paste0("Comp_", seq_len(ncol(props)))
@@ -150,43 +126,25 @@ pk$weight <- pk$weight %>% group_by(Wt_index) %>% slice(1) %>%
   select(Wt_name, Wt_index, Species, Sex) %>%
   full_join(weight_rows, by = "Wt_index") %>% as.data.frame()
 
-# ---- Projection weight-at-age (ration_data) --------------------------------
-# Carries from the GOA_24 skeleton unchanged: it already spans 1970-2024 with
-# the terminal weight-at-age used for the projection. (`ration_data` is the
-# current-schema name for the legacy `Pyrs` projection weight sheet.)
+# ---- Projection weight-at-age --------------------------------
+# the terminal weight-at-age used for the projection
 
 # ---- fleet_control: composition likelihood + selectivity normalization -----
 # Dirichlet-multinomial on the age comps (fishery + srv1/2/3/6); length comps
-# stay multinomial in goa_pk (they carry no DM parameter). The DM theta is the
-# fitted comp_weights (mapped from Cole's log_DM_pars in the bridging script).
+# stay multinomial in goa_pk.
 pk$fleet_control$Comp_distribution <- "DirichletMultinomial"
-# Selectivity normalization bin (the bin at which selectivity = 1). Carried from
-# the skeleton; set explicitly on the canonical column (`Sel_norm_bin`, the
-# current-schema name for the legacy `Age_max_selected`). goa_pk normalizes the
-# fishery at age 7 and the Shelikof block at age 3.
+# Selectivity normalization bin (the bin at which selectivity = 1).
+# goa_pk normalizes the fishery at age 7 and the Shelikof block at age 3.
 pk$fleet_control$Sel_norm_bin[7] <- 3
 pk$fleet_control$Sel_norm_bin[8] <- 7
-# Catchability + selectivity *forms* stay as the skeleton encodes them (Shelikof
-# q carries the AR1/Ecov link, BT q its normal prior, the fishery a time-varying
-# double logistic). The AR1 catchability, the selectivity priors, and the
-# initMode = "FishedEquilibrium" initialization are all supplied through the
-# linkage grammar in "2025 pollock bridging.R", not here.
 
 # ---- Write -----------------------------------------------------------------
-# Primary artifact: the assembled data_list (the bridging / model scripts load
-# this). Saving the object avoids an xlsx round-trip, which currently mismatches
-# the control sheet when migrating the legacy GOA_24 workbook to the new schema
-# (`write_data()` row-label count vs migrated control length); the data_list
-# itself is valid and builds a model. This mirrors the 2021 bridge, which also
-# saves the data_list directly.
 pollock25 <- pk
 save(pollock25, file = "Data/GOA_25_pollock.Rdata")
 message("Wrote Data/GOA_25_pollock.Rdata")
 
-# Convenience xlsx (best effort; skipped with a note if the legacy-workbook
-# migration round-trip is not yet clean).
-tryCatch({
+tryCatch({ # Due to formatting updates
   write_data(pk, "Data/GOA_25_pollock_single_species_1970-2024.xlsx")
   message("Wrote Data/GOA_25_pollock_single_species_1970-2024.xlsx")
 }, error = function(e)
-  message("Skipped xlsx write (schema round-trip pending): ", conditionMessage(e)))
+  message("Skipped xlsx writex", conditionMessage(e)))
