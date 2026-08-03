@@ -1,82 +1,59 @@
 # =============================================================================
 # GOA pollock 2025 --  compares Rceattle against goa_pk SAFE model).
-# Fits the production configuration (DM comps, AR1/Ecov catchability
-# on the Shelikof survey index, selectivity priors, initMode = "FishedEquilibrium")
+# Fits the production setup (DM comps, AR1/Ecov catchability
+# on the Shelikof survey index, selectivity priors, initMode = "OffsetEquilibrium")
 # and overlays the SAFE derived quantities.
 #
 # Run "2025 pollock build data.R" (-> GOA_25_pollock.Rdata) and, for the
-# comparison, have Cole's fitted goa_pk object in Data/2024pollock.Rdata.
-# The parameter-level exact bridge and its verification live in
-# "2025 pollock bridging.R"; this script is the clean fit + figures.
+# comparison, fitted goa_pk object in Data/2024pollock.Rdata.
 #
 # =============================================================================
-# RECONCILIATION LOG -- every change made so Rceattle reproduces goa_pk exactly.
 #
-# Result: the Rceattle CONDITIONAL negative log-likelihood matches goa_pk's
-# -sum(loglik) to +0.016 units (1830.74 vs 1830.72); all dynamics (N-at-age,
-# selectivity, F, q1-q6, recruitment) and every likelihood component match to
-# machine precision. The only residual (~0.013) is the Dirichlet-multinomial
+# Rceattle conditional negative log-likelihood matches goa_pk's
+# -sum(loglik) to +0.016 (1830.74 vs 1830.72); all dynamics (N-at-age,
+# selectivity, F, q1-q6, recruitment) and every likelihood component match.
+# The only residual (~0.013) is the Dirichlet-multinomial
 # linear-parameterization offset ((1 + o*A), o = 1e-5), which is negligible.
-#
-# --- IMPORTANT verification note --------------------------------------------
-# The forward pass establishes that the two models share the same CONDITIONAL
-# (penalized) likelihood at a fixed parameter point -- NOT that they are the same
-# fitted model. Compare CONDITIONAL to CONDITIONAL: Rceattle$quantities$jnll vs
-# goa_pk -sum(fit$rep$loglik). Do NOT use goa_pk fit$opt$objective (a MARGINAL /
-# Laplace NLL); conditional-to-marginal makes the models look ~108 apart when the
-# conditional surfaces are identical.
-#   The marginal objectives genuinely DIFFER because the two make different
-# random-effect choices: goa_pk integrates only Ecov_exp (55 states, marginal -
+
+# Bridging a bug-corrected goa_pk  shows the two models share the same conditional likelihood at a goa_pk's MLEs.
+# The marginal objectives differ because goa_pk integrates only Ecov_exp (55 states, marginal -
 # conditional gap ~108), while this Rceattle config integrates the recruitment
 # deviations, the linkage random effects and the q random walk (164 states, gap
 # ~288). At the mode the random density equals the penalty, so the conditional
 # match is exact; but the two fitted models' sdreport uncertainties on SSB /
 # recruitment / reference points will not be identical, and the free-fit
 # conditional difference (~-15 here) is partly this structural difference, not
-# only multimodality. The replica is of a bug-corrected goa_pk (A1 M-index fix
-# shifts 1970s N-at-age up to ~22%; A3 strips ~590 units of RW normalizing
-# constants), so it does not reproduce the as-published SAFE objective.
+# only multimodality.
 #
-# --- (A) Changes made to Cole's goa_pk model (worktree GOApollock-mfix, refit
-#         to Data/2024pollock_mfix.Rdata) -----------------------------------
+# --- (A) Changes made to goa_pk model -----------------------------------
+#   Implemented by "00-fit-goa_pk.R", which produces both fitted objects loaded
+#   below. A1/A3/A4 are source-side and live in reference/goa_pk_2024_mfix.cpp
+#   (a copy of Cole's 2024 source with every edit tagged "GRANT"); A2/A5/A6 are
+#   data-side and are applied to input$dat in that script.
 #   A1. Initial age-structure M-index bug fix. goa_pk's initN loop used
 #       initN(j) = initN(j-1)*exp(-M(j+1)), which skips age-2 M and applies each
-#       ARRIVING age's M. Corrected to exp(-M(j)) (standard DEPARTING-age
-#       cumulative-M decay), matching Rceattle's FishedEquilibrium. Without this
-#       the 1970s numbers-at-age differ by up to ~34% (decaying to 0 by ~2000).
+#       age's future M. Corrected to exp(-M(j)).
 #   A2. Constant q3 random-walk SD. goa_pk used a per-year q3_rwlk_sd vector
 #       (0.001 in most years, 0.05 in a few); set to a constant 0.05 for all
 #       years (input$dat$q3_rwlk_sd[] <- 0.05) so Rceattle's single-per-fleet RW
-#       SD reproduces it. Rceattle cannot express a per-year RW SD.
+#       SD reproduces it. Rceattle does not currently have a per-year RW SD.
 #   A3. Removed the q1/q2 random-walk penalty lines. q1 uses the Ecov link and q2
 #       is fixed, so their deviates are pinned to 0; their RW penalties were pure
 #       dnorm(0,0,rwlk_sd) normalizing constants (~527 units) that do not affect
 #       the fit. Rceattle does not define q1/q2 as random walks, so it omits
 #       them; dropping them in goa_pk makes the TV-catchability component match.
-#   A4. Added the lognormal bias correction (-sd^2/2) to the total-catch mean.
-#       goa_pk bias-corrects the survey indices but NOT the total catch, whereas
-#       Rceattle applies bias_adjust_obs = TRUE to both. Adding it to goa_pk's
-#       catch (matching its index treatment) makes the catch component match
-#       (~+0.029 before). [Alternative: a per-series bias flag in Rceattle.]
-#   A5. Normalized the aging-error matrix rows to sum to 1 (row-stochastic). The
-#       source age_trans has a ~1e-4 deficit in true-ages 5-8. goa_pk applies
-#       normalize(Nsrv)*age_trans WITHOUT re-normalizing, so that deficit
-#       propagates into the predicted comps; Rceattle re-normalizes. Making the
-#       matrix a proper distribution on BOTH sides (age_trans in the run script,
-#       age_error in build-data D6) aligns the predicted comps (the ~-0.013).
+#   A4. Added the lognormal bias correction (-sd^2/2) to the total-catch.
+#       goa_pk bias-corrects the survey indices but not the total catch,
+#       Rceattle does both via bias_adjust_obs = TRUE.
+#   A5. Normalized the aging-error matrix rows to sum to 1. Rceattle re-normalizes
+#       and goa_pk does not. Rows did not sum to 1.
 #   A6. Normalized each composition observation to sum to 1. goa_pk fits the raw
-#       pk24_12.txt proportions, which sum to ~1.00001 (data-file rounding);
+#       pk24_12.txt proportions, which sum to ~1.00001;
 #       Rceattle normalizes every comp row to 1 in rearrange_data() before
-#       fitting. That ~1e-5 discrepancy shifts the Dirichlet-multinomial alpha /
-#       phi by ~1e-4, leaving a per-fleet mixed-sign residual (~-0.0008 total)
-#       AFTER A5. Normalizing goa_pk's comp proportions (catp/srvp*/lenp/srvlenp*)
-#       in the run script closes it -- both models then fit proportions that sum
-#       to 1, matching each DM component to machine precision. Rceattle needs no
-#       change here (it already normalizes); this is a goa_pk-side alignment only.
+#       fitting.
 #
-# --- (B) Rceattle package features used (initMode 5, sel priors, comp
-#         accumulation -- new this cycle) ------------------------------------
-#   B1. initMode = "FishedEquilibrium": seeds the initial ages off the first-year
+# --- (B) Rceattle package features added ------------------------------------
+#   B1. initMode = "OffsetEquilibrium": seeds the initial ages off the first-year
 #       recruitment exp(rec_pars + rec_dev[year 1]) with init devs OFF and no
 #       init-dev penalty -- goa_pk's convention (vs initMode 1, which seeds off
 #       the mean-recruitment equilibrium R0).
@@ -115,13 +92,19 @@
 #   C10. Parameter mapping uses the dev-branch names (log_F, log_sel_slp,
 #        index_log_q, R_log_sd, ...), and recruitment is scaled +log(1e6)
 #        (goa_pk is in millions, Rceattle in absolute numbers).
-#   C11. Source Cole's parameters from the optimizer's solution
-#        (fit$obj$env$parList() == fit$opt$par), NOT fit$parList. goa_pk's stored
-#        parList carries a stale srv6 Dirichlet-multinomial weight (log_DM_pars[5]
-#        off by EXACTLY 1e-3 from the MLE; every other parameter is bit-identical),
-#        which otherwise left the srv6 age-comp component ~2.9e-4 high. Using the
-#        true MLE closes the last composition residual (all 5 DM fleets now match
-#        to machine precision; total forward-pass NLL diff ~1.7e-11).
+#   C11. Source Cole's parameters from fit$opt$par -- the vector fit$rep is
+#        reported at. fit$obj$env$parList() is NOT the MLE: it is bit-identical
+#        to fit$parList, and both sit EXACTLY 1e-3 off opt$par on log_DM_pars[5]
+#        (the srv6 D-M weight). fit_pk() calls obj$report() before sdreport() but
+#        reads parList() after, leaving obj$env$last.par behind the optimizer.
+#        Every other parameter is bit-identical, so this hides well.
+#        Mapping parList() costs ~+2.9e-4 on the composition block and ~-2.9e-4
+#        on the selectivity/D-M prior block. Those nearly cancel -- at the
+#        optimum the total gradient vanishes, so a small parameter offset moves
+#        the two in opposite directions -- leaving a total NLL diff of ~9e-7
+#        that reads as agreement while two components are each ~3e-4 out.
+#        With opt$par every component matches: composition 3e-11, priors 1e-14,
+#        total forward-pass NLL diff ~1.2e-11.
 #
 # --- (D) Data conversions (see the build-data script) -----------------------
 #   D1. Survey indices scaled x1e6 (millions -> absolute numbers).
@@ -141,9 +124,11 @@
 library(Rceattle)
 library(dplyr)
 library(ggplot2)
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
+# Run from the "GOA pollock" project root, like the other scripts in this folder.
 
-load("Data/GOA_25_pollock.Rdata")        # -> pollock25 (Rceattle data_list)
+# The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
+# the xlsx is what travels with the repo and what Cole edits directly.
+pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
 load("Data/2024pollock.Rdata")           # -> fit  (goa_pk ORIGINAL, published)
 fit_orig <- fit
 load("Data/2024pollock_mfix.Rdata")      # -> fit  (goa_pk CORRECTED, mfix)
@@ -151,9 +136,17 @@ load("Data/2024pollock_mfix.Rdata")      # -> fit  (goa_pk CORRECTED, mfix)
 # aging-error / comp-obs normalization; see RECONCILIATION LOG A1-A6). It is the
 # reconciliation target Rceattle reproduces exactly; fit_orig is kept only to
 # show what the corrections moved.
-# Source Cole's parameters from the optimizer's solution, not fit$parList (which
-# carries a stale srv6 log_DM_pars[5]; see C11).
-pl <- fit$obj$env$parList()
+# Source Cole's parameters from fit$opt$par -- the vector fit$rep was reported
+# at. NOT fit$obj$env$parList(), which is bit-identical to fit$parList and sits
+# 1e-3 off the MLE on log_DM_pars[5]; see C11.
+pl <- fit$obj$env$parList()          # skeleton: shapes, and the mapped-off pars
+.opt <- fit$opt$par                  # the MLE (fixed effects only)
+for (.p in unique(names(.opt))) {
+  .v <- .opt[names(.opt) == .p]
+  if (!is.null(pl[[.p]]) && length(pl[[.p]]) == length(.v))
+    pl[[.p]][] <- as.numeric(.v)
+}
+rm(.opt, .p, .v)
 SHELIKOF <- 1L; FISHERY <- 8L
 nyrs <- length(pollock25$styr:pollock25$endyr)
 
@@ -175,22 +168,42 @@ pollock25$fleet_control$Comp_accum_young[SHELIKOF] <- 3L
 # fleet_control$Comp_weights); estimated freely from here.
 pollock25$fleet_control$Comp_weights[c(FISHERY, 1, 2, 3, 6)] <- pl$log_DM_pars
 
+# Linkages name their fleets rather than numbering them: fit_mod() checks each
+# against fleet_control$Fleet_name and errors on a miss, whereas a Fleet_code
+# that is wrong but in range attaches the prior to a different fleet and the
+# model still fits. SHELIKOF / FISHERY stay above -- they index fleet_control
+# rows, which is a position, not a fleet reference.
+SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
+ASC_LIMB_PRIOR  <- c("Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DESC_LIMB_PRIOR <- c("Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DM_PRIOR        <- c("GOA_pollock_fishery",
+                     "Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic")
+
 q_spec <- build_catchability(linkages = list(
-  q = linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = SHELIKOF,
+  q = linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = SHELIKOF_ACOUSTIC,
                    observe = "QcovPol", obs_sd = exp(pl$log_Ecov_obs_sd))))
 # Selectivity priors mirror goa_pk exactly (BOTH limbs on srv2 and srv6).
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(0, 3))),
-  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(10, 3)))))
 # Dirichlet-multinomial parameter prior (dnorm(log_DM_pars, 0, 2)).
 comp_spec <- build_composition(linkages = list(
-  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = c(FISHERY, 1, 2, 3, 6),
+  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = DM_PRIOR,
                             priors = list(`(Intercept)` = lognormal(0, 2)))))
 
 # ---- Forward-pass EXACT equivalence (the replica proof) --------------------
@@ -207,7 +220,7 @@ fwd_nll <- NA_real_; cole_nll <- -sum(fit$rep$loglik)
 if (file.exists("Data/GOA_25_pollock_bridge_fits.Rdata")) {
   load("Data/GOA_25_pollock_bridge_fits.Rdata")   # -> pollock_fixed (Cole's MLEs)
   fwd <- fit_mod(data_list = pollock25, inits = pollock_fixed$estimated_params,
-                 estimateMode = "DebugBuild", msmMode = "SingleSpecies", initMode = "FishedEquilibrium",
+                 estimateMode = "DebugBuild", msmMode = "SingleSpecies", initMode = "OffsetEquilibrium",
                  random_rec = TRUE, random_q = TRUE,
                  qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
                  fit_control = fit_control(getsd = FALSE, verbose = 0,
@@ -218,7 +231,7 @@ if (file.exists("Data/GOA_25_pollock_bridge_fits.Rdata")) {
 # ---- Fit (free estimation) -------------------------------------------------
 pollock_2025 <- fit_mod(
   data_list = pollock25, inits = NULL, estimateMode = "Hindcast", msmMode = "SingleSpecies",
-  initMode = "FishedEquilibrium", random_rec = TRUE, random_q = TRUE,
+  initMode = "OffsetEquilibrium", random_rec = TRUE, random_q = TRUE,
   qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
   fit_control = fit_control(phase = TRUE, getsd = TRUE, verbose = 1,
                             bias_adjust_proc = FALSE))
@@ -256,7 +269,7 @@ cat("\n== Three-way conditional NLL ==\n")
 print(round(cond, 4))
 cat(sprintf("\nRceattle free fit - goa_pk corrected: %+.3f",
             cond[["Rceattle 2025 (free)"]] - cond[["goa_pk (corrected)"]]),
-    "(multimodal: FishedEquilibrium init can find a slightly better optimum)\n")
+    "(multimodal: OffsetEquilibrium init can find a slightly better optimum)\n")
 
 # ---- Forward-pass EXACT equivalence (computed above on a clean DLL) ---------
 if (!is.na(fwd_nll)) {

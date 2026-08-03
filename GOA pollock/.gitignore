@@ -1,0 +1,14 @@
+# goa_pk build/staging directory. "2025/00-fit-goa_pk.R" copies Cole's dat file
+# and both model sources in here and compiles them; everything in it is
+# regenerable. The tracked copy of the modified model is
+# reference/goa_pk_2024_mfix.cpp.
+Data/goa_pk_2024/
+
+# Fitted objects (Data/*.Rdata) stay ignored via the repo root's *.RData rule --
+# core.ignorecase is true on Windows and macOS, so that pattern catches .Rdata
+# too. They are large, undiffable, and rewritten in full on every run.
+#
+# The shared artifact is the workbook instead:
+#   Data/GOA_25_pollock_single_species_1970-2024.xlsx
+# read_data() reconstructs the full data_list from it (01-build-data.R verifies
+# the round-trip), and the goa_pk fits are rebuilt by 2025/00-fit-goa_pk.R.

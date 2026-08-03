@@ -39,6 +39,14 @@ yrs   <- 1970:endyr
 pk$endyr <- endyr
 pk$fleet_control$Fleet_type[4:5] <- "Off"  # age-1 / age-2 Shelikof indices off (log_q4/q5 mapped NA)
 
+# The GOA_24 skeleton predates the alpha_wt_len / beta_wt_len control entries,
+# so read_data() leaves them NULL and write_data() drops two rows from the
+# control sheet. fit_mod() only uses them for length-based suitability
+# (multispecies), so the package defaults are correct for this single-species
+# model -- set them explicitly so the workbook round-trips.
+pk$alpha_wt_len <- 1e-6
+pk$beta_wt_len  <- 3
+
 # ---- Aging-error matrix: normalize rows to sum to 1 --------
 # age_trans has a missing ~1e-4 across ages 5-8.
 # Rceattle re-normalizes the predicted comps and I updated goa_pk to
@@ -139,12 +147,61 @@ pk$fleet_control$Sel_norm_bin[7] <- 3
 pk$fleet_control$Sel_norm_bin[8] <- 7
 
 # ---- Write -----------------------------------------------------------------
-pollock25 <- pk
-save(pollock25, file = "Data/GOA_25_pollock.Rdata")
-message("Wrote Data/GOA_25_pollock.Rdata")
+# The workbook is the only output. Everything downstream (02-bridge.R,
+# 03-model.R, 04-diagnostics.R, 05-update-data.R, dsem.R) reads it back with
+# read_data(), so there is one source of truth and Cole can edit it directly.
+# No .Rdata copy of the data_list is written -- a second serialization only
+# drifts from the workbook once someone edits one and not the other.
+xlsx <- "Data/GOA_25_pollock_single_species_1970-2024.xlsx"
+write_data(pk, xlsx)
+message("Wrote ", xlsx)
 
-tryCatch({ # Due to formatting updates
-  write_data(pk, "Data/GOA_25_pollock_single_species_1970-2024.xlsx")
-  message("Wrote Data/GOA_25_pollock_single_species_1970-2024.xlsx")
-}, error = function(e)
-  message("Skipped xlsx writex", conditionMessage(e)))
+# ---- Round-trip check ------------------------------------------------------
+# The workbook is the ONLY shared artifact -- Data/*.Rdata is gitignored (large,
+# undiffable, rewritten every run), so everything downstream has to be
+# reconstructable from this file via read_data(). Check the whole data_list
+# rather than a few hand-picked blocks: the fleet_control flags this script sets
+# (Comp_distribution, Sel_norm_bin, Fleet_type) and the control-sheet scalars
+# matter just as much as the data matrices.
+rt <- read_data(xlsx)
+
+# Relative, not absolute: survey indices are ~1e9 after the 1e6 scaling, so an
+# absolute tolerance would flag ordinary float64 round-off in the xlsx.
+reldiff <- function(x, y) max(abs(x - y) / pmax(abs(x), 1), na.rm = TRUE)
+compare <- function(x, y) {
+  if (is.null(x) || is.null(y)) return(if (is.null(x) && is.null(y)) 0 else Inf)
+  if (is.data.frame(x) && is.data.frame(y)) {
+    if (!identical(dim(x), dim(y)) || length(setdiff(names(x), names(y)))) return(Inf)
+    return(max(vapply(intersect(names(x), names(y)), function(cn) {
+      xv <- x[[cn]]; yv <- y[[cn]]
+      if (is.numeric(xv) && is.numeric(yv)) reldiff(xv, yv)
+      else if (identical(as.character(xv), as.character(yv))) 0 else Inf
+    }, numeric(1)), 0))
+  }
+  if (is.numeric(x) && is.numeric(y))
+    return(if (length(x) != length(y)) Inf else reldiff(x, y))
+  if (identical(as.character(x), as.character(y))) 0 else Inf
+}
+
+# read_data() legitimately adds single-species defaults, and drops three
+# sex-ratio entries the schema marks "orphan" / "ignored if nsex = 1". Neither
+# affects the fit -- verified by refitting from the workbook alone.
+EXPECTED_ASYMMETRY <- c("R_sexr", "est_sex_ratio", "sex_ratio_sigma",
+                        "Diet_distribution", "Diet_comp_weights")
+
+shared <- setdiff(intersect(names(pk), names(rt)), EXPECTED_ASYMMETRY)
+diffs  <- vapply(shared, function(nm) compare(pk[[nm]], rt[[nm]]), numeric(1))
+lost   <- setdiff(setdiff(names(pk), names(rt)), EXPECTED_ASYMMETRY)
+
+cat("== xlsx round-trip ==\n")
+cat(sprintf("  %d/%d elements identical (tol 1e-12 relative)\n",
+            sum(diffs <= 1e-12), length(diffs)))
+if (length(lost))
+  cat("  **CHECK** dropped by the workbook: ", paste(lost, collapse = ", "), "\n")
+if (any(diffs > 1e-12)) {
+  cat("  **CHECK** elements that did not survive:\n")
+  for (nm in names(diffs)[diffs > 1e-12])
+    cat(sprintf("    %-24s rel|diff| = %.3e\n", nm, diffs[[nm]]))
+} else if (!length(lost)) {
+  cat("  OK -- the workbook fully reconstructs the data_list\n")
+}

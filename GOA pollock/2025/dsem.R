@@ -8,11 +8,12 @@ library(Rceattle)                              # dev-DSEM
 library(dplyr)
 
 # Data ----
-# Current assessment data (1970-2024), from "2025 pollock build data.R".
-# Anchor to the model folder so the relative Data/ paths resolve.
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
-
-load("Data/GOA_25_pollock.Rdata")              # -> pollock25
+# Current assessment data (1970-2024), from "01-build-data.R".
+# Run from the "GOA pollock" project root so the relative Data/ paths resolve.
+#
+# The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
+# the xlsx is what travels with the repo and what Cole edits directly.
+pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
 pollock25$estDynamics <- "Estimated"
 
 # Base fleet settings (the selectivity priors and Rogers-2024 AR1 catchability
@@ -72,7 +73,7 @@ pk_iid_mod <- fit_mod(data_list = pollock25,
                       dsem = build_DSEM(sem = pk_iid_sem, family = "fixed",
                                         sigmaR_prior_sd = 0.5),
                       msmMode = "SingleSpecies",
-                      initMode = "FishedEquilibrium",
+                      initMode = "OffsetEquilibrium",
                       fit_control = fit_control(verbose = 1, phase = TRUE))
 summary(pk_iid_mod)
 AIC(pk_iid_mod)
@@ -84,7 +85,7 @@ pk_dsem_mod <- fit_mod(data_list = pollock25,
                        dsem = build_DSEM(sem = pk_sem, family = "fixed",
                                          sigmaR_prior_sd = 0.5),
                        msmMode = "SingleSpecies",
-                       initMode = "FishedEquilibrium",
+                       initMode = "OffsetEquilibrium",
                        fit_control = fit_control(verbose = 1, phase = TRUE))
 summary(pk_dsem_mod)
 AIC(pk_dsem_mod)

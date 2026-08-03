@@ -22,16 +22,45 @@
 ## The fixed numbers-at-age sheet in the workbook is padded with empty age
 ## columns; read_data() trims these on read, so no manual fix is needed.
 # ---------------------------------------------------------------------------
-# The fit is close to, but not identical to, the original hake_test model. The
-# differences (~0.1-2% in total likelihood) come from improvements:
-#   * recruitment and initial-age deviations are mean-unbiased (centred so mean
-#     recruitment equals R0), rather than centered wrong (previous bug)
-#   * DM parameterization moved to standard Thorson setup.
+# Difference vs. the original hake_test model, verified by running both branches
+# on this workbook and reconciling jnll_comp term by term:
+#
+#   * The hindcast likelihood is UNCHANGED. Drop the theta_diet prior below and
+#     the single-species fit reproduces hake_test to the digit (2133.821 both),
+#     as does the MSVPA fit (2137.443 both). Index, catch, composition (incl.
+#     the DM), selectivity, recruitment and initial-age devs all match exactly.
+#
+#   * The +5.21 in the single-species jnll is entirely the three theta_diet
+#     priors specified below: in single-species mode diet_comp_weights is mapped
+#     out, so each adds the constant -dnorm(1, 0, 2, log = TRUE) = 1.7371.
+#     It shifts the reported jnll without touching a single estimate.
+#
+#   * Recruitment / initial-age deviations ARE now mean-unbiased (prior centred
+#     at -sigma^2/2 rather than +sigma^2/2), but that is likelihood-invariant:
+#     the devs shift down by sigma^2 and log(R0) up by the same amount, so
+#     R = R0 * exp(dev) is untouched. It is NOT a source of the jnll difference.
+#     It does change what R0 means -- R0 is now mean recruitment, exp(1.24^2) =
+#     4.65x larger -- so B0/SB0 and depletion-based reference points move.
+#
+#   * The original ms_run_DM value (~2188) was a stalled optimizer run, not a
+#     different model: restarting the hake_test fit from its own solution drops
+#     it to 2137.443. Do not read it as a model change.
+#
+#   * The one real behavioural change is in the estimated-suitability model:
+#     hake_test never estimated the diet DM weight (build_map pinned it with a
+#     "TODO"), this version estimates it. That is why the stomach-content
+#     likelihood improves by ~20. Without the theta_diet prior the weights run
+#     to the multinomial limit (log-scale 18.7 / 13.7) -- which is why the prior
+#     below is required here.
 # ---------------------------------------------------------------------------
 
 # Load data ----
 library(Rceattle)
+library(dplyr)
 SBF_ATF_hakedata_DM <- read_data(file = "300426_SBF_ATF_Hake_Final.xlsx")
+SBF_ATF_hakedata_DM$index_data <- SBF_ATF_hakedata_DM$index_data %>%
+    dplyr::select(-Q_block)
+SBF_ATF_hakedata_DM$projyr <- 2025
 
 # Dirichlet-multinomial for the composition data ----
 SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- "DirichletMultinomial"  # age-composition
@@ -53,12 +82,13 @@ compFun <- build_composition(linkages = list(
 ss_run_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
                      inits = NULL,
                      compFun = compFun,
-                     estimateMode = "Estimate",
-                     msmMode = "SingleSpecies",
+                     estimateMode = "Estimate", # 0 or "Estimate" works
+                     msmMode = "SingleSpecies", # 0 or "SingleSpecies" works
                      random_rec = FALSE,
-                     initMode = "NonEquilibrium",
+                     initMode = "NonEquilibrium", # 2 or "NonEquilibrium" works
                      fit_control = fit_control(phase = TRUE, verbose = 1))
-summary(ss_run_DM)   # 2139 (original 2128)
+summary(ss_run_DM)   # 2139.032; = 2133.821 (hake_test exactly) once the
+                     # 3 x 1.7371 theta_diet prior constant is removed
 
 # 2. Single-species: category 1 HCR ----
 ss_run_DM_hcr <- fit_mod(data_list = SBF_ATF_hakedata_DM,
@@ -81,17 +111,23 @@ summary(ss_run_DM_hcr)
 ms_run_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
                      inits = ss_run_DM$estimated_params,
                      compFun = compFun,
-                     M1Fun = build_M1(M1_model = "sex_age_invariant"),  # estimate M without prior
+                     M1Fun = build_M1(M1_model = "sex_age_invariant"),  # estimate M without prior (1 or "sex_age_invariant" works)
                      estimateMode = "Estimate",
-                     msmMode = "MSVPA",
-                     suitMode = "Empirical",
+                     msmMode = "MSVPA", # 1 or "MSVPA" works
+                     suitMode = "Empirical", # 0 or "Empirical" works
                      niter = 3,
                      random_rec = FALSE,
                      suit_styr  = c(1980, 1980, 1980),
                      suit_endyr = c(2019, 2019, 2019),
                      initMode = "NonEquilibrium",
                      fit_control = fit_control(phase = FALSE, verbose = 1))
-summary(ms_run_DM)   # 2142 (original 2188); estimated M ~0.30
+summary(ms_run_DM)   # 2142.280; = 2137.443 without the theta_diet prior, which
+                     # is exactly what hake_test reaches once it is restarted
+                     # from its own solution (its 2188 was a stalled run).
+                     # Estimated M ~0.304 in both.
+                     # NOTE suitMode = "Empirical" means there is no diet
+                     # likelihood here, yet build_map() still frees all three
+                     # diet_comp_weights -- see the Rceattle build_map gap.
 
 # 4. Estimated suitability ----
 # Prey-size preference (gam_a / gam_b) are fixed; only the
@@ -116,6 +152,13 @@ map$mapList$log_phi[1, 3] <- map$mapList$log_phi[3, 3] <- NA
 map$mapList$log_phi[2, 3] <- map$mapList$log_phi[3, 2] <- NA
 map$mapFactor$log_phi <- factor(map$mapList$log_phi)
 
+# The donor map came from the empirical-suitability fit above, where the diet
+# composition is not fit and the diet DM weight is therefore held fixed. Here
+# arrowtooth and sablefish do have their diet fit, so free their weights (hake
+# stays on empirical suitability, so its weight stays fixed).
+map$mapList$diet_comp_weights[2:3] <- 2:3
+map$mapFactor$diet_comp_weights <- factor(map$mapList$diet_comp_weights)
+
 run_ms_CSL_Mest_prior_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
                      inits = inits,
                      map = map,
@@ -125,8 +168,8 @@ run_ms_CSL_Mest_prior_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
                                       M_prior = 0.2,
                                       M_prior_sd = 0.1),
                      estimateMode = "Estimate",
-                     msmMode = "TypeIIMSVPA",
-                     suitMode = c("Empirical", "LognormalWeight", "LognormalWeight"),
+                     msmMode = "MSVPA",
+                     suitMode = c("Empirical", "LognormalWeight", "LognormalWeight"), # c(0, 4, 4) also works
                      suit_styr  = c(1980, 2013, 2005),   # hake, arrowtooth, sablefish
                      suit_endyr = c(2019, 2018, 2008),
                      initMode = "NonEquilibrium",
@@ -136,9 +179,16 @@ run_ms_CSL_Mest_prior_DM <- fit_mod(data_list = SBF_ATF_hakedata_DM,
                          loopnum = 5,
                          phase = TRUE,
                          verbose = 1))
-summary(run_ms_CSL_Mest_prior_DM)           # 2262 (original 2259)
-run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # arrowtooth->hake 0.82, sablefish->hake 0.77
-                                                   #   (original 0.85, 0.77)
+summary(run_ms_CSL_Mest_prior_DM)  # 2262.318 (hake_test rerun: 2272.133).
+# This is the ONE stage with a real model difference: hake_test never estimated
+# the diet DM weight, this version does, which is worth ~20 in the stomach
+# likelihood. The theta_diet prior is load-bearing here -- drop it and the
+# weights run to the multinomial limit (log-scale 18.7 / 13.7, jnll 2251.722).
+# The M1 prior also moved from the "M random effects" jnll row to "M prior";
+# same value (~53.9), total unchanged.
+run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # arrowtooth->hake 0.817,
+                                                   # sablefish->hake 0.769
+                                                   # (hake_test 0.835, 0.784)
 
 
 
@@ -146,12 +196,11 @@ run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # arrowtooth->hake 0.82, sabl
 # Current management applied against multi-species model ----
 mse1 <- run_mse(om = run_ms_CSL_Mest_prior_DM,
                 em = ss_run_DM_hcr,
-                nsim = 10, cores = 1,
+                nsim = 1, cores = 1,
                 assessment_period = 1,
                 sampling_period = c(1, 2), # Fishery samples yearly, survey every other year
 
                 simulate_data = TRUE,
                 sample_rec = TRUE
-
                 )
-
+plot_biomass(list(mse1$Sim_1$OM, run_ms_CSL_Mest_prior_DM))

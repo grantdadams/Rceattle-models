@@ -10,11 +10,12 @@ library(Rceattle)
 library(dplyr)
 
 # Data ----
-# Current assessment data (1970-2024), from "2025 pollock build data.R".
-# Anchor to the model folder so the relative Data/ paths resolve.
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
-
-load("Data/GOA_25_pollock.Rdata")            # -> pollock25
+# Current assessment data (1970-2024), from "01-build-data.R".
+# Run from the "GOA pollock" project root so the relative Data/ paths resolve.
+#
+# The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
+# the xlsx is what travels with the repo and what Cole edits directly.
+pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
 pollock25$estDynamics <- "Estimated"
 
 SHELIKOF <- 1L; BOTTOM_TRAWL <- 2L; FISHERY <- 8L
@@ -61,4 +62,9 @@ pollock25$comp_data <- rbind(pollock25$comp_data, new_comp) %>%
 #        their sampled years.
 
 # Save ----
-save(pollock25, file = "Data/GOA_26_pollock.Rdata")
+# A workbook, not an .Rdata: this is the hand-off @kalei fills in, and the
+# placeholder rows are meant to be edited by hand. Data/*.Rdata is gitignored,
+# so an .Rdata here would neither travel with the repo nor be editable.
+out <- sprintf("Data/GOA_26_pollock_single_species_1970-%d.xlsx", target_year)
+write_data(pollock25, out)
+message("Wrote ", out)

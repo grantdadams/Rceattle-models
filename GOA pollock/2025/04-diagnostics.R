@@ -4,12 +4,13 @@
 library(Rceattle)
 
 # Data ----
-# Assembled in "2025 pollock build data.R". Swap in GOA_26_pollock.Rdata once the
-# terminal year is finalized ("2025 pollock update data.R").
-# Anchor to the model folder so the relative Data/ paths resolve.
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
-
-load("Data/GOA_25_pollock.Rdata")            # -> pollock25
+# Assembled in "01-build-data.R". Swap in the 2026 workbook once the terminal
+# year is finalized ("05-update-data.R").
+# Run from the "GOA pollock" project root so the relative Data/ paths resolve.
+#
+# The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
+# the xlsx is what travels with the repo and what Cole edits directly.
+pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
 
 # Model configuration ----
 # Dirichlet-multinomial age comps, Rogers et al. (2024) AR1 catchability on the
@@ -29,22 +30,42 @@ fc$Comp_accum_young[SHELIKOF]          <- 3L                    # fold Shelikof 
 fc$Comp_weights[c(FISHERY, 1, 2, 3, 6)] <- 0                    # DM log-theta starts (estimated)
 pollock25$fleet_control <- fc
 
+# Linkages name their fleets rather than numbering them: fit_mod() checks each
+# against fleet_control$Fleet_name and errors on a miss, whereas a Fleet_code
+# that is wrong but in range attaches the prior to a different fleet and the
+# model still fits. The integer constants above stay -- they index
+# fleet_control rows, which is a position, not a fleet reference.
+SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
+ASC_LIMB_PRIOR  <- c("Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DESC_LIMB_PRIOR <- c("Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DM_PRIOR        <- c("GOA_pollock_fishery",
+                     "Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic")
+
 q_spec <- build_catchability(linkages = list(
-  q = linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = SHELIKOF,
+  q = linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = SHELIKOF_ACOUSTIC,
                    observe = "QcovPol", obs_sd = 0.02)))        # fixed Ecov measurement SD
 
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(0, 3))),
-  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(10, 3)))))
 
 comp_spec <- build_composition(linkages = list(
-  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = c(FISHERY, 1, 2, 3, 6),
+  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = DM_PRIOR,
                             priors = list(`(Intercept)` = lognormal(0, 2)))))
 
 # Fit ----
@@ -52,7 +73,7 @@ mod_25 <- fit_mod(data_list = pollock25,
                   estimateMode = "Hindcast",            # hindcast (add an HCR + estimateMode = "Estimate" to project)
                   random_rec = TRUE, random_q = TRUE,
                   msmMode = "SingleSpecies",
-                  initMode = "FishedEquilibrium",
+                  initMode = "OffsetEquilibrium",
                   qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
                   fit_control = fit_control(phase = TRUE, verbose = 1,
                                             bias_adjust_proc = FALSE))

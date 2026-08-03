@@ -6,83 +6,106 @@
 #       hold them fixed (estimateMode = "DebugBuild"), and confirm the derived quantities and
 #       per-component likelihoods match `fit$rep` to ~1e-6. The one fix to goa_pk
 #       was the wrong M-indexing for initialization.
-#   (B) ESTIMATION -- fit from default and confirm convergence to goa_pk's objective.
+#   (B) ESTIMATION -- fit from default inits and confirm convergence to goa_pk's objective.
 #
-# Requires: Data/GOA_25_pollock.Rdata (from "2025 pollock build data.R") and
-# Data/2024pollock_mfix.Rdata (Cole's CORRECTED goa_pk fit: M-index fix + catch
-# bias correction + aging-error / comp-obs normalization; see the RECONCILIATION
-# LOG in "2025 pollock model.R", A1-A6). Uses the dev Rceattle (initMode 5 + sel
-# priors). The corrected fit is the reconciliation target; the original published
-# fit (Data/2024pollock.Rdata) is not used here.
+# Requires: the data workbook (from "01-build-data.R") and
+# Data/2024pollock_mfix.Rdata (corrected goa_pk fit: M-index fix + catch
+# bias correction + aging-error / comp-obs normalization; see "03-model.R" for
+# model differences, and "00-fit-goa_pk.R" to rebuild it).
 # =============================================================================
 
 library(Rceattle)
 library(dplyr)
-setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
 
-load("Data/GOA_25_pollock.Rdata")        # -> pollock25 (the Rceattle data_list)
-load("Data/2024pollock_mfix.Rdata")      # -> fit  (Cole's CORRECTED goa_pk fit)
-# Use the optimizer's actual solution (fit$obj$env$parList() == fit$opt$par), not
-# fit$parList: goa_pk's stored parList carries a stale srv6 Dirichlet-multinomial
-# weight (log_DM_pars[5] off by exactly 1e-3 from the MLE; every other parameter
-# is bit-identical), which would leave the srv6 age-comp component ~3e-4 high.
-pl  <- fit$obj$env$parList()
+# The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
+# the xlsx is what travels with the repo and what Cole edits directly.
+pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
+load("Data/2024pollock_mfix.Rdata")      # -> fit  (rebuild with 00-fit-goa_pk.R)
+# Source the parameters from fit$opt$par -- the vector fit$rep was reported at.
+#
+# fit$obj$env$parList() is NOT the MLE: it is bit-identical to fit$parList, and
+# BOTH sit exactly 1e-3 off fit$opt$par on log_DM_pars[5] (the srv6 D-M weight).
+# fit_pk() calls obj$report() BEFORE sdreport(), then reads parList() AFTER, so
+# obj$env$last.par is left behind the optimizer's solution. Every other
+# parameter is identical, which is why this hides so well.
+#
+# Mapping parList() instead costs ~3e-4 in BOTH the composition and the
+# selectivity/D-M prior blocks. They very nearly cancel -- goa_pk is at its
+# optimum, so the total gradient vanishes and a small parameter offset moves the
+# two blocks in opposite directions -- leaving a total NLL diff of ~9e-7 that
+# looks like clean agreement. Using opt$par takes every component to <=3e-11.
+pl  <- fit$obj$env$parList()          # skeleton: shapes, and the mapped-off pars
+.opt <- fit$opt$par                   # the MLE (fixed effects only)
+for (.p in unique(names(.opt))) {
+  .v <- .opt[names(.opt) == .p]
+  # Skip partially-mapped parameters, where opt$par is shorter than the slot;
+  # those keep their parList values, as do random effects (not in opt$par).
+  if (!is.null(pl[[.p]]) && length(pl[[.p]]) == length(.v))
+    pl[[.p]][] <- as.numeric(.v)
+}
+rm(.opt, .p, .v)
 rep <- fit$rep
 yrs   <- pollock25$styr:pollock25$endyr
 nyrs  <- length(yrs)
-SHELIKOF <- 1L    # fleet carrying the AR1/Ecov catchability
+SHELIKOF <- 1L    # fleet with the AR1/Ecov catchability
 FISHERY  <- 8L
 
-# ---- Grammar specifications ------------------------------------------------
-# (1) QAR1 on the Shelikof acoustic q (Rogers 2024): an AR1 latent observed
-# against the standardized Ecov covariate with Cole's fixed measurement SD
+# ---- Model specifications ------------------------------------------------
+# Linkages name their fleets rather than numbering them: fit_mod() checks each
+# against fleet_control$Fleet_name and errors on a miss, whereas a Fleet_code
+# that is wrong but in range attaches the prior to a different fleet and the
+# model still fits. SHELIKOF / FISHERY stay above -- they index fleet_control
+# rows, which is a position, not a fleet reference.
+SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
+ASC_LIMB_PRIOR  <- c("Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DESC_LIMB_PRIOR <- c("Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_6_summer_acoustic",
+                     "GOA_pollock_fishery")
+DM_PRIOR        <- c("GOA_pollock_fishery",
+                     "Pollock_survey_1_shelikof_acoustic",
+                     "Pollock_survey_2_bottom_trawl",
+                     "Pollock_survey_3_adfg",
+                     "Pollock_survey_6_summer_acoustic")
+
+# (1) QAR1 on the Shelikof acoustic q (Rogers 2024) with fixed measurement SD
 # exp(log_Ecov_obs_sd). Process SD (log_Ecov_sd) and rho (transf_rho) are
 # estimated; the effect size is Ecov_beta.
 q_spec <- build_catchability(linkages = list(
-  q = linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = SHELIKOF,
-                   observe = "QcovPol", obs_sd = exp(pl$log_Ecov_obs_sd))))
+  q = linkage_spec(~ ar1(1 | Year),
+                   by = ~ fleet,
+                   fleet = SHELIKOF_ACOUSTIC,
+                   observe = "QcovPol",
+                   obs_sd = exp(pl$log_Ecov_obs_sd))))
 
-# (2) Selectivity priors (goa_pk "Selectivity Priors" block). Slopes are on the
-# log scale (lognormal), inflections on the natural scale (normal). Cole's
-# groupings: ascending (peak/logistic) inflection ~ N(0,3), descending ~ N(10,3),
-# all log-slopes ~ N(-1,1.5). Ascending fleets: srv2 (2), srv3 (3), fishery (8).
-# Descending fleets: srv1 (1), srv6 (6), fishery (8). (srv1/srv6 are descending
-# logistic; srv2/srv3 logistic; fishery double logistic.)
-# Cole's exact set (goa_pk.cpp:1155-1174): ascending-limb priors (log_slp1/inf1)
-# on the fishery + srv2 + srv3 + srv6; descending-limb priors (log_slp2/inf2) on
-# the fishery + srv1 + srv2 + srv6. srv2 (logistic) and srv6 (descending) are
-# priored on BOTH limbs even though one limb is fixed -- that limb's prior is a
-# constant (evaluated at the mapped fixed value), which we reproduce to match the
-# objective. (srv1 ascending and srv3 descending are commented out in goa_pk.)
+# (2) Selectivity priors. Slopes are on the log scale (lognormal),
+# asymptote on the natural scale (normal).
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR, # Survey 6 has the
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = c(2, 3, 6, 8),
+  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(0, 3))),
-  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = c(1, 2, 6, 8),
+  inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = normal(10, 3)))))
 
-# (3) Dirichlet-multinomial parameter prior: goa_pk adds dnorm(log_DM_pars, 0, 2)
-# to its Selectivity-Priors block. comp_weights is the log DM scalar, so a
-# lognormal(0, 2) prior on the natural theta = exp(comp_weights) reproduces
-# dnorm(comp_weights, 0, 2) exactly, on the 5 Dirichlet-multinomial fleets.
+# (3) Dirichlet-multinomial prior: goa_pk adds dnorm(log_DM_pars, 0, 2)
 comp_spec <- build_composition(linkages = list(
-  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = c(FISHERY, 1, 2, 3, 6),
+  theta_comp = linkage_spec(~ 1, by = ~ fleet, fleet = DM_PRIOR,
                             priors = list(`(Intercept)` = lognormal(0, 2)))))
 
-# ---- Model-config fixes for the grammar bridge -----------------------------
-# Fishery gets its OWN selectivity block (the legacy skeleton mirrored it to
-# fleet 7; harmless with fixed params, but a per-fleet sel prior needs a lead
-# block). Fleet 7 legitimately mirrors fleet 1 (a duplicate Shelikof block).
+# ---- Model fixes -----------------------------
 pollock25$fleet_control$Selectivity_index[FISHERY] <- FISHERY
 
-# Shelikof q is now the grammar AR1/Ecov linkage, so drop the legacy code-6 AR1
+# Shelikof q uses the updated AR1/Ecov linkage, so drop the legacy code-6 AR1
 # / random-walk on q1 (Catchability = free mean + the ar1() linkage on top).
 pollock25$fleet_control$Catchability[SHELIKOF]    <- "Estimated"
 pollock25$fleet_control$Time_varying_q[SHELIKOF]  <- "Off"
-# srv3 keeps its legacy random-walk q (Cole's log_q3_dev); srv2 is a fixed q with
+# srv3 keeps its legacy random-walk q (Cole's log_q3_dev); srv2 is an estimated q with
 # the BT catchability prior N(log 0.85, 0.1).
 pollock25$fleet_control$Catchability[2] <- "Estimated-with-prior"
 pollock25$fleet_control$Catchability_init[2]       <- 0.85
@@ -98,30 +121,35 @@ pollock25$fleet_control$Comp_accum_young[FISHERY]  <- 2L
 pollock25$fleet_control$Comp_accum_young[SHELIKOF] <- 3L
 
 # Dirichlet-multinomial weights (log theta). fit_mod() sources comp_weights from
-# fleet_control$Comp_weights (it OVERRIDES inits$comp_weights), so set the DM log-
+# fleet_control$Comp_weights (it overrides inits$comp_weights), so set the DM log-
 # weights on the fleet_control column. Cole's log_DM_pars order is (fishery, srv1,
 # srv2, srv3, srv6) -> Rceattle fleet codes 8, 1, 2, 3, 6.
 pollock25$fleet_control$Comp_weights[c(FISHERY, 1, 2, 3, 6)] <- pl$log_DM_pars
 
 # ============================================================================
-# (A) FORWARD-PASS EXACT: map Cole's parList -> Rceattle inits, hold fixed.
+# (A) Forward pass ----
 # ============================================================================
-# Build the inits SKELETON from a grammar-attached estimateMode = "DebugBuild" build, so it
-# already carries the linkage parameters (beta_linkage_re / _obs, log_sigma_linkage,
-# trans_rho_linkage, log_obs_sd_linkage) at the correct sizes -- build_params()
-# alone (no linkages) would omit them.
+# Build the inits from a estimateMode = "DebugBuild" run and input values
 skel <- fit_mod(
-  data_list = pollock25, inits = NULL, estimateMode = "DebugBuild", msmMode = "SingleSpecies",
-  initMode = "FishedEquilibrium", random_rec = TRUE, random_q = TRUE,
-  qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
+  data_list = pollock25,
+  inits = NULL,
+  estimateMode = "DebugBuild",
+  msmMode = "SingleSpecies",
+  initMode = "OffsetEquilibrium",
+  random_rec = TRUE,
+  random_q = TRUE,
+  qFun = q_spec,
+  selFun = sel_spec,
+  compFun = comp_spec,
   fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0, bias_adjust_proc = FALSE))
+
 inits <- skel$estimated_params
 
 # -- Recruitment (goa_pk is in millions -> +log(1e6) on the mean) ------------
 inits$rec_pars[, 1] <- log(exp(pl$mean_log_recruit) * 1e6)
 inits$rec_dev[, 1:nyrs] <- pl$dev_log_recruit
 inits$R_log_sd <- log(pl$sigmaR)
-# NB: no init_dev assignment -- initMode = "FishedEquilibrium" seeds the initial
+# NB: no init_dev assignment -- initMode = "OffsetEquilibrium" seeds the initial
 # ages off exp(rec_pars + rec_dev[1]) automatically (the year-1 recruitment).
 
 # -- Fishing mortality -------------------------------------------------------
@@ -146,16 +174,13 @@ inits$sel_inf_dev[2, FISHERY, 1, ]    <- pl$inf2_fsh_dev
 # -- Catchability means ------------------------------------------------------
 inits$index_log_q[1:6] <- unlist(pl[c("log_q1_mean", "log_q2_mean", "log_q3_mean",
                                       "log_q4", "log_q5", "log_q6")])
-# srv3 keeps the legacy random-walk q deviates (Cole's log_q3_dev); fleet 1's
-# q deviates are carried by the grammar AR1 latent instead (beta_linkage_re).
+# srv3 keeps the legacy random-walk q deviates (Cole's log_q3_dev)
 if (!is.null(inits$index_q_dev)) inits$index_q_dev[3, ] <- pl$log_q3_dev
 # q3 random-walk SD. The corrected local goa_pk sets q3_rwlk_sd to a CONSTANT
-# 0.05 for all years (Cole's original used a per-year 0.001/0.05 vector that
-# Rceattle's single-per-fleet SD cannot reproduce). With a constant SD, Rceattle's
-# RW penalty matches exactly: map the fleet-3 RW SD to 0.05.
+# 0.05 for all years (Rceattle cant match the per-year 0.001/0.05 vector).
 if (!is.null(inits$index_q_dev_log_sd)) inits$index_q_dev_log_sd[3] <- log(0.05)
 
-# -- Grammar QAR1 parameters (replace the legacy index_q_dev/rho/beta path) ---
+# -- QAR1 parameters (replace the legacy index_q_dev/rho/beta path) ---
 # The AR1 latent enters log q1 as beta_linkage_obs * beta_linkage_re, observed
 # against QcovPol with fixed SD; process SD and rho are the linkage hyperparams.
 inits$beta_linkage_re    <- pl$Ecov_exp                 # AR1 latent state (per year)
@@ -165,17 +190,24 @@ inits$trans_rho_linkage  <- pl$transf_rho               # AR1 correlation (logit
 inits$log_obs_sd_linkage <- pl$log_Ecov_obs_sd          # fixed measurement SD
 
 # -- Dirichlet-multinomial weights (theta) -----------------------------------
-# Set on fleet_control$Comp_weights above (fit_mod() overrides inits$comp_weights
-# from that column), so no inits assignment here.
+# Set on fleet_control$Comp_weights above (fit_mod() overrides inits$comp_weights)
+
 
 # -- Fit at the fixed solution ----------------------------------------------
 pollock_fixed <- fit_mod(
-  data_list = pollock25, inits = inits, estimateMode = "DebugBuild", msmMode = "SingleSpecies",
-  initMode = "FishedEquilibrium", random_rec = TRUE, random_q = TRUE,
-  qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
+  data_list = pollock25,
+  inits = inits,
+  estimateMode = "DebugBuild",
+  msmMode = "SingleSpecies",
+  initMode = "OffsetEquilibrium",
+  random_rec = TRUE,
+  random_q = TRUE,
+  qFun = q_spec,
+  selFun = sel_spec,
+  compFun = comp_spec,
   fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0, bias_adjust_proc = FALSE))
 
-# ---- Forward-pass comparisons (tolerance-checked) --------------------------
+# ---- Comparison --------------------------
 qf <- pollock_fixed$quantities
 report <- function(label, a, b, tol = 1e-6) {
   d <- max(abs(as.numeric(a) - as.numeric(b)), na.rm = TRUE)
@@ -194,17 +226,20 @@ report("catchability q1", qf$index_q[1, ], rep$q1)
 report("catchability q2", qf$index_q[2, ], rep$q2)
 report("catchability q3", qf$index_q[3, ], rep$q3)
 report("catchability q6", qf$index_q[6, ], rep$q6)
-# SSB / recruitment differ by the intended initial-age M-indexing fix; report,
-# don't gate. The bulk of the series (post-initial cohorts) should still match.
-report("SSB (x1e6)", qf$ssb[1, 1:nyrs], rep$Espawnbio * 1e6, tol = Inf)
-report("recruitment (x1e6)", qf$R[1, 1:nyrs], rep$recruit * 1e6, tol = Inf)
+# SSB / recruitment are in millions in goa_pk. Absolute tolerances here, not the
+# 1e-6 used for the dimensionless quantities above: these series run to ~1e9, so
+# 1e-4 absolute is ~1e-13 relative -- float64 round-off, not a model difference.
+report("SSB (x1e6)", qf$ssb[1, 1:nyrs], rep$Espawnbio * 1e6, tol = 1e-4)
+report("recruitment (x1e6)", qf$R[1, 1:nyrs], rep$recruit * 1e6, tol = 1e-4)
 
-# ---- Isolate the intended initial-age deviation ----------------------------
-# Everything except the first-year initial cohorts should match; the initial
-# ages differ by exactly Cole's M-indexing bug that we corrected.
-cat("\n== Initial-age structure (intended difference: Cole's M-index bug fixed) ==\n")
-report("N-at-age yr>=2 (x1e6)", qf$N_at_age[1, 1, , 2:nyrs],
-       t(rep$N[2:nyrs, ]) * 1e6, tol = 1e-4)   # rep$N is [year, age]; transpose to [age, year]
+# ---- Initial age structure -------------------------------------------------
+# The target is the CORRECTED goa_pk (A1 applied in reference/goa_pk_2024_mfix.cpp),
+# so the initial ages agree too and the check covers every year -- there is no
+# longer an intended deviation to isolate. If year 1 breaks while years 2+ hold,
+# the M-indexing correction has come undone.
+cat("\n== Initial-age structure (M-index fix applied in both models) ==\n")
+report("N-at-age all yrs (x1e6)", qf$N_at_age[1, 1, , 1:nyrs],
+       t(rep$N) * 1e6, tol = 1e-4)   # rep$N is [year, age]; transpose to [age, year]
 
 # ---- Per-component likelihood table ----------------------------------------
 cat("\n== Component NLL: Rceattle jnll_comp vs goa_pk -loglik ==\n")
@@ -213,12 +248,19 @@ cat("goa_pk total objective:", fit$opt$objective,
     "  Rceattle jnll:", pollock_fixed$quantities$jnll, "\n")
 
 # ============================================================================
-# (B) FREE ESTIMATION: refit with the grammar and check same minimum.
+# (B) Estimation ----
 # ============================================================================
 pollock_est <- fit_mod(
-  data_list = pollock25, inits = inits, estimateMode = "Hindcast", msmMode = "SingleSpecies",
-  initMode = "FishedEquilibrium", random_rec = TRUE, random_q = TRUE,
-  qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
+  data_list = pollock25,
+  inits = inits,
+  estimateMode = "Hindcast",
+  msmMode = "SingleSpecies",
+  initMode = "OffsetEquilibrium",
+  random_rec = TRUE,
+  random_q = TRUE,
+  qFun = q_spec,
+  selFun = sel_spec,
+  compFun = comp_spec,
   fit_control = fit_control(phase = TRUE, getsd = FALSE, verbose = 1, bias_adjust_proc = FALSE))
 
 grad <- tryCatch(max(abs(pollock_est$obj$gr(pollock_est$opt$par))),
