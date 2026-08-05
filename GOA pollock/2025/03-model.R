@@ -22,17 +22,16 @@
 # recruitment deviations and the q random walk -- a modelling choice, not a
 # discrepancy (at the mode the random density equals the penalty).
 #
-# On UNCERTAINTY, the two sdreports are empirically nearly identical for the
-# data-informed quantities: SSB SEs match goa_pk to ~1% in EVERY year and
-# recruitment SEs match across the historical series (CV ratios ~1.00). The one
-# systematic difference is the recruitment-process SD: Rceattle ESTIMATES it
-# (R_sd ~= 1.02) whereas goa_pk FIXES sigmaR = 1.3 (a weakly-identified-
-# hyperparameter AFSC convention). So only in the data-poor TERMINAL year, where
-# the process SD dominates the recruitment SE, do they diverge -- and there
-# Rceattle's is ~20% SMALLER (its tighter estimated SD), NOT larger. Neither is
-# "wrong": goa_pk conditions on sigmaR = 1.3, Rceattle estimates it. The free-fit
-# conditional difference (~-15 here) is multimodality (a slightly better optimum
-# from the OffsetEquilibrium init), not this SD/random-effect difference.
+# Uncertainty matches too: SSB SEs within ~1% every year, recruitment CVs ~1.00.
+# The one difference is the recruitment-process SD -- Rceattle estimates it
+# (R_sd ~1.016), goa_pk fixes sigmaR = 1.3 -- and it shows only in the terminal
+# year (2024 recruitment CV 1.31 vs 1.03). Refitting goa_pk with sigmaR estimated
+# (rec devs integrated; GOApollock estSigR path, 00-fit-goa_pk.R ->
+# Data/2024pollock_mfix_estSigR.Rdata) closes it: sigmaR = 1.0158 vs R_sd 1.0157,
+# all CVs match to 3 decimals, and the marginal likelihood improves ~48 units
+# (data prefer ~1.016). The difference is only fixed-vs-estimated sigmaR; neither
+# is wrong. The free-fit conditional gap (~-15) is separate -- multimodality from
+# the OffsetEquilibrium init.
 #
 # --- (A) Changes made to goa_pk model -----------------------------------
 #   Implemented by "00-fit-goa_pk.R", which produces both fitted objects loaded
@@ -138,9 +137,11 @@ library(ggplot2)
 # The workbook is the canonical data source -- Data/*.Rdata is gitignored, so
 # the xlsx is what travels with the repo and what Cole edits directly.
 pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
-load("Data/2024pollock.Rdata")           # -> fit  (goa_pk ORIGINAL, published)
+load("Data/2024pollock.Rdata")                 # -> fit  goa_pk ORIGINAL, published
 fit_orig <- fit
-load("Data/2024pollock_mfix.Rdata")      # -> fit  (goa_pk CORRECTED, mfix)
+load("Data/2024pollock_mfix_estSigR.Rdata")    # -> fit  corrected, sigmaR ESTIMATED
+fit_estSigR <- fit                             # apples-to-apples uncertainty (below)
+load("Data/2024pollock_mfix.Rdata")            # -> fit  CORRECTED, sigmaR fixed = 1.3
 # `fit` is now the corrected goa_pk (M-index fix + catch bias correction +
 # aging-error / comp-obs normalization; see RECONCILIATION LOG A1-A6). It is the
 # reconciliation target Rceattle reproduces exactly; fit_orig is kept only to
@@ -242,7 +243,7 @@ pollock_2025 <- fit_mod(
   data_list = pollock25, inits = NULL, estimateMode = "Hindcast", msmMode = "SingleSpecies",
   initMode = "OffsetEquilibrium", random_rec = TRUE, random_q = TRUE,
   qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
-  fit_control = fit_control(phase = TRUE, getsd = TRUE, verbose = 1,
+  fit_control = fit_control(phase = TRUE, getsd = TRUE, verbose = 0,
                             bias_adjust_proc = FALSE))
 
 # ---- Three-way overlay: goa_pk original, goa_pk corrected, Rceattle ---------
@@ -289,5 +290,21 @@ if (!is.na(fwd_nll)) {
 # ---- Component NLL table (Rceattle free fit) -------------------------------
 cat("\n== Component NLL (Rceattle free fit) ==\n")
 print(round(pollock_2025$quantities$jnll_comp, 3))
+
+# ---- Apples-to-apples uncertainty (goa_pk with sigmaR estimated) -----------
+# Reconciliation above uses published goa_pk (sigmaR = 1.3 fixed); for
+# uncertainty compare against fit_estSigR (sigmaR estimated). CVs then agree.
+sr <- pollock_2025$sdrep; vnm <- names(sr$value)
+cat(sprintf("\n== Recruitment-process SD ==\n  goa_pk fixed 1.300 | goa_pk est %.4f | Rceattle R_sd %.4f\n",
+            fit_estSigR$parList$sigmaR, sr$value[which(vnm == "R_sd")[1]]))
+gcv <- function(f, nn) { d <- f$sd[f$sd$name == nn, ]; setNames(d$se / d$est, d$year) }
+rcv <- function(tag) { i <- which(vnm == tag)
+  setNames(sr$sd[i] / sr$value[i], pollock25$styr + seq_along(i) - 1L) }
+for (q in list(c("SSB", "Espawnbio", "ssb"), c("Recruitment", "recruit", "R"))) {
+  fx <- gcv(fit, q[2]); es <- gcv(fit_estSigR, q[2]); rc <- rcv(q[3])
+  cat(sprintf("== %s CV (goa_pk fixed | est | Rceattle) ==\n", q[1]))
+  for (y in c("2000", "2015", "2020", "2024")) if (!is.na(es[y]))
+    cat(sprintf("  %s:  %.3f | %.3f | %.3f\n", y, fx[y], es[y], rc[y]))
+}
 
 save(pollock_2025, file = "Data/GOA_25_pollock_final.Rdata")

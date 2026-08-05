@@ -122,6 +122,21 @@ fit <- fit_pk(input, getsd = TRUE, filename = NULL, verbose = FALSE)
 save(fit, file = "Data/2024pollock_mfix.Rdata")
 message("  Wrote Data/2024pollock_mfix.Rdata   marginal ", round(fit$opt$objective, 4),
         " | conditional ", round(-sum(fit$rep$loglik), 4))
+fit_mfix <- fit   # keep a handle to the corrected fit for the summary below
+
+# ---- (3) goa_pk corrected, sigmaR ESTIMATED --------------------------------
+# For like-for-like uncertainty with Rceattle (which estimates the recruitment-
+# process SD): refit with sigmaR estimated and rec devs integrated (Laplace,
+# GOApollock's estSigR path). Lands on ~1.016, matching Rceattle's R_sd.
+input_estSigR <- input
+input_estSigR$map$sigmaR <- factor(1)          # free the recruitment-process SD
+input_estSigR$random     <- "dev_log_recruit"  # integrate rec devs (Laplace)
+message("Fitting goa_pk (corrected, sigmaR estimated) ...")
+fit <- fit_pk(input_estSigR, getsd = TRUE, filename = NULL, verbose = FALSE)
+save(fit, file = "Data/2024pollock_mfix_estSigR.Rdata")
+message("  Wrote Data/2024pollock_mfix_estSigR.Rdata   sigmaR_hat ",
+        round(fit$parList$sigmaR, 4), " | marginal ", round(fit$opt$objective, 4))
+fit_estSigR <- fit
 
 # ---- Summary ---------------------------------------------------------------
 # The conditional column (-sum(rep$loglik), deviates at their modes) is the
@@ -129,7 +144,10 @@ message("  Wrote Data/2024pollock_mfix.Rdata   marginal ", round(fit$opt$objecti
 # objective and the two models integrate different sets of random effects.
 cat("\n== goa_pk fits ==\n")
 print(data.frame(
-  model       = c("original", "corrected (A1-A6)"),
-  marginal    = round(c(fit_orig$opt$objective, fit$opt$objective), 4),
-  conditional = round(c(-sum(fit_orig$rep$loglik), -sum(fit$rep$loglik)), 4),
-  max_grad    = signif(c(fit_orig$opt$max_gradient, fit$opt$max_gradient), 3)))
+  model       = c("original", "corrected (A1-A6)", "corrected, sigmaR est."),
+  marginal    = round(c(fit_orig$opt$objective, fit_mfix$opt$objective,
+                        fit_estSigR$opt$objective), 4),
+  conditional = round(c(-sum(fit_orig$rep$loglik), -sum(fit_mfix$rep$loglik),
+                        -sum(fit_estSigR$rep$loglik)), 4),
+  max_grad    = signif(c(fit_orig$opt$max_gradient, fit_mfix$opt$max_gradient,
+                         fit_estSigR$opt$max_gradient), 3)))

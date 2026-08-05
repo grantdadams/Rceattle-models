@@ -2,7 +2,7 @@
 ## Pacific hake multispecies predation model: hake + arrowtooth (ATF) +
 ## sablefish (SBF), Dirichlet-multinomial (DM) composition data.
 ##
-## Hake is the focal, fully-estimated stock; arrowtooth and sablefish enter as
+## Hake is fully-estimated; arrowtooth and sablefish enter as
 ## predators whose numbers-at-age are fixed inputs and who impose predation
 ## mortality on hake. The fit needs three things set up before it will run:
 ##
@@ -23,35 +23,28 @@
 ## columns; read_data() trims these on read, so no manual fix is needed.
 # ---------------------------------------------------------------------------
 # Difference vs. the original hake_test model, verified by running both branches
-# on this workbook and reconciling jnll_comp term by term:
+# and reconciling jnll_comp term by term:
 #
 #   * The hindcast likelihood is UNCHANGED. Drop the theta_diet prior below and
-#     the single-species fit reproduces hake_test to the digit (2133.821 both),
-#     as does the MSVPA fit (2137.443 both). Index, catch, composition (incl.
-#     the DM), selectivity, recruitment and initial-age devs all match exactly.
+#     the single-species (2133.821 both) and MSVPA (2137.443 both) match hake_test,
+#     Index, catch, composition (incl. the DM), selectivity, recruitment and initial-age devs all match exactly.
 #
 #   * The +5.21 in the single-species jnll is entirely the three theta_diet
-#     priors specified below: in single-species mode diet_comp_weights is mapped
+#     priors specified below: in single-species mode diet_comp_weights are mapped
 #     out, so each adds the constant -dnorm(1, 0, 2, log = TRUE) = 1.7371.
-#     It shifts the reported jnll without touching a single estimate.
+#     It shifts the reported jnll without impacting estimation.
 #
-#   * Recruitment / initial-age deviations ARE now mean-unbiased (prior centred
-#     at -sigma^2/2 rather than +sigma^2/2), but that is likelihood-invariant:
-#     the devs shift down by sigma^2 and log(R0) up by the same amount, so
-#     R = R0 * exp(dev) is untouched. It is NOT a source of the jnll difference.
-#     It does change what R0 means -- R0 is now mean recruitment, exp(1.24^2) =
-#     4.65x larger -- so B0/SB0 and depletion-based reference points move.
+#   * Recruitment / initial-age deviations are now mean-unbiased (prior bug centered
+#     at -sigma^2/2 rather than +sigma^2/2).
 #
 #   * The original ms_run_DM value (~2188) was a stalled optimizer run, not a
 #     different model: restarting the hake_test fit from its own solution drops
-#     it to 2137.443. Do not read it as a model change.
+#     it to 2137.443. It is not a model change.
 #
-#   * The one real behavioural change is in the estimated-suitability model:
-#     hake_test never estimated the diet DM weight (build_map pinned it with a
+#   * The one real change is in the estimated-suitability model:
+#     hake_test never estimated the diet DM weight (build_map fixed it with a
 #     "TODO"), this version estimates it. That is why the stomach-content
-#     likelihood improves by ~20. Without the theta_diet prior the weights run
-#     to the multinomial limit (log-scale 18.7 / 13.7) -- which is why the prior
-#     below is required here.
+#     likelihood improves by ~20.
 # ---------------------------------------------------------------------------
 
 # Load data ----
@@ -60,21 +53,22 @@ library(dplyr)
 SBF_ATF_hakedata_DM <- read_data(file = "300426_SBF_ATF_Hake_Final.xlsx")
 SBF_ATF_hakedata_DM$index_data <- SBF_ATF_hakedata_DM$index_data %>%
     dplyr::select(-Q_block)
-SBF_ATF_hakedata_DM$projyr <- 2025
 
-# Dirichlet-multinomial for the composition data ----
-SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- "DirichletMultinomial"  # age-composition
-SBF_ATF_hakedata_DM$Diet_distribution <- rep(1L, SBF_ATF_hakedata_DM$nspp)     # diet (1 = DirichletMultinomial)
+# Dirichlet-multinomial for the composition/diet data ----
+SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- "DirichletMultinomial"  # age-composition (1 works)
+SBF_ATF_hakedata_DM$Diet_distribution <- rep(1, SBF_ATF_hakedata_DM$nspp)     # diet (1 = DirichletMultinomial)
 
 # Prior on DM weights ----
 # A N(0, 2) prior on the log-scale weight for every fleet's age-comps and every
 # predator's diet keeps the DM weights identifiable (see setup note 2 above).
 comp_flts <- SBF_ATF_hakedata_DM$fleet_control$Fleet_code
 compFun <- build_composition(linkages = list(
-  theta_comp = linkage_spec(~ 1, by = ~ fleet,
+  theta_comp = linkage_spec(formula = ~ 1,
+                            by = ~ fleet,
                             fleet   = comp_flts,
                             priors = list(`(Intercept)` = prior_lognormal(0, 2))),
-  theta_diet = linkage_spec(~ 1, by = ~ species,
+  theta_diet = linkage_spec(formula = ~ 1,
+                            by = ~ species,
                             species = seq_len(SBF_ATF_hakedata_DM$nspp),
                             priors = list(`(Intercept)` = prior_lognormal(0, 2)))))
 
