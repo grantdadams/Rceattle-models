@@ -27,40 +27,50 @@
 #   * age-1 / age-2 Shelikof index catchabilities mapped off (log_q4/log_q5);
 #   * srv1 / srv3 / srv6 composition ESS doubled.
 #
-# Cole's package is loaded from a source checkout rather than installed, so his
-# working tree is never touched: the dat file and both model sources are copied
-# into Data/goa_pk_2024/ and compiled there.
+# The model sources (Cole's original goa_pk.cpp + our corrected goa_pk_mfix.cpp)
+# and the dat file (pk24_12.txt) are VENDORED in 2025/goa_pk/, so this folder is
+# standalone. Only Cole's GOApollock *package* (prepare_pk_input / read_dat /
+# fit_pk) is an external dependency. The staged sources are copied into
+# Data/goa_pk_2024/ and compiled there (his working tree is never touched).
 #
-# Run from the "GOA pollock" project root. Compilation needs Rtools.
+# Run needs a C++ toolchain (Rtools on Windows). GOApollock is not on CRAN:
+#   remotes::install_github("kaskr/TMBhelper")            # hard dependency
+#   remotes::install_github("afsc-assessments/GOApollock")
+# or set the GOAPOLLOCK_SRC env var to a local source checkout to load_all().
 # =============================================================================
 
 library(TMB)
 library(dplyr)
+setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
 
-GOAPOLLOCK_SRC <- "C:/Users/grant.adams/GitHub/AFSC assessments/GOApollock"
-BUILD          <- "Data/goa_pk_2024"
+GOAPOLLOCK_SRC <- Sys.getenv("GOAPOLLOCK_SRC", unset = NA)  # optional local checkout
+VENDOR         <- "2025/goa_pk"        # vendored model sources + dat (standalone)
+BUILD          <- "Data/goa_pk_2024"   # scratch build dir (gitignored)
 DATFILE        <- "pk24_12.txt"
 VERSION        <- "23d: 2024 final"
 
-if (!requireNamespace("GOApollock", quietly = TRUE)) {
-  if (!dir.exists(GOAPOLLOCK_SRC))
-    stop("GOApollock is not installed and the source checkout is missing: ", GOAPOLLOCK_SRC)
+# GOApollock package (functions only). Prefer the installed package; else load a
+# source checkout via GOAPOLLOCK_SRC.
+if (requireNamespace("GOApollock", quietly = TRUE)) {
+  library(GOApollock)
+} else if (!is.na(GOAPOLLOCK_SRC) && dir.exists(GOAPOLLOCK_SRC)) {
   pkgload::load_all(GOAPOLLOCK_SRC, quiet = TRUE)
 } else {
-  library(GOApollock)
+  stop("GOApollock is not installed. Install it (see header) or set the ",
+       "GOAPOLLOCK_SRC environment variable to a source checkout.")
 }
 
-# ---- Stage the build directory ---------------------------------------------
-# Cole's dat file + his unmodified source, plus our tagged copy. Keeping both
-# .cpp files side by side means `diff` shows exactly what the corrections did.
+# ---- Stage the build directory from the vendored inputs --------------------
+# Cole's original source + our tagged corrected copy side by side, so `diff`
+# shows exactly what the corrections did.
 dir.create(BUILD, showWarnings = FALSE, recursive = TRUE)
 stage <- function(from, to) {
   if (!file.exists(from)) stop("missing input: ", from)
   file.copy(from, file.path(BUILD, to), overwrite = TRUE)
 }
-stage(file.path(GOAPOLLOCK_SRC, "data/2024", DATFILE), DATFILE)
-stage(file.path(GOAPOLLOCK_SRC, "source/goa_pk.cpp"),  "goa_pk.cpp")
-stage("reference/goa_pk_2024_mfix.cpp",                "goa_pk_mfix.cpp")
+stage(file.path(VENDOR, DATFILE),           DATFILE)           # dat file
+stage(file.path(VENDOR, "goa_pk.cpp"),      "goa_pk.cpp")      # Cole's original source
+stage(file.path(VENDOR, "goa_pk_mfix.cpp"), "goa_pk_mfix.cpp") # corrected (A1/A3/A4)
 
 # ---- Shared input ----------------------------------------------------------
 # Mirrors data/2024/run_assessment.R.

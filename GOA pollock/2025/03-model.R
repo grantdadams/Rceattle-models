@@ -15,15 +15,24 @@
 # The only residual (~0.013) is the Dirichlet-multinomial
 # linear-parameterization offset ((1 + o*A), o = 1e-5), which is negligible.
 
-# Bridging a bug-corrected goa_pk  shows the two models share the same conditional likelihood at a goa_pk's MLEs.
-# The marginal objectives differ because goa_pk integrates only Ecov_exp (55 states, marginal -
-# conditional gap ~108), while this Rceattle config integrates the recruitment
-# deviations, the linkage random effects and the q random walk (164 states, gap
-# ~288). At the mode the random density equals the penalty, so the conditional
-# match is exact; but the two fitted models' sdreport uncertainties on SSB /
-# recruitment / reference points will not be identical, and the free-fit
-# conditional difference (~-15 here) is partly this structural difference, not
-# only multimodality.
+# Bridging a bug-corrected goa_pk shows the two models share the same CONDITIONAL
+# likelihood at goa_pk's MLEs (the forward pass matches to ~1e-11). Their MARGINAL
+# (Laplace) objectives differ only because they integrate different random
+# effects -- goa_pk only Ecov_exp; this Rceattle config also integrates the
+# recruitment deviations and the q random walk -- a modelling choice, not a
+# discrepancy (at the mode the random density equals the penalty).
+#
+# On UNCERTAINTY, the two sdreports are empirically nearly identical for the
+# data-informed quantities: SSB SEs match goa_pk to ~1% in EVERY year and
+# recruitment SEs match across the historical series (CV ratios ~1.00). The one
+# systematic difference is the recruitment-process SD: Rceattle ESTIMATES it
+# (R_sd ~= 1.02) whereas goa_pk FIXES sigmaR = 1.3 (a weakly-identified-
+# hyperparameter AFSC convention). So only in the data-poor TERMINAL year, where
+# the process SD dominates the recruitment SE, do they diverge -- and there
+# Rceattle's is ~20% SMALLER (its tighter estimated SD), NOT larger. Neither is
+# "wrong": goa_pk conditions on sigmaR = 1.3, Rceattle estimates it. The free-fit
+# conditional difference (~-15 here) is multimodality (a slightly better optimum
+# from the OffsetEquilibrium init), not this SD/random-effect difference.
 #
 # --- (A) Changes made to goa_pk model -----------------------------------
 #   Implemented by "00-fit-goa_pk.R", which produces both fitted objects loaded
