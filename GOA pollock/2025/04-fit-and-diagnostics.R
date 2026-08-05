@@ -29,8 +29,22 @@ pollock25$fleet_control$Comp_accum_young[SHELIKOF] <- 3L
 # fleet_control$Comp_weights); estimated freely from there.
 pollock25$fleet_control$Comp_weights[c(FISHERY, 1, BOTTOM_TRAWL, 3, 6)] <- pl$log_DM_pars
 
+# Survey-3 (adfg) time-varying q is expressed through the linkage grammar below,
+# so switch off the legacy fleet_control mode it replaces.
+ADFG <- 3L
+pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # -> rw(1 | Year) on q, below
+
+# TODO: also express the fishery ascending-selectivity random walk
+# (Time_varying_sel = "RandomWalkAscending") through the grammar. It is left on
+# the legacy switch for now because it is a *penalized fixed effect* (goa_pk
+# convention), whereas the grammar's rw() is a Laplace-integrated random effect
+# -- integrating it shifts the fit (~14% SSB) and breaks exact goa_pk
+# reproduction. Convert once linkage_spec() gains an `integrate = FALSE` switch
+# (penalized fixed effect, permitted only with a fixed sigma).
+
 # Linkages name their fleets (can also use Fleet_code):
 SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
+ADFG_SURVEY       <- "Pollock_survey_3_adfg"
 ASC_LIMB_PRIOR_FLEETS  <- c("Pollock_survey_2_bottom_trawl",
                             "Pollock_survey_3_adfg",
                             "Pollock_survey_6_summer_acoustic",
@@ -45,16 +59,25 @@ DM_PRIOR_FLEETS        <- c("GOA_pollock_fishery",
                             "Pollock_survey_3_adfg",
                             "Pollock_survey_6_summer_acoustic")
 
-# * QAR1 ----
+# * Catchability: QAR1 (Shelikof) + random-walk q (adfg) ----
+# Shelikof is the state-space QAR1; the adfg survey is a random walk on q. The
+# random-walk SD is fixed at 0.05 (init = list(sigma = ...) with no sigma prior
+# fixes it), matching the legacy Time_varying_q RW penalty (index_q_dev_sd).
 q_spec <- build_catchability(linkages = list(
-  q = linkage_spec(~ ar1(1 | Year),
-                   by = ~ fleet,
-                   fleet = SHELIKOF_ACOUSTIC,
-                   observe = "QcovPol",
-                   obs_sd = exp(pl$log_Ecov_obs_sd))))
+  q = list(
+    linkage_spec(~ ar1(1 | Year),
+                 by = ~ fleet,
+                 fleet = SHELIKOF_ACOUSTIC,
+                 observe = "QcovPol",
+                 obs_sd = exp(pl$log_Ecov_obs_sd)),
+    linkage_spec(~ rw(1 | Year),
+                 by = ~ fleet,
+                 fleet = ADFG_SURVEY,
+                 init = list(sigma = 0.05)))))
 
 # * Selectivity priors ----
-# mirror goa_pk exactly (both limbs on srv2 and srv6).
+# mirror goa_pk exactly (both limbs on srv2 and srv6). The fishery ascending-limb
+# random walk stays on the legacy Time_varying_sel switch (see TODO above).
 sel_spec <- build_selectivity(linkages = list(
   slp_asc  = linkage_spec(~ 1,
                           fleet = ASC_LIMB_PRIOR_FLEETS,

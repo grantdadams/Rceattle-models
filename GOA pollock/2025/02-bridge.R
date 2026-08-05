@@ -75,11 +75,17 @@ DM_PRIOR        <- c("GOA_pollock_fishery",
 # exp(log_Ecov_obs_sd). Process SD (log_Ecov_sd) and rho (transf_rho) are
 # estimated; the effect size is Ecov_beta.
 q_spec <- build_catchability(linkages = list(
-  q = linkage_spec(~ ar1(1 | Year),
-                   by = ~ fleet,
-                   fleet = SHELIKOF_ACOUSTIC,
-                   observe = "QcovPol",
-                   obs_sd = exp(pl$log_Ecov_obs_sd))))
+  q = list(
+    linkage_spec(~ ar1(1 | Year),
+                 by = ~ fleet,
+                 fleet = SHELIKOF_ACOUSTIC,
+                 observe = "QcovPol",
+                 obs_sd = exp(pl$log_Ecov_obs_sd)),
+    # srv3 (adfg) random-walk q, SD fixed at 0.05 (was legacy Time_varying_q)
+    linkage_spec(~ rw(1 | Year),
+                 by = ~ fleet,
+                 fleet = "Pollock_survey_3_adfg",
+                 init = list(sigma = 0.05)))))
 
 # (2) Selectivity priors. Slopes are on the log scale (lognormal),
 # asymptote on the natural scale (normal).
@@ -105,8 +111,9 @@ pollock25$fleet_control$Selectivity_index[FISHERY] <- FISHERY
 # / random-walk on q1 (Catchability = free mean + the ar1() linkage on top).
 pollock25$fleet_control$Catchability[SHELIKOF]    <- "Estimated"
 pollock25$fleet_control$Time_varying_q[SHELIKOF]  <- "Off"
-# srv3 keeps its legacy random-walk q (Cole's log_q3_dev); srv2 is an estimated q with
-# the BT catchability prior N(log 0.85, 0.1).
+# srv3's legacy random-walk q is now a rw(1 | Year) linkage (above), so switch
+# off its legacy mode; srv2 is an estimated q with the BT prior N(log 0.85, 0.1).
+pollock25$fleet_control$Time_varying_q[3] <- "Off"
 pollock25$fleet_control$Catchability[2] <- "Estimated-with-prior"
 pollock25$fleet_control$Catchability_init[2]       <- 0.85
 pollock25$fleet_control$Catchability_prior_sd[2]   <- 0.1
@@ -174,18 +181,28 @@ inits$sel_inf_dev[2, FISHERY, 1, ]    <- pl$inf2_fsh_dev
 # -- Catchability means ------------------------------------------------------
 inits$index_log_q[1:6] <- unlist(pl[c("log_q1_mean", "log_q2_mean", "log_q3_mean",
                                       "log_q4", "log_q5", "log_q6")])
-# srv3 keeps the legacy random-walk q deviates (Cole's log_q3_dev)
-if (!is.null(inits$index_q_dev)) inits$index_q_dev[3, ] <- pl$log_q3_dev
-# q3 random-walk SD. The corrected local goa_pk sets q3_rwlk_sd to a CONSTANT
-# 0.05 for all years (Rceattle cant match the per-year 0.001/0.05 vector).
-if (!is.null(inits$index_q_dev_log_sd)) inits$index_q_dev_log_sd[3] <- log(0.05)
 
-# -- QAR1 parameters (replace the legacy index_q_dev/rho/beta path) ---
+# -- Linkage random-effect states: Shelikof QAR1 + srv3 random-walk q ---------
+# beta_linkage_re now carries two q groups. The grammar pins a random walk's
+# first deviate to 0, so fold srv3's first deviate (Cole's log_q3_dev[1]) into
+# its base q and shift the walk to start at 0 -- an exact reparametrization of
+# goa_pk's (base + deviate). Slots come from the linkage table (re_index by year).
+.qre <- as.data.frame(skel$data_list$linkage_table)
+.qre <- .qre[.qre$process == "q" & !is.na(.qre$re_struct), ]
+.she <- .qre[.qre$fleet == SHELIKOF, ]; .she <- .she[order(.she$re_time), ]
+.adf <- .qre[.qre$fleet == 3L, ];       .adf <- .adf[order(.adf$re_time), ]
+inits$beta_linkage_re[.she$re_index + 1L] <- pl$Ecov_exp                       # Shelikof AR1 latent
+inits$beta_linkage_re[.adf$re_index + 1L] <- pl$log_q3_dev - pl$log_q3_dev[1]  # srv3 RW (first -> 0)
+inits$index_log_q[3] <- pl$log_q3_mean + pl$log_q3_dev[1]                      # base absorbs srv3's first deviate
+# Process SD: set only the Shelikof AR1 group's slot; srv3's RW sigma is fixed at
+# 0.05 by the skeleton (init = list(sigma = 0.05)) and must stay put.
+inits$log_sigma_linkage[.she$sigma_index[1] + 1L] <- pl$log_Ecov_sd
+rm(.qre, .she, .adf)
+
+# -- QAR1 hyperparameters -----------------------------------------------------
 # The AR1 latent enters log q1 as beta_linkage_obs * beta_linkage_re, observed
-# against QcovPol with fixed SD; process SD and rho are the linkage hyperparams.
-inits$beta_linkage_re    <- pl$Ecov_exp                 # AR1 latent state (per year)
+# against QcovPol with fixed SD; rho is the AR1 correlation.
 inits$beta_linkage_obs   <- pl$Ecov_beta                # effect size on log q1
-inits$log_sigma_linkage  <- pl$log_Ecov_sd              # AR1 process SD
 inits$trans_rho_linkage  <- pl$transf_rho               # AR1 correlation (logit space)
 inits$log_obs_sd_linkage <- pl$log_Ecov_obs_sd          # fixed measurement SD
 
