@@ -32,15 +32,7 @@ pollock25$fleet_control$Comp_weights[c(FISHERY, 1, BOTTOM_TRAWL, 3, 6)] <- pl$lo
 # Survey-3 (adfg) time-varying q is expressed through the linkage grammar below,
 # so switch off the legacy fleet_control mode it replaces.
 ADFG <- 3L
-pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # -> rw(1 | Year) on q, below
-
-# TODO: also express the fishery ascending-selectivity random walk
-# (Time_varying_sel = "RandomWalkAscending") through the grammar. It is left on
-# the legacy switch for now because it is a *penalized fixed effect* (goa_pk
-# convention), whereas the grammar's rw() is a Laplace-integrated random effect
-# -- integrating it shifts the fit (~14% SSB) and breaks exact goa_pk
-# reproduction. Convert once linkage_spec() gains an `integrate = FALSE` switch
-# (penalized fixed effect, permitted only with a fixed sigma).
+pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # Using rw(1 | Year) on q, below
 
 # Linkages name their fleets (can also use Fleet_code):
 SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
@@ -61,17 +53,14 @@ DM_PRIOR_FLEETS        <- c("GOA_pollock_fishery",
 
 # * Catchability: QAR1 (Shelikof) + random-walk q (adfg) ----
 # Shelikof is the state-space QAR1; the adfg survey is a random walk on q. The
-# random-walk SD is fixed at 0.05 (init = list(sigma = ...) with no sigma prior
-# fixes it), matching the legacy Time_varying_q RW penalty (index_q_dev_sd).
+# random-walk SD is fixed at 0.05.
 q_spec <- build_catchability(linkages = list(
   q = list(
     linkage_spec(~ ar1(1 | Year),
-                 by = ~ fleet,
                  fleet = SHELIKOF_ACOUSTIC,
                  observe = "QcovPol",
                  obs_sd = exp(pl$log_Ecov_obs_sd)),
     linkage_spec(~ rw(1 | Year),
-                 by = ~ fleet,
                  fleet = ADFG_SURVEY,
                  init = list(sigma = 0.05)))))
 
@@ -100,8 +89,8 @@ comp_spec <- build_composition(linkages = list(
 
 # Fit ----
 mod_25 <- fit_mod(data_list = pollock25,
-                  estimateMode = "Hindcast",            # hindcast (add an HCR + estimateMode = "Estimate" to project)
-                  random_rec = TRUE, random_q = TRUE,
+                  estimateMode = "Hindcast",
+                  random_rec = TRUE,
                   msmMode = "SingleSpecies",
                   initMode = "OffsetEquilibrium",
                   qFun = q_spec, selFun = sel_spec, compFun = comp_spec,

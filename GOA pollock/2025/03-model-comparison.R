@@ -103,10 +103,9 @@ ADFG <- 3L
 pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # -> rw(1 | Year) on q, below
 
 # TODO: also express the fishery ascending-selectivity random walk
-# (Time_varying_sel = "RandomWalkAscending") through the grammar. Kept on the
+# (Time_varying_sel = "RandomWalkAscending"). Kept on the
 # legacy switch for now: it is a *penalized fixed effect* (goa_pk convention),
-# whereas the grammar's rw() is a Laplace-integrated random effect -- integrating
-# it shifts the fit (~14% SSB) and breaks exact goa_pk reproduction. Convert once
+# whereas the Rceattles's rw() is a random effect. Convert once
 # linkage_spec() gains an `integrate = FALSE` switch (penalized fixed effect,
 # permitted only with a fixed sigma).
 
@@ -206,7 +205,6 @@ pollock_2025 <- fit_mod(
   msmMode = "SingleSpecies",
   initMode = "OffsetEquilibrium",
   random_rec = TRUE,
-  random_q = TRUE,
   qFun = q_spec,
   selFun = sel_spec,
   compFun = comp_spec,
@@ -231,6 +229,7 @@ names <- c("goa_pk (original)", "goa_pk (corrected)", "Rceattle (forward-pass)",
 plot_biomass(mods, model_names = names)
 plot_ssb(mods, model_names = names)
 plot_recruitment(mods, model_names = names)
+plot_biomass(list(safe_corr, fwd))
 plot_index(pollock_2025)
 
 # * Total-NLL comparison ----
