@@ -3,9 +3,9 @@
 #
 # Two models are set-up
 #   (A) FORWARD-PASS -- map goa_pk's MLE parList onto the Rceattle parameters,
-#       hold them fixed (estimateMode = "DebugBuild"), and confirm the derived quantities and
-#       per-component likelihoods match `fit$rep` to ~1e-6. The one fix to goa_pk
-#       was the wrong M-indexing for initialization.
+#       hold them fixed (estimateMode = "DebugBuild"), and confirm the derived
+#       quantities and per-component likelihoods match `fit$rep` to <= 1e-8.
+#       See 03's reconciliation log (A1-A7) for the goa_pk-side fixes.
 #   (B) ESTIMATION -- fit from default inits and confirm convergence to goa_pk's objective.
 #
 # Requires: the data workbook (from "01-build-data.R") and
@@ -57,12 +57,14 @@ FISHERY  <- 8L
 # model still fits. SHELIKOF / FISHERY stay above -- they index fleet_control
 # rows, which is a position, not a fleet reference.
 SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
-ASC_LIMB_PRIOR  <- c("Pollock_survey_2_bottom_trawl",
+# Prior fleets, restricted to the limb each curve actually has: srv2/srv3 are
+# Logistic (ascending only), srv1/srv6 are DescendingLogistic (descending only),
+# the fishery is DoubleLogistic (both). A prior on the other limb would only add
+# a constant -- fit_mod() now rejects it.
+ASC_LIMB_PRIOR <- c("Pollock_survey_2_bottom_trawl",
                      "Pollock_survey_3_adfg",
-                     "Pollock_survey_6_summer_acoustic",
                      "GOA_pollock_fishery")
 DESC_LIMB_PRIOR <- c("Pollock_survey_1_shelikof_acoustic",
-                     "Pollock_survey_2_bottom_trawl",
                      "Pollock_survey_6_summer_acoustic",
                      "GOA_pollock_fishery")
 DM_PRIOR        <- c("GOA_pollock_fishery",
@@ -89,11 +91,24 @@ q_spec <- build_catchability(linkages = list(
 
 # (2) Selectivity priors. Slopes are on the log scale (lognormal),
 # asymptote on the natural scale (normal).
+# The ascending limb also carries the fishery random walk as a second spec.
+# goa_pk penalizes these deviates rather than integrating them, hence
+# integrate = FALSE, at sel_dev_sd on the slope and 4x that on the inflection.
+# Ascending only: goa_pk maps its descending deviates off, and A8 removes the
+# constant penalty it used to charge on them.
+SEL_RW_SD <- pollock25$fleet_control$Time_varying_sel_sd[FISHERY]
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR, # Survey 6 has the
-                          priors = list(`(Intercept)` = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
-                          priors = list(`(Intercept)` = normal(0, 3))),
+  slp_asc  = list(
+    linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
+                 priors = list(`(Intercept)` = lognormal(-1, 1.5))),
+    linkage_spec(~ rw(1 | Year), by = ~ fleet, fleet = "GOA_pollock_fishery",
+                 init = list(sigma = SEL_RW_SD), integrate = FALSE)),
+  inf_asc  = list(
+    linkage_spec(~ 1, by = ~ fleet, fleet = ASC_LIMB_PRIOR,
+                 priors = list(`(Intercept)` = normal(0, 3))),
+    linkage_spec(~ rw(1 | Year), by = ~ fleet, fleet = "GOA_pollock_fishery",
+                 link = "identity",
+                 init = list(sigma = 4 * SEL_RW_SD), integrate = FALSE)),
   slp_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
                           priors = list(`(Intercept)` = lognormal(-1, 1.5))),
   inf_desc = linkage_spec(~ 1, by = ~ fleet, fleet = DESC_LIMB_PRIOR,
@@ -114,6 +129,9 @@ pollock25$fleet_control$Time_varying_q[SHELIKOF]  <- "Off"
 # srv3's legacy random-walk q is now a rw(1 | Year) linkage (above), so switch
 # off its legacy mode; srv2 is an estimated q with the BT prior N(log 0.85, 0.1).
 pollock25$fleet_control$Time_varying_q[3] <- "Off"
+# All four fishery selectivity walks are rw(1 | Year) linkages now (above), so
+# switch off the legacy mode they replace.
+pollock25$fleet_control$Time_varying_sel[FISHERY] <- "Off"
 pollock25$fleet_control$Catchability[2] <- "Estimated-with-prior"
 pollock25$fleet_control$Catchability_init[2]       <- 0.85
 pollock25$fleet_control$Catchability_prior_sd[2]   <- 0.1
@@ -172,32 +190,54 @@ inits$log_sel_slp[2, c(1, 2, 6, 7, 8), 1] <-
 inits$sel_inf[2, c(1, 2, 6, 7, 8), 1] <-
   c(pl$inf2_srv1, pl$inf2_srv2, pl$inf2_srv6, pl$inf2_srv1, pl$inf2_fsh_mean)
 
-# -- Fishery time-varying selectivity deviates (random walk on the ascending limb)
-inits$log_sel_slp_dev[1, FISHERY, 1, ] <- pl$slp1_fsh_dev
-inits$log_sel_slp_dev[2, FISHERY, 1, ] <- pl$slp2_fsh_dev
-inits$sel_inf_dev[1, FISHERY, 1, ]    <- pl$inf1_fsh_dev
-inits$sel_inf_dev[2, FISHERY, 1, ]    <- pl$inf2_fsh_dev
+# -- Fishery time-varying selectivity deviates -------------------------------
+# All four walks are now rw() linkages, injected with the other linkage states
+# below; nothing goes into the legacy log_sel_slp_dev / sel_inf_dev arrays.
 
 # -- Catchability means ------------------------------------------------------
 inits$index_log_q[1:6] <- unlist(pl[c("log_q1_mean", "log_q2_mean", "log_q3_mean",
                                       "log_q4", "log_q5", "log_q6")])
 
-# -- Linkage random-effect states: Shelikof QAR1 + srv3 random-walk q ---------
-# beta_linkage_re now carries two q groups. The grammar pins a random walk's
-# first deviate to 0, so fold srv3's first deviate (Cole's log_q3_dev[1]) into
-# its base q and shift the walk to start at 0 -- an exact reparametrization of
-# goa_pk's (base + deviate). Slots come from the linkage table (re_index by year).
-.qre <- as.data.frame(skel$data_list$linkage_table)
-.qre <- .qre[.qre$process == "q" & !is.na(.qre$re_struct), ]
-.she <- .qre[.qre$fleet == SHELIKOF, ]; .she <- .she[order(.she$re_time), ]
-.adf <- .qre[.qre$fleet == 3L, ];       .adf <- .adf[order(.adf$re_time), ]
-inits$beta_linkage_re[.she$re_index + 1L] <- pl$Ecov_exp                       # Shelikof AR1 latent
-inits$beta_linkage_re[.adf$re_index + 1L] <- pl$log_q3_dev - pl$log_q3_dev[1]  # srv3 RW (first -> 0)
-inits$index_log_q[3] <- pl$log_q3_mean + pl$log_q3_dev[1]                      # base absorbs srv3's first deviate
-# Process SD: set only the Shelikof AR1 group's slot; srv3's RW sigma is fixed at
-# 0.05 by the skeleton (init = list(sigma = 0.05)) and must stay put.
+# -- Linkage random-effect states --------------------------------------------
+# Three groups now: the Shelikof QAR1 and the srv3 random walk are integrated
+# (beta_linkage_re); the two fishery selectivity walks are penalized
+# (beta_linkage_re_pen). Index by re_pos, NOT re_index: re_index is the slot in
+# the global numbering across both vectors, so it runs past the end of
+# beta_linkage_re_pen once both treatments are present.
+#
+# The grammar pins each walk's first deviate, but a pinned parameter is held at
+# whatever `inits` supplies -- not at 0 -- so goa_pk's deviates go in as they are
+# and every base stays equal to goa_pk's mean. Do NOT fold the first deviate into
+# the base: the fishery's base parameters carry the selectivity priors, and
+# shifting the level into the base moves the point those priors are evaluated at
+# (goa_pk evaluates them at the mean). The likelihood is invariant to the shift;
+# the prior is not.
+.lt  <- as.data.frame(skel$data_list$linkage_table)
+.lt  <- .lt[!is.na(.lt$re_struct), ]
+.grp <- function(proc, param, flt) {
+  g <- .lt[.lt$process == proc & .lt$param == param & .lt$fleet == flt, ]
+  g[order(g$re_time), ]
+}
+.she <- .grp("q", "q", SHELIKOF)
+.adf <- .grp("q", "q", 3L)
+
+inits$beta_linkage_re[.she$re_pos + 1L] <- pl$Ecov_exp        # Shelikof AR1 latent
+inits$beta_linkage_re[.adf$re_pos + 1L] <- pl$log_q3_dev      # srv3 RW, first deviate included
+
+# The four fishery selectivity walks. goa_pk's deviates go in unmodified and each
+# base stays at goa_pk's mean -- which is where goa_pk evaluates the selectivity
+# priors.
+for (.w in list(list("slp_asc", pl$slp1_fsh_dev),
+                list("inf_asc", pl$inf1_fsh_dev))) {
+  .g <- .grp("sel", .w[[1]], FISHERY)
+  inits$beta_linkage_re_pen[.g$re_pos + 1L] <- .w[[2]]
+}
+rm(.w, .g)
+
+# Process SD: set only the Shelikof AR1 group's slot. The srv3 walk and both
+# selectivity walks have their sigma fixed by the spec and must stay put.
 inits$log_sigma_linkage[.she$sigma_index[1] + 1L] <- pl$log_Ecov_sd
-rm(.qre, .she, .adf)
+rm(.lt, .grp, .she, .adf)
 
 # -- QAR1 hyperparameters -----------------------------------------------------
 # The AR1 latent enters log q1 as beta_linkage_obs * beta_linkage_re, observed

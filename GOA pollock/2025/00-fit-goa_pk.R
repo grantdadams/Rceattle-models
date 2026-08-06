@@ -4,18 +4,22 @@
 # Produces the two goa_pk objects every downstream 2025 script depends on:
 #
 #   Data/2024pollock.Rdata       -> `fit`  goa_pk as published (23d: 2024 final)
-#   Data/2024pollock_mfix.Rdata  -> `fit`  goa_pk with corrections A1-A6
+#   Data/2024pollock_mfix.Rdata  -> `fit`  goa_pk with corrections A1-A9
 #
-# The corrections are the ones listed in the RECONCILIATION LOG at the top of
-# "03-model.R". Three are source-side and live in the tagged copy of the model
-# (reference/goa_pk_2024_mfix.cpp, every change marked "GRANT"):
+# The corrections are listed in the RECONCILIATION LOG at the top of
+# "03-model-comparison.R". These live in the tagged copy of the model
+# (2025/goa_pk/goa_pk_mfix.cpp, every change marked "GRANT"):
 #
 #   A1. Initial age-structure M-index bug fix (exp(-M(j+1)) -> exp(-M(j))).
 #   A3. Removed the q1/q2 random-walk penalties (~527 units of normalizing
 #       constant on deviates that are pinned at 0).
 #   A4. Lognormal bias correction (-sd^2/2) on total catch.
+#   A8. Removed the descending fishery selectivity random-walk penalties
+#       (149.4338 of constant on deviates mapped off at 0; same case as A3).
+#   A9. Removed the selectivity priors on mapped-off limbs (srv2 descending,
+#       srv6 ascending), which goa_pk already omits for srv1 and srv3.
 #
-# and three are data-side and are applied here:
+# the rest are data- or map-side and are applied here:
 #
 #   A2. Constant q3 random-walk SD (0.05 for all years, replacing the per-year
 #       0.001 / 0.05 vector) -- Rceattle has one RW SD per fleet.
@@ -95,7 +99,7 @@ message("  Wrote Data/2024pollock.Rdata   marginal ", round(fit$opt$objective, 4
         " | conditional ", round(-sum(fit$rep$loglik), 4))
 fit_orig <- fit
 
-# ---- (2) goa_pk corrected (A1-A6) ------------------------------------------
+# ---- (2) goa_pk corrected (A1-A9) ------------------------------------------
 input <- base_input("goa_pk_mfix")
 
 # A2: single random-walk SD on q3. pk24_12.txt carries 0.001 in most years and
@@ -117,7 +121,26 @@ comp_mats <- c("catp", "srvp1", "srvp2", "srvp3", "srvp6",
                "lenp", "srvlenp1", "srvlenp2", "srvlenp3", "srvlenp6")
 for (nm in comp_mats) input$dat[[nm]] <- renorm(input$dat[[nm]])
 
-message("Fitting goa_pk (corrected, A1-A6) ...")
+# A7: fix the same end of the fishery ascending random walk that Rceattle does.
+# goa_pk fixes the MEAN (log_slp1_fsh_mean, inf1_fsh_mean) and estimates all 55
+# deviates; Rceattle's rw() fixes the FIRST deviate and estimates the mean. Both
+# reach the same year-by-year selectivity with the same 55 free parameters, and
+# the walk penalty is identical because it sees only successive differences -- so
+# the two are already equivalent for the likelihood. Where they differ is the
+# prior: the template carries dnorm(log_slp1_fsh_mean, -1, 1.5) and
+# dnorm(inf1_fsh_mean, 0, 3), matching the Rceattle selectivity priors, but a
+# prior on a mapped-off parameter is an inert constant. Freeing the mean and
+# fixing the first deviate activates it, so the two models become identical
+# rather than equivalent-up-to-that-prior.
+ndev <- length(input$pars$slp1_fsh_dev)
+input$map$log_slp1_fsh_mean <- factor(1)
+input$map$inf1_fsh_mean     <- factor(1)
+input$map$slp1_fsh_dev <- factor(c(NA, seq_len(ndev - 1L)))
+input$map$inf1_fsh_dev <- factor(c(NA, seq_len(ndev - 1L)))
+input$pars$slp1_fsh_dev[1] <- 0
+input$pars$inf1_fsh_dev[1] <- 0
+
+message("Fitting goa_pk (corrected, A1-A9) ...")
 fit <- fit_pk(input, getsd = TRUE, filename = NULL, verbose = FALSE)
 save(fit, file = "Data/2024pollock_mfix.Rdata")
 message("  Wrote Data/2024pollock_mfix.Rdata   marginal ", round(fit$opt$objective, 4),
@@ -130,7 +153,10 @@ fit_mfix <- fit   # keep a handle to the corrected fit for the summary below
 # GOApollock's estSigR path). Lands on ~1.016, matching Rceattle's R_sd.
 input_estSigR <- input
 input_estSigR$map$sigmaR <- factor(1)          # free the recruitment-process SD
-input_estSigR$random     <- "dev_log_recruit"  # integrate rec devs (Laplace)
+# Append, don't replace: the input already integrates the Shelikof Ecov latent,
+# and overwriting dropped it, leaving that latent a fixed effect here while
+# Rceattle integrates it -- not a like-for-like uncertainty comparison.
+input_estSigR$random <- union(input_estSigR$random, "dev_log_recruit")
 message("Fitting goa_pk (corrected, sigmaR estimated) ...")
 fit <- fit_pk(input_estSigR, getsd = TRUE, filename = NULL, verbose = FALSE)
 save(fit, file = "Data/2024pollock_mfix_estSigR.Rdata")
@@ -144,7 +170,7 @@ fit_estSigR <- fit
 # objective and the two models integrate different sets of random effects.
 cat("\n== goa_pk fits ==\n")
 print(data.frame(
-  model       = c("original", "corrected (A1-A6)", "corrected, sigmaR est."),
+  model       = c("original", "corrected (A1-A9)", "corrected, sigmaR est."),
   marginal    = round(c(fit_orig$opt$objective, fit_mfix$opt$objective,
                         fit_estSigR$opt$objective), 4),
   conditional = round(c(-sum(fit_orig$rep$loglik), -sum(fit_mfix$rep$loglik),

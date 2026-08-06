@@ -34,15 +34,24 @@ pollock25$fleet_control$Comp_weights[c(FISHERY, 1, BOTTOM_TRAWL, 3, 6)] <- pl$lo
 ADFG <- 3L
 pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # Using rw(1 | Year) on q, below
 
+# Fishery ascending-limb random walk also moves to the grammar; switch off the
+# legacy mode. goa_pk penalizes these deviates rather than integrating them,
+# hence integrate = FALSE. The legacy penalty uses sel_dev_sd on the slope and
+# 4x that on the inflection, so the two take different sigmas.
+SEL_RW_SD <- pollock25$fleet_control$Time_varying_sel_sd[FISHERY]
+pollock25$fleet_control$Time_varying_sel[FISHERY] <- "Off"  # -> rw(1 | Year), below
+
 # Linkages name their fleets (can also use Fleet_code):
 SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
 ADFG_SURVEY       <- "Pollock_survey_3_adfg"
-ASC_LIMB_PRIOR_FLEETS  <- c("Pollock_survey_2_bottom_trawl",
+# Prior fleets, restricted to the limb each curve actually has: srv2/srv3 are
+# Logistic (ascending only), srv1/srv6 are DescendingLogistic (descending only),
+# the fishery is DoubleLogistic (both). A prior on the other limb would only add
+# a constant -- fit_mod() now rejects it.
+ASC_LIMB_PRIOR_FLEETS <- c("Pollock_survey_2_bottom_trawl",
                             "Pollock_survey_3_adfg",
-                            "Pollock_survey_6_summer_acoustic",
                             "GOA_pollock_fishery")
 DESC_LIMB_PRIOR_FLEETS <- c("Pollock_survey_1_shelikof_acoustic",
-                            "Pollock_survey_2_bottom_trawl",
                             "Pollock_survey_6_summer_acoustic",
                             "GOA_pollock_fishery")
 DM_PRIOR_FLEETS        <- c("GOA_pollock_fishery",
@@ -64,22 +73,39 @@ q_spec <- build_catchability(linkages = list(
                  fleet = ADFG_SURVEY,
                  init = list(sigma = 0.05)))))
 
-# * Selectivity priors ----
-# mirror goa_pk exactly (both limbs on srv2 and srv6). The fishery ascending-limb
-# random walk stays on the legacy Time_varying_sel switch (see TODO above).
+# * Selectivity priors + fishery ascending random walk ----
+# Priors mirror goa_pk exactly (both limbs on srv2 and srv6). The ascending limb
+# takes a second spec: the ~ 1 spec keeps the shared prior, the walk adds
+# fishery-only deviates around it. Ascending only -- goa_pk maps its descending
+# deviates off and estimates just slp1/inf1. (02-bridge.R walks all four, because
+# reproducing goa_pk's likelihood needs the constant penalty it still charges on
+# those fixed-at-zero deviates.)
+# The two models fix opposite ends of this walk; see A7.
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1,
-                          fleet = ASC_LIMB_PRIOR_FLEETS,
-                          priors = list(intercept = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1,
-                          fleet = ASC_LIMB_PRIOR_FLEETS,
-                          priors = list(intercept = normal(0, 3))),
+  slp_asc  = list(
+    linkage_spec(~ 1,
+                 fleet = ASC_LIMB_PRIOR_FLEETS,
+                 priors = list(intercept = lognormal(-1, 1.5))),
+    linkage_spec(~ rw(1 | Year),
+                 fleet = "GOA_pollock_fishery",
+                 init = list(sigma = SEL_RW_SD),
+                 integrate = FALSE)),
+  inf_asc  = list(
+    linkage_spec(~ 1,
+                 fleet = ASC_LIMB_PRIOR_FLEETS,
+                 priors = list(intercept = normal(0, 3))),
+    # 4x SD: the legacy penalty weights the inflection deviate at 4 * sel_dev_sd.
+    linkage_spec(~ rw(1 | Year),
+                 fleet = "GOA_pollock_fishery",
+                 link = "identity",
+                 init = list(sigma = 4 * SEL_RW_SD), integrate = FALSE)),
   slp_desc = linkage_spec(~ 1,
                           fleet = DESC_LIMB_PRIOR_FLEETS,
                           priors = list(intercept = lognormal(-1, 1.5))),
   inf_desc = linkage_spec(~ 1,
                           fleet = DESC_LIMB_PRIOR_FLEETS,
                           priors = list(intercept = normal(10, 3)))))
+
 # * Dirichlet-multinomial prior ----
 # (dnorm(log_DM_pars, 0, 2)).
 comp_spec <- build_composition(linkages = list(
@@ -93,7 +119,9 @@ mod_25 <- fit_mod(data_list = pollock25,
                   random_rec = TRUE,
                   msmMode = "SingleSpecies",
                   initMode = "OffsetEquilibrium",
-                  qFun = q_spec, selFun = sel_spec, compFun = comp_spec,
+                  qFun = q_spec,
+                  selFun = sel_spec,
+                  compFun = comp_spec,
                   fit_control = fit_control(phase = TRUE, verbose = 1,
                                             bias_adjust_proc = FALSE))
 

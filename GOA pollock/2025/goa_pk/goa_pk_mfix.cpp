@@ -1165,8 +1165,13 @@ Type objective_function<Type>::operator() ()
     for(i=y0+1;i<=y1;i++){
       loglik(18) += dnorm(slp1_fsh_dev(i)-slp1_fsh_dev(i-1), Type(0.0), rwlk_sd(i-1), true);
       loglik(18) += dnorm(inf1_fsh_dev(i)-inf1_fsh_dev(i-1), Type(0.0), 4*rwlk_sd(i-1), true);
-      loglik(18) += dnorm(slp2_fsh_dev(i)-slp2_fsh_dev(i-1), Type(0.0), rwlk_sd(i-1), true);
-      loglik(18) += dnorm(inf2_fsh_dev(i)-inf2_fsh_dev(i-1), Type(0.0), 4*rwlk_sd(i-1), true);
+      // GRANT (A8): slp2_fsh_dev and inf2_fsh_dev are mapped off at 0, so these
+      // two terms are pure dnorm(0, 0, rwlk_sd) normalizing constants (149.4338
+      // total) on deviates the model never estimates -- the same situation A3
+      // removed for q1/q2. Rceattle cannot charge them, so leaving them in
+      // offsets every objective comparison by that amount.
+      // loglik(18) += dnorm(slp2_fsh_dev(i)-slp2_fsh_dev(i-1), Type(0.0), rwlk_sd(i-1), true);
+      // loglik(18) += dnorm(inf2_fsh_dev(i)-inf2_fsh_dev(i-1), Type(0.0), 4*rwlk_sd(i-1), true);
       // GRANT (A3): q1 now enters through the Ecov/AR1 link and q2 is fixed, so
       // log_q1_dev and log_q2_dev are pinned at 0 and these two terms are pure
       // dnorm(0, 0, rwlk_sd) normalizing constants (~527 units total). Rceattle
@@ -1191,17 +1196,22 @@ Type objective_function<Type>::operator() ()
     loglik(22) += dnorm(log_slp2_srv1, Type(-1.0),Type(1.5), true);
     // loglik(22) += dnorm(inf1_srv1, Type(0.0),Type(3.0), true);
     loglik(22) += dnorm(inf2_srv1, Type(10.0),Type(3.0), true);
+    // GRANT (A9): srv2's descending parameters are mapped off, so these two are
+    // priors on values the fit never moves -- constants, like the srv1/srv3
+    // cases already commented out below. Rceattle does not carry them either.
     loglik(22) += dnorm(log_slp1_srv2, Type(-1.0),Type(1.5), true);
-    loglik(22) += dnorm(log_slp2_srv2, Type(-1.0),Type(1.5), true);
+    // loglik(22) += dnorm(log_slp2_srv2, Type(-1.0),Type(1.5), true);
     loglik(22) += dnorm(inf1_srv2, Type(0.0),Type(3.0), true);
-    loglik(22) += dnorm(inf2_srv2, Type(10.0),Type(3.0), true);
+    // loglik(22) += dnorm(inf2_srv2, Type(10.0),Type(3.0), true);
     loglik(22) += dnorm(log_slp1_srv3, Type(-1.0),Type(1.5), true);
     // loglik(22) += dnorm(log_slp2_srv3, Type(-1.0),Type(1.5), true);
     loglik(22) += dnorm(inf1_srv3, Type(0.0),Type(3.0), true);
     // loglik(22) += dnorm(inf2_srv3, Type(10.0),Type(3.0), true);
-    loglik(22) += dnorm(log_slp1_srv6, Type(-1.0),Type(1.5), true);
+    // GRANT (A9): srv6's ascending parameters are mapped off -- same as srv2's
+    // descending pair above.
+    // loglik(22) += dnorm(log_slp1_srv6, Type(-1.0),Type(1.5), true);
     loglik(22) += dnorm(log_slp2_srv6, Type(-1.0),Type(1.5), true);
-    loglik(22) += dnorm(inf1_srv6, Type(0.0),Type(3.0), true);
+    // loglik(22) += dnorm(inf1_srv6, Type(0.0),Type(3.0), true);
     loglik(22) += dnorm(inf2_srv6, Type(10.0),Type(3.0), true);
     loglik(22) += dnorm(log_DM_pars, Type(0.0), Type(2.0),true).sum();
 

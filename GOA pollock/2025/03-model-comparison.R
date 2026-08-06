@@ -10,10 +10,18 @@
 # =============================================================================
 #
 
+# NOTE: corrections A7-A9 change goa_pk and are NOT in the saved Data/*.Rdata
+# fits. Re-run "00-fit-goa_pk.R" before trusting any comparison below.
+#
 # Bridging a bug-corrected goa_pk shows the two models share the same conditional
-# likelihood at goa_pk's MLEs.  Uncertainty matches too, with sigmaR estimated
-# (00-fit-goa_pk.R -> Data/2024pollock_mfix_estSigR.Rdata): all CVs match to 3 decimals.
-# Note, there isa separate multimodality from the "OffsetEquilibrium" initialization.
+# likelihood at goa_pk's MLEs (forward pass, <= 1e-8).
+#
+# The free fits are compared against the sigmaR-ESTIMATED goa_pk, not the
+# sigmaR = 1.3 one. Rceattle estimates the recruitment-process SD and integrates
+# the deviates, so that is the variant posing the same estimation problem;
+# comparing against the fixed-sigmaR fit instead moves SSB by ~9% and
+# recruitment by ~17%. A constant still separates the two objectives -- see the
+# decomposition printed at the end.
 #
 # --- (A) Changes made to goa_pk -----------------------------------
 #   Implemented by "2025/00-fit-goa_pk.R" and "reference/goa_pk_2024_mfix.cpp"
@@ -40,6 +48,18 @@
 #       pk24_12.txt proportions, which sum to ~1.00001;
 #       Rceattle normalizes every comp row to 1 in rearrange_data() before
 #       fitting.
+#   A7. Fishery ascending random walk: fix the same end Rceattle does. goa_pk
+#       maps the mean off and estimates all 55 deviates; Rceattle estimates the
+#       mean and fixes deviate 1. Same likelihood and same 55 parameters, but a
+#       prior on a mapped-off mean is inert, so only this makes the two
+#       estimation problems identical. Costs +0.089 in goa_pk's conditional NLL.
+#   A8. Removed the descending fishery selectivity random-walk penalties.
+#       slp2_fsh_dev / inf2_fsh_dev are mapped off at 0, so those terms were
+#       normalizing constants (149.4338) on deviates the model never estimates --
+#       the same case as A3. Rceattle has no way to charge them.
+#   A9. Removed the selectivity priors on mapped-off limbs (srv2 descending,
+#       srv6 ascending). goa_pk already omits these for srv1 and srv3; srv2 and
+#       srv6 were inconsistent. Rceattle now rejects such a prior outright.
 #
 # --- (B) Rceattle features added ------------------------------------
 #   B1. initMode = "OffsetEquilibrium": seeds the initial ages off the first-year
@@ -70,11 +90,15 @@ library(ggplot2)
 
 # Data ----
 pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
-load("Data/2024pollock.Rdata")                 # Original goa_pk fit
+load("Data/2024pollock.Rdata")                 # goa_pk as published
 fit_orig <- fit
-load("Data/2024pollock_mfix_estSigR.Rdata")    # Corrected goa_pk fit sigmaR estimated
+load("Data/2024pollock_mfix.Rdata")            # corrected, sigmaR fixed at 1.3
+fit_sigRfix <- fit
+# The comparison model is the sigmaR-ESTIMATED fit: Rceattle estimates the
+# recruitment-process SD and integrates the deviates, so this is the variant
+# that poses the same estimation problem. `fit` refers to it from here on.
+load("Data/2024pollock_mfix_estSigR.Rdata")    # corrected, sigmaR estimated
 fit_estSigR <- fit
-load("Data/2024pollock_mfix.Rdata")            # Corrected goa_pk fit sigmaR fixed = 1.3
 
 
 pl <- fit$obj$env$parList()          # skeleton: shapes, and the mapped-off pars
@@ -89,7 +113,8 @@ SHELIKOF <- 1L; FISHERY <- 8L
 nyrs <- length(pollock25$styr:pollock25$endyr)
 
 # Model configuration ----
-# identical to "02-bridge.R"
+# As "02-bridge.R", but the fishery ascending random walk uses the linkage
+# grammar here; 02-bridge.R injects goa_pk's deviates into the legacy arrays.
 pollock25$fleet_control$Selectivity_index[FISHERY] <- FISHERY
 pollock25$fleet_control$Catchability[SHELIKOF]   <- "Estimated"
 pollock25$fleet_control$Time_varying_q[SHELIKOF] <- "Off"
@@ -102,12 +127,12 @@ pollock25$fleet_control$Catchability_prior_sd[2] <- 0.1
 ADFG <- 3L
 pollock25$fleet_control$Time_varying_q[ADFG] <- "Off"   # -> rw(1 | Year) on q, below
 
-# TODO: also express the fishery ascending-selectivity random walk
-# (Time_varying_sel = "RandomWalkAscending"). Kept on the
-# legacy switch for now: it is a *penalized fixed effect* (goa_pk convention),
-# whereas the Rceattles's rw() is a random effect. Convert once
-# linkage_spec() gains an `integrate = FALSE` switch (penalized fixed effect,
-# permitted only with a fixed sigma).
+# Fishery ascending-limb random walk also moves to the grammar; switch off the
+# legacy mode. goa_pk penalizes these deviates rather than integrating them,
+# hence integrate = FALSE. The legacy penalty uses sel_dev_sd on the slope and
+# 4x that on the inflection, so the two take different sigmas.
+SEL_RW_SD <- pollock25$fleet_control$Time_varying_sel_sd[FISHERY]
+pollock25$fleet_control$Time_varying_sel[FISHERY] <- "Off"  # -> rw(1 | Year), below
 
 # Composition young-age accumulation (fishery age-1 -> 2; Shelikof ages 1-2 -> 3).
 pollock25$fleet_control$Comp_accum_young <- 1L
@@ -122,12 +147,14 @@ pollock25$fleet_control$Comp_weights[c(FISHERY, 1, 2, 3, 6)] <- pl$log_DM_pars
 # Linkages name their fleets (can also use Fleet_code):
 SHELIKOF_ACOUSTIC <- "Pollock_survey_1_shelikof_acoustic"
 ADFG_SURVEY       <- "Pollock_survey_3_adfg"
-ASC_LIMB_PRIOR  <- c("Pollock_survey_2_bottom_trawl",
+# Prior fleets, restricted to the limb each curve actually has: srv2/srv3 are
+# Logistic (ascending only), srv1/srv6 are DescendingLogistic (descending only),
+# the fishery is DoubleLogistic (both). A prior on the other limb would only add
+# a constant -- fit_mod() now rejects it.
+ASC_LIMB_PRIOR <- c("Pollock_survey_2_bottom_trawl",
                      "Pollock_survey_3_adfg",
-                     "Pollock_survey_6_summer_acoustic",
                      "GOA_pollock_fishery")
 DESC_LIMB_PRIOR <- c("Pollock_survey_1_shelikof_acoustic",
-                     "Pollock_survey_2_bottom_trawl",
                      "Pollock_survey_6_summer_acoustic",
                      "GOA_pollock_fishery")
 DM_PRIOR        <- c("GOA_pollock_fishery",
@@ -152,21 +179,39 @@ q_spec <- build_catchability(linkages = list(
                  fleet = ADFG_SURVEY,
                  init = list(sigma = 0.05)))))
 
-# * Selectivity priors ----
-# mirror goa_pk exactly (both limbs on srv2 and srv6).
+# * Selectivity priors + fishery ascending random walk ----
+# Priors mirror goa_pk exactly (both limbs on srv2 and srv6). The ascending limb
+# takes a second spec: the ~ 1 spec keeps the shared prior, the walk adds
+# fishery-only deviates around it. Ascending only -- goa_pk maps its descending
+# deviates off and estimates just slp1/inf1. (02-bridge.R walks all four, because
+# reproducing goa_pk's likelihood needs the constant penalty it still charges on
+# those fixed-at-zero deviates.)
+# The two models fix opposite ends of this walk; see A7.
 sel_spec <- build_selectivity(linkages = list(
-  slp_asc  = linkage_spec(~ 1,
-                          fleet = ASC_LIMB_PRIOR,
-                          priors = list(intercept = lognormal(-1, 1.5))),
-  inf_asc  = linkage_spec(~ 1,
-                          fleet = ASC_LIMB_PRIOR,
-                          priors = list(intercept = normal(0, 3))),
+  slp_asc  = list(
+    linkage_spec(~ 1,
+                 fleet = ASC_LIMB_PRIOR,
+                 priors = list(intercept = lognormal(-1, 1.5))),
+    linkage_spec(~ rw(1 | Year),
+                 fleet = "GOA_pollock_fishery",
+                 init = list(sigma = SEL_RW_SD),
+                 integrate = FALSE)),
+  inf_asc  = list(
+    linkage_spec(~ 1,
+                 fleet = ASC_LIMB_PRIOR,
+                 priors = list(intercept = normal(0, 3))),
+    # 4x SD: the legacy penalty weights the inflection deviate at 4 * sel_dev_sd.
+    linkage_spec(~ rw(1 | Year),
+                 fleet = "GOA_pollock_fishery",
+                 link = "identity",
+                 init = list(sigma = 4 * SEL_RW_SD), integrate = FALSE)),
   slp_desc = linkage_spec(~ 1,
                           fleet = DESC_LIMB_PRIOR,
                           priors = list(intercept = lognormal(-1, 1.5))),
   inf_desc = linkage_spec(~ 1,
                           fleet = DESC_LIMB_PRIOR,
                           priors = list(intercept = normal(10, 3)))))
+
 # * Dirichlet-multinomial prior ----
 # (dnorm(log_DM_pars, 0, 2)).
 comp_spec <- build_composition(linkages = list(
@@ -179,7 +224,11 @@ comp_spec <- build_composition(linkages = list(
 # * Forward-pass ----
 # Fix goa_pk's MLEs in Rceattle (estimateMode = "DebugBuild", no optimization) and confirm
 # the two models match.
-fwd_nll <- NA_real_; cole_nll <- -sum(fit$rep$loglik)
+# The forward pass injects 02-bridge.R's parameters, which come from the
+# sigmaR-FIXED fit, so compare it against that variant. The free fit below is
+# compared against the sigmaR-estimated one, which poses the same estimation
+# problem.
+fwd_nll <- NA_real_; cole_nll <- -sum(fit_sigRfix$rep$loglik)
 if (file.exists("Data/GOA_25_pollock_bridge_fits.Rdata")) {
   load("Data/GOA_25_pollock_bridge_fits.Rdata")   # -> pollock_fixed (Cole's MLEs)
   fwd <- fit_mod(data_list = pollock25,
@@ -234,13 +283,29 @@ plot_index(pollock_2025)
 
 # * Total-NLL comparison ----
 cond <- c(`goa_pk (original)`  = -sum(fit_orig$rep$loglik),
-          `goa_pk (corrected)` = -sum(fit$rep$loglik),
+          `goa_pk (corrected, sigmaR est)` = -sum(fit$rep$loglik),
           `Rceattle 2025 (free)` = pollock_2025$quantities$jnll)
 cat("\n== Three-way conditional NLL ==\n")
 print(round(cond, 4))
-cat(sprintf("\nRceattle free fit - goa_pk corrected: %+.3f",
-            cond[["Rceattle 2025 (free)"]] - cond[["goa_pk (corrected)"]]),
-    "(multimodal: OffsetEquilibrium init can find a slightly better optimum)\n")
+# The two free fits are not the same estimation problem, so decompose the gap
+# instead of reporting one number. SEL_RW_CONST is the walk penalty goa_pk
+# charges on its descending fishery deviates, which are mapped off at 0 -- a
+# constant Rceattle cannot reproduce (the same thing A3 removed for q1/q2).
+# PRIOR_CONST is the selectivity priors Rceattle puts on slots the fleet's own
+# curve never uses (srv6 ascending, srv2 descending), frozen at build defaults
+# rather than goa_pk's values. The remainder is the real difference: Rceattle
+# integrates the recruitment deviates and estimates sigma_R, goa_pk penalizes
+# them at sigmaR = 1.3.
+SEL_RW_CONST <- (nyrs - 1) * (dnorm(0, 0, SEL_RW_SD, log = TRUE) +
+                              dnorm(0, 0, 4 * SEL_RW_SD, log = TRUE))
+PRIOR_CONST  <- 13.193917
+gap <- cond[["Rceattle 2025 (free)"]] - cond[["goa_pk (corrected, sigmaR est)"]]
+cat(sprintf(paste0("\nRceattle free fit - goa_pk (sigmaR est): %+.3f\n",
+                   "  %+.3f  goa_pk's walk penalty on zero-pinned descending deviates\n",
+                   "  %+.3f  priors on selectivity slots the fleet's curve does not use\n",
+                   "  %+.3f  recruitment treatment (Laplace + free sigma_R vs fixed 1.3)\n"),
+            gap, -SEL_RW_CONST, PRIOR_CONST,
+            gap + SEL_RW_CONST - PRIOR_CONST))
 
 # * Forward-pass equivalence ---------
 if (!is.na(fwd_nll)) {
@@ -260,7 +325,7 @@ gcv <- function(f, nn) { d <- f$sd[f$sd$name == nn, ]; setNames(d$se / d$est, d$
 rcv <- function(tag) { i <- which(vnm == tag)
 setNames(sr$sd[i] / sr$value[i], pollock25$styr + seq_along(i) - 1L) }
 for (q in list(c("SSB", "Espawnbio", "ssb"), c("Recruitment", "recruit", "R"))) {
-  fx <- gcv(fit, q[2]); es <- gcv(fit_estSigR, q[2]); rc <- rcv(q[3])
+  fx <- gcv(fit_sigRfix, q[2]); es <- gcv(fit_estSigR, q[2]); rc <- rcv(q[3])
   cat(sprintf("== %s CV (goa_pk fixed | est | Rceattle) ==\n", q[1]))
   for (y in c("2000", "2015", "2020", "2024")) if (!is.na(es[y]))
     cat(sprintf("  %s:  %.3f | %.3f | %.3f\n", y, fx[y], es[y], rc[y]))
