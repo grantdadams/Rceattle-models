@@ -53,6 +53,7 @@ library(dplyr)
 SBF_ATF_hakedata_DM <- read_data(file = "300426_SBF_ATF_Hake_Final.xlsx")
 SBF_ATF_hakedata_DM$index_data <- SBF_ATF_hakedata_DM$index_data %>%
     dplyr::select(-Q_block)
+SBF_ATF_hakedata_DM$projyr <- 2025
 
 # Dirichlet-multinomial for the composition/diet data ----
 SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- "DirichletMultinomial"  # age-composition (1 works)
@@ -190,11 +191,12 @@ run_ms_CSL_Mest_prior_DM$quantities$vulnerability  # arrowtooth->hake 0.817,
 # Current management applied against multi-species model ----
 mse1 <- run_mse(om = run_ms_CSL_Mest_prior_DM,
                 em = ss_run_DM_hcr,
-                nsim = 1, cores = 1,
+                nsim = 2, cores = 2,
                 assessment_period = 1,
                 sampling_period = c(1, 2), # Fishery samples yearly, survey every other year
 
                 simulate_data = TRUE,
                 sample_rec = TRUE
                 )
+mse_summary(mse1)
 plot_biomass(list(mse1$Sim_1$OM, run_ms_CSL_Mest_prior_DM))
