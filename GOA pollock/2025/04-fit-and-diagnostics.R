@@ -2,6 +2,7 @@
 # https://grantdadams.github.io/Rceattle/articles/model-diagnostics.html
 
 library(Rceattle)
+library(ggplot2)
 
 # Data ----
 pollock25 <- read_data("Data/GOA_25_pollock_single_species_1970-2024.xlsx")
@@ -138,7 +139,7 @@ plot_comp(mod_25)
 plot_catch(mod_25)
 
 # * OSA residuals (Stewart & Monnahan 2025 SDNR / tail diagnostics) ----
-osa <- osa_residuals(mod_25)
+osa <- osa_residuals(mod_25, parallel = FALSE)
 osa_diagnostics(osa)
 plot(osa)                                      # Q-Q + residual-by-year
 
@@ -151,13 +152,14 @@ plot_biomass(mod_25_retro$Rceattle_list)
 mod_25_jitters <- jitter(Rceattle = mod_25, njitter = 100, phase = TRUE)
 hist(log(mod_25_jitters$nll - min(mod_25_jitters$nll)),
      main = "Jitter NLL spread (log scale)", xlab = "log(NLL - min NLL)")
-plot_biomass(mod_25_jitters$Rceattle_list)
+
+plot_biomass(mod_25_jitters$Rceattle_list) + theme(legend.position="none")
 
 # * Self-test (estimation bias) ----
-mod_25_sims <- self_test(mod_25, nsim = 100)
+mod_25_sims <- self_test(mod_25, nsim = 100, start = "estimated")
 length(mod_25_sims)                            # converged simulations
-plot_biomass(c(list(mod_25), mod_25_sims),
-             model_names = c("fit", names(mod_25_sims)))
+
+plot_biomass(c(mod_25_sims, list(mod_25)), line_col = c(rep("grey", 100), 1)) + theme(legend.position="none")
 
 # * Likelihood profile on sigmaR ----
 prof_sigmaR <- profile(fitted = mod_25, param = "sigmaR", slots = list(1),
