@@ -159,7 +159,7 @@ plot_biomass(mod_25_jitters$Rceattle_list) + theme(legend.position="none")
 mod_25_sims <- self_test(mod_25, nsim = 100, start = "estimated")
 length(mod_25_sims)                            # converged simulations
 
-plot_biomass(c(mod_25_sims, list(mod_25)), line_col = c(rep("grey", 100), 1)) + theme(legend.position="none")
+plot_biomass(c(mod_25_sims, list(mod_25)), line_col = c(rep("grey", length(mod_25_sims)), 1)) + theme(legend.position="none")
 
 # * Likelihood profile on sigmaR ----
 prof_sigmaR <- profile(fitted = mod_25, param = "sigmaR", slots = list(1),
