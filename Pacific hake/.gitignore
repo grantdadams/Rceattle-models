@@ -1,0 +1,19 @@
+# SS3 run output. The runs are kept on disk but not in git: they are large
+# (~75 MB), regenerable, and nothing here reads them.
+#
+# Data/hake-2022-model-files/ is the EXCEPTION and stays tracked, because
+# 01-prepare-weight-data.R runs r4ss::SS_output() on it. Its r4ss-generated
+# plots/ and the SS3 binary are still ignored.
+Data/SS32019/
+Data/2024hakeassessmentfiles/
+Data/hake-2022-model-files/plots/
+
+# SS3 executables -- platform-specific binaries do not belong in git.
+ss3_win.exe
+ss_osx
+ss3.exe
+
+# Fitted models and scratch output.
+results/
+*.Rdata
+Rplots.pdf
