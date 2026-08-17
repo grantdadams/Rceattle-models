@@ -1,16 +1,37 @@
+# Repo-wide ignores. Per-model folders add their own .gitignore for the large,
+# regenerable ADMB / SS3 run output specific to that stock -- see
+# "GOA pollock/.gitignore" and "Pacific hake/.gitignore" for the pattern
+# (ignore the run directory, then un-ignore by name the few files a script
+# actually reads).
+
+# --- R session and IDE state -------------------------------------------------
 .Rproj.user
 .Rhistory
+.Rapp.history
 .RData
-.Ruserdata
 *.RData
-GOA/Model runs/GOA_18.5.1/Models/Random_effects_models_3iter_w_hessian.7z
-AI cod - Dev/SS3/AI Cod.zip
-*.rds
+.Ruserdata
+
+# --- OS and office application scratch ---------------------------------------
+.DS_Store
+Thumbs.db
+# Excel/Word lock files, e.g. "~$yfs_single_species_2022.xlsx"
+~$*
+# LibreOffice lock files, e.g. ".~lock.Adriatic_base.xlsx#"
+.~lock.*#
+*.swp
+
+# --- Build products and scratch output ---------------------------------------
+# Compiled TMB/ADMB objects and shared libraries: rebuilt from source, and
+# platform-specific, so they must not be committed.
 *.o
 *.so
 *.dll
-ADMB_models/.DS_Store
-.DS_Store
-GOA cod/Data/goa_pcod/ss3-source-code-mainRplots.pdf
-.Rapp.history
+# ADMB scratch (cmpdiff.tmp, gradfil1.tmp, varssave.tmp, amak.tmp)
+*.tmp
+*.rds
 Rplots.pdf
+
+# --- Oversized archives ------------------------------------------------------
+# Kept on disk but too large for git.
+AI cod - Dev/SS3/AI Cod.zip
