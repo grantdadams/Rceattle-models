@@ -1,5 +1,5 @@
 # =============================================================================
-# 2024 EBS pollock assessment in Rceattle
+# EBS pollock 2024 -- production fit and ADMB comparison
 # =============================================================================
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
@@ -7,6 +7,15 @@
 # Builds the model configuration that aligns Rceattle with the ADMB reference
 # ./ADMB/m23_rceattle_full/
 #
+# Run from the "EBS pollock" project root.
+#
+# Reads:   Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx  (from "01-build-data.R")
+#          ADMB/m23_rceattle_full/pm.rep                         (SSB / R / N for the overlay)
+# Writes:  nothing; console comparison tables and interactive plots
+# Prereq:  "01-build-data.R", and "00-fit-admb.R" for the ADMB comparison.
+#
+# THIS FILE CARRIES THE RECONCILIATION LOG (S1-S4, L1-L7, D1-D8 below). The other
+# scripts in this folder cite those codes rather than repeating the detail.
 # =============================================================================
 # ADMB BRIDGING
 # -----------------------------------------------------------------------------
@@ -42,6 +51,28 @@
 #   L7. When ignore_last_ats_age1 = TRUE, the age-1 index q (qtmp) is now computed
 #       over the SAME 1:n_ats_r-1 range as the likelihood (the dropped 2024
 #       excluded from q AND fit).
+#
+# Data / configuration conversions (Rceattle-side only -- no ADMB code edits;
+# applied in "01-build-data.R" and baked into the workbook)
+#   D1. Catch Log_sd = 0.05, from ADMB ctrl_flag(1) = 200: sigma = 1/sqrt(2*200).
+#   D2. Index Log_sd in the xlsx is ALREADY a CV / log-sd -- not rescaled by the
+#       observation. BTS_1 / ATS_1 age-1 index sigma = age1_sigma_ats = 1.
+#   D3. AVO observations rescaled thousand-tonnes -> million-tonnes to match ADMB
+#       obs_avo, so obs, sigma and prediction share a scale under the natural-scale
+#       normal with absolute sigma.
+#   D4. ATS index Log_sd = sqrt(log(CV^2 + 1)) (CV -> log-sd).
+#   D5. 1965-76 Japanese CPUE fit once, as a survey fleet mirroring the fishery
+#       selectivity.
+#   D6. BTS / ATS composition sample sizes truncated to integer (ADMB stored them
+#       as ints); 2020 ATS = 1.
+#   D7. BTS age-1: the xlsx had split it into a separate BTS_1 index. Folded back
+#       into the BTS age comps and BTS_1 switched Off, so it is not counted twice.
+#   D8. AMAK average-selectivity penalty retained (Sel_avgsel_pen = 10); BTS
+#       selectivity random-walk penalty applied over the survey period only.
+#
+# The fishery terminal-year length composition is not fit (ADMB use_endyr_len = 0).
+# There is nothing to switch off Rceattle-side -- the workbooks carry no length
+# composition rows at all -- so it is an ADMB-side setting, not a D-code.
 # =============================================================================
 
 
@@ -53,7 +84,7 @@ AD <- "ADMB/m23_rceattle_full"   # ADMB reference (used only for the validation 
 # -----------------------------------------------------------------------------
 # Data ----
 # -----------------------------------------------------------------------------
-est   <- read_data("Data/2024_EBS_pollock_m23_rceattle_full.xlsx")
+est   <- read_data("Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx")
 styr  <- est$styr
 endyr <- est$endyr
 yrs   <- styr:endyr
@@ -114,7 +145,7 @@ ctl   <- fit_control(verbose = 1, phase = TRUE,
 # - Stage 1
 est_A <- est
 est_A$fleet_control$Time_varying_sel <- "Off"   # No time-varying deviates
-ebs_A <- Rceattle::fit_mod(data_list = est_A,
+ebs_stage1 <- Rceattle::fit_mod(data_list = est_A,
                            inits = inits,
                            file = NULL,
                            estimateMode = 0,
@@ -127,7 +158,7 @@ ebs_A <- Rceattle::fit_mod(data_list = est_A,
 # - Stage 2
 ebs_2024 <- Rceattle::fit_mod(
   data_list    = est,
-  inits        = ebs_A$obj$env$parList(),   # initialize deviates fit from the scaled base fit
+  inits        = ebs_stage1$obj$env$parList(),   # initialize deviates fit from the scaled base fit
   file         = NULL,
   estimateMode = 0,
   random_rec   = FALSE,

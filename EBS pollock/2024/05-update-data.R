@@ -1,12 +1,18 @@
 # =============================================================================
-# 2024 EBS pollock — roll the assessment data forward one year
+# EBS pollock 2024 -- roll the assessment data forward one year
 # =============================================================================
-# Extends the 2024 ADMB-bridge build (from "2024 EBS pollock data.R") to a new end
+# Extends the 2024 ADMB-bridge build (from "01-build-data.R") to a new end
 # year, appending placeholder rows (99999 / TODO) for the new year's catch, comps,
 # and survey indices; fill them with real data, then refit with
-# "2024 EBS pollock diagnostics.R". The bridge encoding already lives in the xlsx
+# "04-fit-and-diagnostics.R". The bridge encoding already lives in the xlsx
 # and round-trips, so this only adds records -- it does not re-derive the config.
 # https://grantdadams.github.io/Rceattle/articles/data-without-excel.html
+#
+# Run from the "EBS pollock" project root.
+#
+# Reads:   Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx
+# Writes:  Data/EBS_25_pollock_m23_rceattle_full_1964-2025.xlsx
+# Prereq:  "01-build-data.R"
 # =============================================================================
 
 library(Rceattle)
@@ -15,7 +21,7 @@ library(dplyr)
 new_endyr <- 2025
 
 # Data ----
-est <- Rceattle::read_data(file = "Data/2024_EBS_pollock_m23_rceattle_full.xlsx")
+est <- Rceattle::read_data(file = "Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx")
 old_endyr <- est$endyr
 est$endyr <- new_endyr
 
@@ -23,7 +29,7 @@ est$endyr <- new_endyr
 # Carry the last catch row forward as a template (one fishery).
 catch_row       <- est$catch_data[nrow(est$catch_data), ]
 catch_row$Year  <- new_endyr
-catch_row$Catch <- 99999                                  # TODO: new-year fishery catch (t)
+catch_row$Catch <- 99999                                  # TODO: new-year fishery catch (THOUSAND t, as ADMB obs_catch)
 est$catch_data  <- rbind(est$catch_data, catch_row)
 
 # * Composition ----
@@ -54,4 +60,4 @@ for (fl in c("BTS", "ATS", "ATS_1", "AVO"))
 # Save data ----
 message("Rolled EBS pollock data from endyr ", old_endyr, " to ", new_endyr,
         " (placeholders marked 99999 -- fill before fitting).")
-write_data(est, file = "Data/2025_EBS_pollock_m23_rceattle_full.xlsx")
+write_data(est, file = "Data/EBS_25_pollock_m23_rceattle_full_1964-2025.xlsx")

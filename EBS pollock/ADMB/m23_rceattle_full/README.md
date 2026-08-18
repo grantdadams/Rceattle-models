@@ -1,4 +1,12 @@
-# m23_rceattle — ADMB m23 structurally aligned to Rceattle
+# m23_rceattle_full — ADMB m23 fully aligned to Rceattle (stage 2)
+
+**This is the stage-2 reference, and the one the R scripts read**
+(`AD <- "ADMB/m23_rceattle_full"` in `../../2024/02-bridge.R` and
+`../../2024/03-model-comparison.R`). It carries the stage-1 structural alignment
+described below **plus** the likelihood, data, and parameter alignment. The full
+catalogue is the reconciliation log at the top of
+`../../2024/03-model-comparison.R`: **S1-S4** structural (stage 1, `../m23_rceattle`),
+**L1-L7** likelihood (stage 2, here), **D1-D8** Rceattle-side data conversions.
 
 A copy of `../m23` (the 2024 EBS pollock ADMB "pm"/AMAK assessment, `DoCovBTS = 1`)
 with the **structural differences vs Rceattle removed**, so the two codebases can be
@@ -137,8 +145,9 @@ dev vectors lost one element each). Start from the `INITIALIZATION_SECTION` (no
   to drop by roughly `wt_like` (~6345) since the weight submodel no longer contributes.
 - vs Rceattle: pair with the Rceattle config using `Index_loglike = "MVN"` +
   `Catchability = "AnalyticalArith"` + `index_cov = list(BTS = cov_2024.dat)`,
-  mean recruitment, `initMode = 2`, M fixed. See
-  `../../HANDOFF_mvn_covariance.md`.
+  mean recruitment, `initMode = "NonEquilibrium"`, M fixed. That configuration is
+  built by `../../2024/01-build-data.R`; see codes D1-D8 in
+  `../../2024/03-model-comparison.R`.
 
 ---
 

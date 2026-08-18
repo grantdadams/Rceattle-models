@@ -10,7 +10,7 @@ of related experiments); each is a self-contained RStudio project.
 
 | Folder | Stock | Notes |
 |---|---|---|
-| `EBS pollock` | Eastern Bering Sea walleye pollock | Bridged from the ADMB assessment (`ADMB/m23`); also carries the RTMB port, the DSEM run, and an MSE |
+| `EBS pollock` | Eastern Bering Sea walleye pollock | Scripts split by assessment year (`2024/`); bridged from the ADMB assessment (`ADMB/m23`); also carries the RTMB port, the DSEM run, and an MSE. See its README |
 | `GOA pollock` | Gulf of Alaska walleye pollock | Scripts split by assessment year (`2021/`–`2025/`); bridged against `goa_pk` |
 | `GOA cod` | GOA Pacific cod | Bridged from Stock Synthesis (`Bridging/`, `ss3-source-code-main/`) |
 | `AI cod - Dev` | Aleutian Islands Pacific cod | In development; SS3 bridging |
@@ -38,7 +38,8 @@ of related experiments); each is a self-contained RStudio project.
 
 ## Conventions
 
-`GOA pollock` and `Pacific hake` are the reference layout for a stock folder:
+`GOA pollock`, `EBS pollock`, and `Pacific hake` are the reference layout for a
+stock folder:
 
 ```
 <Stock>/

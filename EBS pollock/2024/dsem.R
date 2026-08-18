@@ -1,15 +1,23 @@
 # =============================================================================
-# 2024 EBS pollock — environment-linked recruitment via DSEM
+# EBS pollock 2024 -- environment-linked recruitment via DSEM
 # =============================================================================
-# Links environmental indices to recruitment with a dynamic structural equation
-# model (DSEM) and compares environment-free (IID) vs environment-linked recruitment
-# by AIC.
+# OFF-PIPELINE (un-numbered): a research run, not part of the assessment
+# sequence. Links environmental indices to recruitment with a dynamic structural
+# equation model (DSEM) and compares environment-free (IID) vs environment-linked
+# recruitment by AIC.
+#
+# NOT AN ASSESSMENT RESULT: the environmental columns below are random
+# placeholders. Replace them with cohort-aligned ESP indicators before fitting.
+#
+# Run from the "EBS pollock" project root.
+# Reads:  Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx
+# Prereq: "01-build-data.R"
 #
 # REQUIRES the DSEM build of Rceattle (a separate branch):
 #   remotes::install_version("dsem", version = "3.0.0")
 #   remotes::install_github("grantdadams/Rceattle@dev-DSEM")
 #
-# NOTE -- departs from the ADMB bridge: the assessment ("2024 EBS pollock.R") treats
+# NOTE -- departs from the ADMB bridge: the assessment ("03-model-comparison.R") treats
 # recruitment deviations as penalised fixed effects (random_rec = FALSE), but a DSEM
 # models them as random effects, so this sets random_rec = TRUE. Everything else is
 # inherited unchanged from the bridge workbook.
@@ -21,7 +29,7 @@ library(dplyr)
 n_selages_fsh <- 12
 
 # Data ----
-est  <- read_data(file = "Data/2024_EBS_pollock_m23_rceattle_full.xlsx")
+est  <- read_data(file = "Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx")
 styr <- est$styr; endyr <- est$endyr; yrs <- styr:endyr; nyr <- length(yrs)
 
 # * Environmental indices ----
@@ -40,7 +48,7 @@ plot_data(est)
 
 # Empirical fishery-selectivity start ----
 # Same data-driven start the assessment uses, so the selectivity scale is pinned
-# from the outset (see "2024 EBS pollock.R"). Without it the flat default start
+# from the outset (see "03-model-comparison.R"). Without it the flat default start
 # can open a weakly-identified scale direction when recruitment is a random effect.
 M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,

@@ -1,13 +1,22 @@
 # =============================================================================
-# 2024 EBS pollock - BRIDGING ADMB ("pm" / AMAK) -> Rceattle  (FORWARD PASS)
+# EBS pollock 2024 -- bridge ADMB ("pm" / AMAK) to Rceattle (FORWARD PASS)
 # =============================================================================
+# Run from the "EBS pollock" project root.
+#
+# Reads:   Data/EBS_24_pollock_single_species_1964-2024.xlsx (the raw skeleton,
+#            not the derived workbook -- the forward pass supplies ADMB's own
+#            parameters and must not inherit the estimation-time config)
+#          ADMB/m23_rceattle_full/{pm.par, pm.rep}
+# Writes:  nothing; console validation tables only
+# Prereq:  "00-fit-admb.R" for the ADMB reference. Does not depend on "01-build-data.R".
+#
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
 # Reference assessment = the STRUCTURALLY-ALIGNED ADMB model in
 # ./ADMB/m23_rceattle_full/ (pm.tpl / pm.par / pm.rep). That model is the 2024
 # SAFE "pm" (AMAK) model, edited so its equations and likelihoods match
-# Rceattle's (the edits are catalogued in "2024 EBS pollock setup data.R"). Mirrors the
-# GOA Northern rockfish / BSAI Alaska plaice bridging scripts.
+# Rceattle's (the edits are catalogued as S1-S4 / L1-L7 in "03-model-comparison.R").
+# Mirrors the GOA Northern rockfish / BSAI Alaska plaice bridging scripts.
 #
 #   Model 1 (forward pass): Rceattle population dynamics FIXED to the ADMB MLEs.
 #                           Because the ADMB selectivities are heavily time-
@@ -19,12 +28,12 @@
 #                           mapped F / recruitment / initial-devs (estDynamics=0).
 #                           VALIDATION below: N / SSB / catch reproduce ADMB to
 #                           ~5-6 significant figures. The parametric-selectivity
-#                           ESTIMATION model + comparison is "2024 EBS pollock.R".
+#                           ESTIMATION model + comparison is "03-model-comparison.R".
 #
 # -----------------------------------------------------------------------------
 # STRUCTURAL MAPPING (each item applied inline below; an *exact* forward-pass
 # match holds because F / recruitment / init-devs are fixed and the realized
-# selectivity is injected). See "2024 EBS pollock.R" for the estimation-time
+# selectivity is injected). See "03-model-comparison.R" for the estimation-time
 # differences and the ADMB source edits.
 #
 #  1. SPAWNING TIMING. ADMB yrfrac = (spawnmo-1)/12 = 0.25 -> spawn_month = 3
@@ -58,7 +67,7 @@ AD <- "ADMB/m23_rceattle_full"          # aligned/edited ADMB reference
 # -----------------------------------------------------------------------------
 # Data
 # -----------------------------------------------------------------------------
-mydata <- Rceattle::read_data(file = "Data/2024_EBS_pollock.xlsx")
+mydata <- Rceattle::read_data(file = "Data/EBS_24_pollock_single_species_1964-2024.xlsx")
 styr  <- mydata$styr     # 1964
 endyr <- mydata$endyr    # 2024
 nages <- mydata$nages    # 15
@@ -146,7 +155,7 @@ inits$log_F[1, 1:nyr]   <- log_avg_F + log_F_devs      # F = exp(log_F) * sel
 inits$init_dev[1, 1:length(log_initdevs)] <- log_initdevs
 inits$index_log_q[2]    <- log_q_avo                   # AVO (analytical q for BTS/ATS)
 
-bridging_model_1 <- Rceattle::fit_mod(
+ebs_fixed <- Rceattle::fit_mod(
   data_list    = fp,
   inits        = inits,
   file         = NULL,
@@ -167,11 +176,11 @@ get_blk <- function(name, n = nyr) {                    # [year, age] block from
   t(sapply(1:n, function(k) as.numeric(strsplit(trimws(rep_lines[i0 + k]), "[[:space:]]+")[[1]])))
 }
 N_admb   <- t(get_blk("N"))                             # [age, yr]
-N_rce    <- bridging_model_1$quantities$N_at_age[1, 1, 1:nages, 1:nyr]
+N_rce    <- ebs_fixed$quantities$N_at_age[1, 1, 1:nages, 1:nyr]
 ssb_admb <- get_blk("SSB")[, 2]
-ssb_rce  <- as.numeric(bridging_model_1$quantities$ssb[1, 1:nyr])
+ssb_rce  <- as.numeric(ebs_fixed$quantities$ssb[1, 1:nyr])
 pred_cat <- as.numeric(strsplit(trimws(rep_lines[which(rep_lines == "pred_catch")[1] + 1]), "[[:space:]]+")[[1]])
-cat_rce  <- as.numeric(bridging_model_1$quantities$catch_hat)[1:nyr]
+cat_rce  <- as.numeric(ebs_fixed$quantities$catch_hat)[1:nyr]
 
 cat("\n--- Forward pass vs ADMB (m23_rceattle_full) ---\n")
 cat("N   ratio range :", round(range(N_rce / N_admb), 6), "\n")
@@ -179,6 +188,6 @@ cat("SSB ratio range :", round(range(ssb_rce / ssb_admb), 6),
     " | mean |%diff| :", round(100 * mean(abs(ssb_rce / ssb_admb - 1)), 5), "%\n")
 cat("Catch mean |%diff| :", round(100 * mean(abs(cat_rce / pred_cat - 1)), 5), "%\n")
 
-plot_ssb(list(bridging_model_1),         model_names = "Rceattle fwd pass")
-plot_recruitment(list(bridging_model_1), model_names = "Rceattle fwd pass")
-plot_selectivity(bridging_model_1)
+plot_ssb(list(ebs_fixed),         model_names = "Rceattle fwd pass")
+plot_recruitment(list(ebs_fixed), model_names = "Rceattle fwd pass")
+plot_selectivity(ebs_fixed)
