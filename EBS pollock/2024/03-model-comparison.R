@@ -137,7 +137,9 @@ inits$sel_coff[1, 1, 1:n_selages_fsh] <- ls
 # extra fishery-selectivity flex (+6.6) and a lower initial abundance (init_dev, +1.0),
 # so 1964 SSB sits ~10% below ADMB while modern dynamics are essentially unchanged.
 # It is a weak-identification artifact, not a model difference: at ADMB's MLE the
-# model reproduces every likelihood component to ~1e-6.
+# model reproduces every likelihood component to ~1e-5 -- see the likelihood
+# check at the foot of "02-bridge.R", which asserts that component by component
+# against pm.rep rather than leaving it as a claim here.
 M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)

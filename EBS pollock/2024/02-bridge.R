@@ -3,12 +3,22 @@
 # =============================================================================
 # Run from the "EBS pollock" project root.
 #
-# Reads:   Data/EBS_24_pollock_single_species_1964-2024.xlsx (the raw skeleton,
-#            not the derived workbook -- the forward pass supplies ADMB's own
-#            parameters and must not inherit the estimation-time config)
+# Two checks, on two workbooks, for two different things:
+#
+#   DYNAMICS   the raw skeleton, EBS_24_pollock_single_species_1964-2024.xlsx.
+#              Parameters are ADMB's, so the config must NOT be inherited from
+#              the estimation-time build. Checks N / SSB / catch.
+#   LIKELIHOOD the derived workbook from "01-build-data.R". The likelihood only
+#              means anything against the bridged configuration (D1-D8), so it
+#              has to be the other file. Checks every jnll_comp row against
+#              pm.rep.
+#
+# Reads:   Data/EBS_24_pollock_single_species_1964-2024.xlsx
+#          Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx
 #          ADMB/m23_rceattle_full/{pm.par, pm.rep}
 # Writes:  nothing; console validation tables only
-# Prereq:  "00-fit-admb.R" for the ADMB reference. Does not depend on "01-build-data.R".
+# Prereq:  "00-fit-admb.R" for the ADMB reference, "01-build-data.R" for the
+#          derived workbook the likelihood check reads.
 #
 # Single-sex, single-species model: one fishery + AVO acoustic index, BTS
 # bottom-trawl survey, ATS acoustic-trawl survey, and the ATS age-1 index.
@@ -27,7 +37,8 @@
 #                           and let Rceattle COMPUTE numbers-at-age from the
 #                           mapped F / recruitment / initial-devs (estDynamics=0).
 #                           VALIDATION below: N / SSB / catch reproduce ADMB to
-#                           ~5-6 significant figures. The parametric-selectivity
+#                           ~5-6 significant figures, and every likelihood
+#                           component to ~1e-5. The parametric-selectivity
 #                           ESTIMATION model + comparison is "03-model-comparison.R".
 #
 # -----------------------------------------------------------------------------
@@ -191,3 +202,130 @@ cat("Catch mean |%diff| :", round(100 * mean(abs(cat_rce / pred_cat - 1)), 5), "
 plot_ssb(list(ebs_fixed),         model_names = "Rceattle fwd pass")
 plot_recruitment(list(ebs_fixed), model_names = "Rceattle fwd pass")
 plot_selectivity(ebs_fixed)
+
+# =============================================================================
+# LIKELIHOOD CHECK: every component vs ADMB, at ADMB's MLE
+# =============================================================================
+# The forward pass above fixes the dynamics and checks N / SSB / catch. It runs
+# under estimateMode = 4, whose objective is a placeholder (build_map() maps out
+# every hindcast parameter, so `dummy` is the only free one) -- it says nothing
+# about the likelihood. This block rebuilds the same parameters under
+# estimateMode = "DebugBuild", which returns the real objective, and compares
+# jnll_comp against pm.rep component by component.
+#
+# Two adjustments are needed to make the comparison like for like:
+#
+#  A. AGE-1 (L4/L5). ADMB's ATS biomass index and AVO exclude age 1. Rceattle
+#     does that with Bin_first_selected = 2, but Selectivity = "Fixed" reads
+#     emp_sel verbatim, so age 1 has to be zeroed in the injected ATS/AVO
+#     selectivity. Without it the ATS index is 3.9% high, AVO 5.0%, and the ATS
+#     composition reads 393.2 against ADMB's 30.8.
+#
+#  B. NORMALIZING CONSTANTS. ADMB reports the quadratic part of each index term
+#     only. The full negative log-density adds log(sd) + 0.5*log(2*pi) per
+#     observation, so the expected gap is n*0.5*log(2*pi) + sum(log(sd)).
+#     BTS is the exception: Index_distribution = "MVN" is deliberately the bare
+#     quadratic form so the reported value matches ADMB directly.
+#     The right long-term fix is to expand the ADMB likelihood statements to
+#     full form in pm.tpl; until then this block adds the constants back.
+# =============================================================================
+
+# The forward pass above reads the raw skeleton on purpose -- it is testing the
+# dynamics and must not inherit the estimation-time configuration. The likelihood
+# is the opposite case: it only means anything against the bridged configuration,
+# so this block loads the workbook "01-build-data.R" writes (D1-D8 applied:
+# MultinomialAFSC comps, index SDs, rescaled AVO, the CPUE fleet, BTS_1 Off).
+fpl <- Rceattle::read_data(
+  file = "Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx")
+fpl$estDynamics <- 0
+fpl$fleet_control$Selectivity <- "Fixed"
+fcn <- fpl$fleet_control$Fleet_name          # CPUE exists here, unlike the skeleton
+fpl$age_error[1:nages, 3:(nages + 2)] <- diag(nages)
+
+sel_ats_no1 <- sel_ats; sel_ats_no1[, 1] <- 0            # (A)
+admb_sel_l <- list(Fishery = sel_fsh, BTS = sel_bts, ATS = sel_ats_no1,
+                   AVO = sel_ats_no1, CPUE = sel_fsh)
+es <- fpl$emp_sel[!(fpl$emp_sel$Fleet_name %in% names(admb_sel_l)), ]
+for (fl in names(admb_sel_l)) {
+  if (!fl %in% fcn) next
+  add <- fpl$emp_sel[0, ]; add[1:nyr, ] <- NA
+  add$Fleet_name <- fl; add$Fleet_code <- fpl$fleet_control$Fleet_code[fcn == fl]
+  add$Species <- 1; add$Sex <- 0; add$Year <- yrs
+  for (a in 1:nages) add[[cc[a]]] <- admb_sel_l[[fl]][, a]
+  es <- rbind(es, add[, cols])
+}
+fpl$emp_sel <- es
+
+# Build the parameters fresh: the derived workbook carries the CPUE fleet, so its
+# per-fleet arrays are a row longer than the skeleton's and `inits` above cannot
+# be reused. Every ESTIMATED q needs ADMB's value; BTS / BTS_1 / ATS_1 are solved
+# analytically in Rceattle, which is the analog of ADMB's solved q.
+inits_l <- build_params(fpl)
+inits_l$rec_pars[1, 1]    <- log_avgrec
+inits_l$rec_dev[1, 1:nyr] <- log_rec_devs
+inits_l$log_F[1, 1:nyr]   <- log_avg_F + log_F_devs
+inits_l$init_dev[1, 1:length(log_initdevs)] <- log_initdevs
+for (q in list(c("AVO", "log_q_avo"), c("ATS", "log_q_ats"), c("CPUE", "log_q_cpue"))) {
+  i <- which(fcn == q[1])
+  if (length(i)) inits_l$index_log_q[i] <- get_par(q[2])[1]
+}
+
+ebs_like <- Rceattle::fit_mod(
+  data_list = fpl, inits = inits_l, file = NULL,
+  estimateMode = "DebugBuild",             # real objective, unlike mode 4
+  random_rec = FALSE, msmMode = 0, initMode = "NonEquilibrium",
+  M1Fun = build_M1(updateM1 = TRUE, M1_model = "fixed"),
+  fit_control = fit_control(verbose = 0, phase = FALSE, bias_adjust_proc = 0,
+                            bias_adjust_obs = 0, comp_offset = 1e-3))
+
+jc   <- ebs_like$quantities$jnll_comp       # rows follow the JnllRow enum
+flnm <- ebs_like$data_list$fleet_control$Fleet_name
+idxd <- ebs_like$data_list$index_data
+gv   <- function(n) as.numeric(strsplit(trimws(rep_lines[which(rep_lines == n)[1] + 1]),
+                                        "[[:space:]]+")[[1]])
+TOL  <- 1e-3
+flag <- function(d) if (abs(d) < TOL) "OK" else "**CHECK**"
+
+cat("\n--- Likelihood components vs ADMB (at ADMB's MLE) ---\n")
+cat(sprintf("  %-22s %13s %13s %11s  %s\n", "component", "Rceattle", "ADMB", "diff", ""))
+
+# Index, per fleet. `konst` is the normalizing constant ADMB omits (B); MVN is
+# already reported bare, so it takes none.
+admb_idx <- c(BTS = gv("surv_like")[1], ATS = gv("surv_like")[2],
+              ATS_1 = gv("surv_like")[3], AVO = gv("avo_like"),
+              CPUE = gv("cpue_like"))
+for (fl in names(admb_idx)) {
+  i <- which(flnm == fl); if (!length(i)) next
+  rows  <- which(idxd$Fleet_name == fl & idxd$Year > 0 &
+                   idxd$Year <= ebs_like$data_list$endyr)
+  mvn   <- ebs_like$data_list$fleet_control$Index_distribution[i] %in% c("MVN", "MVNORM", 1, 2)
+  konst <- if (mvn) 0 else
+    length(rows) * 0.5 * log(2 * pi) + sum(log(idxd$Log_sd[rows]))
+  d <- (jc[1, i] - konst) - admb_idx[[fl]]
+  cat(sprintf("  index %-16s %13.5f %13.5f %11.5f  %s\n",
+              fl, jc[1, i] - konst, admb_idx[[fl]], d, flag(d)))
+}
+
+# Composition, per fleet (ADMB age_like: fishery, BTS, ATS)
+admb_comp <- c(Fishery = gv("age_like")[1], BTS = gv("age_like")[2],
+               ATS = gv("age_like")[3])
+for (fl in names(admb_comp)) {
+  i <- which(flnm == fl); if (!length(i)) next
+  d <- jc[3, i] - admb_comp[[fl]]
+  cat(sprintf("  comp  %-16s %13.5f %13.5f %11.5f  %s\n",
+              fl, jc[3, i], admb_comp[[fl]], d, flag(d)))
+}
+
+# Recruitment penalties. ADMB packs both into rec_like: [2] = recruitment
+# deviations, [4] = initial-age deviations. Rceattle reports them as separate
+# rows, so compare element by element rather than against the vector sum.
+rl_admb <- gv("rec_like")
+for (p in list(c(11, 2, "rec_dev"), c(10, 4, "init_dev"))) {
+  r <- sum(jc[as.integer(p[1]), ]); a <- rl_admb[as.integer(p[2])]
+  cat(sprintf("  %-22s %13.5f %13.5f %11.5f  %s\n", p[3], r, a, r - a, flag(r - a)))
+}
+
+cat("\n  Not compared: ADMB's sel_like (", round(sum(gv("sel_like")), 2),
+    ") and sel_like_dev (", round(sum(gv("sel_like_dev")), 2),
+    ") are selectivity\n  penalties that emp_sel bypasses, and pm.rep carries no catch_like block.\n",
+    sep = "")

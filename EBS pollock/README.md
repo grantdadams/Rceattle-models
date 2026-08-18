@@ -19,10 +19,10 @@ script; each header states its own prerequisites.
 |---|---|---|---|
 | `2024/00-fit-admb.R` | Builds and runs the ADMB reference | `ADMB/m23_rceattle_full/` | `pm.rep`, `pm.par` |
 | `2024/01-build-data.R` | Builds the Rceattle data list | the skeleton workbook + BTS covariance | the bridge workbook |
-| `2024/02-bridge.R` | Forward pass: dynamics fixed to the ADMB MLEs | skeleton workbook, `pm.par`, `pm.rep` | console validation |
+| `2024/02-bridge.R` | Forward pass (dynamics) + likelihood check, both at the ADMB MLEs | both workbooks, `pm.par`, `pm.rep` | console validation |
 | `2024/03-model-comparison.R` | Production fit + ADMB comparison. **Carries the reconciliation log.** | bridge workbook, `pm.rep` | console + plots |
 | `2024/04-fit-and-diagnostics.R` | Standard diagnostic suite | bridge workbook | console + plots |
-| `2024/05-update-data.R` | Rolls the data forward one year | bridge workbook | `EBS_25_...xlsx` |
+| `2024/05-update-data.R` | Rolls the data forward one year; builds before writing | bridge workbook | `EBS_25_...xlsx` |
 
 Off-pipeline (un-numbered, research runs — not part of the assessment sequence):
 
@@ -33,11 +33,70 @@ Off-pipeline (un-numbered, research runs — not part of the assessment sequence
   TODO in its header: it still uses a flat selectivity start, where the numbered
   scripts use a two-stage start because the fishery selectivity likelihood is multimodal.
 
+### Rolling the data forward
+
+`05-` builds the rolled data list before writing it, so a broken roll fails now
+rather than next year mid-fit. What moves:
+
+- `catch_data` already runs to `projyr`, so the new terminal year is **filled**,
+  not appended — appending duplicates `(Fleet_code, Year)`.
+- `comp_data` appended with `Sample_size = 0`, so a premature fit does not refit
+  last year's proportions as though they were observed again.
+- `weight` appended, terminal year carried forward. It feeds SSB, so a stale
+  terminal row is read straight into the Tier 3 control rule.
+- `index_data` appended with a **negative year** — predicted, not fitted. A
+  positive-year placeholder would be fitted, and BTS and ATS_1 solve q
+  analytically, so 99999 enters the mean and shifts q by +31% across the whole
+  1982–2024 series while the model still builds.
+- `index_cov$BTS` **unchanged**. The placeholder is not a fitted row, so Sigma
+  still matches at 42×42. It only needs growing when the real observation goes
+  in, and that is the new VAST matrix, not an extrapolation.
+
+**Filling in the new year:** paste `Observation` and `Log_sd` on each fleet's own
+scale, then flip the year positive. For BTS that also requires the new VAST
+covariance — the build fails until it is supplied, which is what stops a real
+observation being fitted against a stale Sigma.
+
+Placeholders are 99999 (catch, survey observations) and 0 (comp sample size).
+**Weight-at-age and the carried-forward covariance are not marked** — nothing in
+the workbook distinguishes them from real values, so check them explicitly.
+
 `00-` only re-derives the ADMB outputs; those are committed, so the rest of the
 pipeline runs without an ADMB toolchain. **It needs `admb` on PATH to do anything** —
 without it the script reports that and leaves the committed `pm.rep`/`pm.par`
 alone. Note the committed `pm` binary is macOS/arm64, so on Windows a rebuild is
 the only route to a runnable executable.
+
+### Bridge fidelity
+
+`02-` checks two things at ADMB's MLE, and both hold:
+
+- **Dynamics** — N ratio 0.999993–1.000006, SSB mean |%diff| 0.00012%, catch 0.00014%.
+- **Likelihood** — every component to ~1e-5: index by fleet (BTS, ATS, ATS_1, AVO,
+  CPUE), composition by fleet (fishery, BTS, ATS), and the recruitment and
+  initial-age deviation penalties.
+
+Two adjustments make the comparison like for like, and both are in the script:
+
+1. **Age-1.** ADMB's ATS biomass index and AVO exclude age 1 (L4/L5). Rceattle
+   does that with `Bin_first_selected = 2`, but `Selectivity = "Fixed"` reads
+   `emp_sel` verbatim, so age 1 is zeroed in the injected ATS/AVO selectivity.
+   Without it the ATS index runs 3.9% high and its composition reads 393.2
+   against ADMB's 30.8.
+2. **Normalizing constants.** ADMB reports only the quadratic part of each index
+   term; the full negative log-density adds `log(sd) + ½log(2π)` per observation.
+   The check adds `n·½log(2π) + Σlog(sd)` back. BTS is exempt — `MVN` in Rceattle
+   is deliberately the bare quadratic form so it matches ADMB directly.
+
+The cleaner fix for (2) is to expand the likelihood statements in `pm.tpl` to
+full form so no correction is needed on either side. Not yet done — it needs an
+ADMB rebuild, and the committed `pm` binary is macOS/arm64. The five statements
+to change, the constant each is missing, and how to verify afterwards are in
+**`HANDOFF_pm_full_likelihood.md`**.
+
+Not covered: ADMB's `sel_like` (17.48) and `sel_like_dev` (172.07) are
+selectivity penalties that the `emp_sel` bypass skips, and `pm.rep` carries no
+`catch_like` block.
 
 ## Reconciliation log
 
@@ -115,14 +174,25 @@ Two deliberate divergences from upstream:
 
 - `mse.R` has never been validated end-to-end against the bridge workbook; see its header TODO.
 - `dsem.R` uses placeholder environmental covariates.
-- The base fit converges with a **WARN**: the Hessian condition number is high and
-  its least-identified direction loads almost entirely on the annual fishery
-  selectivity deviations (`sel_coff_dev`).
-- The 2D age-by-year AR1 selectivity sensitivity in `03-` settles in its own
-  optimum (SSB correlation ~0.97 with the base, terminal ~3% lower) but trips the
-  same estimability / non-positive-definite-Hessian checks as the base fit. The
-  script attributes that to weak identification from the analytical survey q
-  rather than to the 2D AR1 form itself. Ianelli's companion report reaches a
-  harder verdict on his own run of this form — parameters at bounds and a FAIL
-  convergence status — so the two are not describing the same fit. Research
-  option, not a candidate configuration.
+- **Base fit converges WARN**: Hessian condition number 1.2e6, least-identified
+  direction loading 100% on `sel_coff_dev`. It costs standard errors, not
+  optimum stability — 50 jitters at sd 0.2 (2167 parameters perturbed) return
+  the same objective to 1e-8, SSB to 3e-4 %, and `sel_coff_dev` itself to 7e-5.
+- **2D age-by-year AR1 selectivity (`03-`) does not converge.** Max gradient
+  30.5 on `rec_pars`, `sdreport` failed, 55 `log_F` at bounds, objective 1274.3
+  vs the base 713.7. Its ADMB comparison statistics are not a fitted result.
+  Ianelli reports 56 `log_F` at bounds and a FAIL, so the dev-line parameter-
+  bounds fix did not resolve it. Research option, not a candidate.
+- **Retrospective bias grows with forecast horizon.** Mohn's rho, 5
+  peels, forecast year 0/1/2/3 — SSB 0.221/0.476/0.709/0.821; biomass
+  0.331/0.472/0.696/0.875; recruitment −0.072/0.716/0.858/0.759; F
+  +0.074/−0.179/−0.260/−0.189. Quote the horizon with the number. Not yet
+  compared against ADMB, so it is unclear how much is the bridge.
+- **Composition OSA residuals underdispersed.** SDNR 0.639 fishery, 0.802 BTS,
+  0.517 ATS, 0.704 overall (1864 residuals); 6 of 10 groups fail `sdnr_ok`.
+  Matches Ianelli's 0.71/0.84/0.70. His zero-dispersion result for the
+  analytical-q and MVN index groups does **not** reproduce (AVO 1.015, BTS
+  1.199, CPUE 0.519).
+- **Age-1 M is not identified** — monotonic to either endpoint, ~2 nll units
+  across 0.2–1.3. `04-` profiles age-3+ M instead: minimum at 0.35 against the
+  assumed 0.30.
