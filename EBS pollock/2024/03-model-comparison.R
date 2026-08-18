@@ -176,8 +176,8 @@ ebs_2024 <- Rceattle::fit_mod(
 # =============================================================================
 # Replace the fishery's non-parametric random-walk selectivity with a 2D AR1 field
 # over age x year (Selectivity = "2DAR1"; Xu et al. 2019 / Cheng et al. 2024): annual
-# log-selectivity deviations correlated across age (Sel_curve_pen2) and year
-# (Sel_curve_pen1) via two estimated AR1 rhos, deviation SD (Time_varying_sel_sd)
+# log-selectivity deviations correlated across age (Sel_curve_pen1) and year
+# (Sel_curve_pen2) via two estimated AR1 rhos, deviation SD (Time_varying_sel_sd)
 # estimated, integrated out (random_sel = TRUE). CPUE mirrors the fishery selectivity
 # (shared Selectivity_index), so it follows.
 # FIXME: CPUE should use the baranov, but does not
@@ -188,8 +188,8 @@ est_2d$fleet_control$Selectivity[sel_rows]         <- "2DAR1"
 est_2d$fleet_control$Time_varying_sel[sel_rows]    <- "Off"          # ignored for 2DAR1 (field is age x year)
 est_2d$fleet_control$N_sel_bins[sel_rows]          <- n_selages_fsh  # age bins in the field
 est_2d$fleet_control$Bin_first_selected[sel_rows]  <- 1
-est_2d$fleet_control$Sel_curve_pen1[sel_rows]      <- 0              # Initial year AR1 rho (logit scale), estimated
-est_2d$fleet_control$Sel_curve_pen2[sel_rows]      <- 0              # Initial age AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen1[sel_rows]      <- 0              # Initial AGE (bin) AR1 rho (logit scale), estimated
+est_2d$fleet_control$Sel_curve_pen2[sel_rows]      <- 0              # Initial YEAR AR1 rho (logit scale), estimated
 est_2d$fleet_control$Time_varying_sel_sd[sel_rows] <- 1              # deviation SD init
 est_2d$fleet_control$Sel_curve_pen3[sel_rows]      <- NA
 est_2d$fleet_control$Sel_avgsel_pen[sel_rows]      <- 0              # AMAK base-level penalty is a type-9 term; off here
