@@ -18,6 +18,7 @@
 # =============================================================================
 
 library(Rceattle)
+library(ggplot2)
 
 XLSX          <- "Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx"  # or the 2025 roll-forward
 n_selages_fsh <- 12
@@ -104,13 +105,13 @@ plot_biomass(ebs_2024_retro$Rceattle_list)
 ebs_2024_jitters <- jitter(Rceattle = ebs_2024, njitter = 50, phase = TRUE)
 hist(log(ebs_2024_jitters$nll - min(ebs_2024_jitters$nll)),
      main = "Jitter NLL spread (log scale)", xlab = "log(NLL - min NLL)")
-plot_biomass(ebs_2024_jitters$Rceattle_list)     # tight overlap => stable optimum
+plot_biomass(ebs_2024_jitters$Rceattle_list) + theme(legend.position="none")    # tight overlap => stable optimum
 
 # * Self-test ----
 ebs_2024_sims <- self_test(ebs_2024, nsim = 50)
 length(ebs_2024_sims)                           # simulations that converged (non-converged dropped)
-plot_biomass(c(list(ebs_2024), ebs_2024_sims),
-             model_names = c("fit", names(ebs_2024_sims)))
+
+plot_biomass(c(ebs_2024_sims, list(ebs_2024)), line_col = c(rep("grey", length(ebs_2024_sims)), 1)) + theme(legend.position="none")
 
 # * Likelihood profile ----
 # Profile age-3+ M, not age 1. The ADMB schedule fixes M at 0.9 / 0.45 / 0.3 for
