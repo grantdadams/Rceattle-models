@@ -23,12 +23,15 @@ library(ggplot2)
 XLSX          <- "Data/EBS_24_pollock_m23_rceattle_full_1964-2024.xlsx"  # or the 2025 roll-forward
 n_selages_fsh <- 12
 
+
 # Data ----
 est   <- read_data(XLSX)
+est$diet_data <- NULL
 styr  <- est$styr; endyr <- est$endyr; yrs <- styr:endyr; nyr <- length(yrs)
 M1Fun <- build_M1(updateM1 = TRUE, M1_model = "fixed")
 ctl   <- fit_control(verbose = 1, phase = TRUE,
                      bias_adjust_proc = 0, bias_adjust_obs = 0, comp_offset = 1e-3)
+plot_data(est)
 
 # Empirical fishery-selectivity start ----
 # Mean observed fishery age composition / numbers-at-age (a throwaway default
