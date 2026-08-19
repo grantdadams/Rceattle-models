@@ -34,6 +34,44 @@ about the model differs.
 Composition (`age_like`) and the recruitment penalties (`rec_like(2)`, `(4)`)
 already match without correction and need no edit.
 
+### Rceattle >= 5.9.0 breaks this for AVO and CPUE
+
+The table above was measured before Rceattle made the natural-scale normal index
+likelihood **left-truncated at zero** (`Index_distribution = "Normal"`; see R1 in
+the reconciliation log). An index cannot be negative and `data_check()` will not
+accept one, so the density is renormalized over `(0, Inf)` and each fitted
+observation gains `+ log(Phi(mu / sigma))`. ADMB's `avo_like` / `cpue_like` have
+no such term and are not going to grow one.
+
+That matters for this handoff specifically, because the plan rests on the whole
+gap being a *constant*: add the omitted normalizing constants in ADMB and the two
+models report the same number, with the MLE untouched. The truncation term is not
+a constant. It depends on `mu = q * pred`, so it carries a gradient, it cannot be
+added on the ADMB side by a reporting change, and it moves the Rceattle MLE
+slightly rather than only the reported total.
+
+Size, using the 18 `ob_avo_std` values against a prediction at the observed AVO
+scale:
+
+| AVO prediction | sum log Phi(mu/sigma) | worst single year |
+|---|---|---|
+| mu ~ 1.74 (observed scale) | -0.0209 | -0.0145 |
+| mu = 1.2 | -0.1634 | -0.0680 |
+| mu = 0.9 | -0.5087 | -0.1380 |
+
+Against an AVO residual of -0.00001 today, so at the nominal scale the term is
+some three orders of magnitude larger than the agreement this table reports, and
+it grows quickly in any year where the prediction falls toward its sigma. CPUE is
+the same family and needs the same treatment; its magnitude has not been measured
+here.
+
+So before re-bridging: re-measure the AVO and CPUE rows under the current
+Rceattle, and expect their residual to be `sum(log Phi(mu/sigma))` rather than
+zero. If an exact ADMB comparison is wanted for those two fleets, recompute the
+untruncated part from the reported `index_hat` -- `-sum(dnorm(obs, index_hat,
+sigma, log = TRUE))` -- rather than reading `jnll_comp` row 1. The BTS (MVN),
+ATS and ATS_1 (lognormal) rows are unaffected.
+
 ---
 
 ## The pattern to follow
