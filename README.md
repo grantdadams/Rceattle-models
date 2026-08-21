@@ -1,8 +1,10 @@
 # Rceattle models
 
-Assessment models built with [Rceattle](https://github.com/grantdadams/Rceattle),
+Assessment replications  built with [Rceattle](https://github.com/grantdadams/Rceattle),
 the R/TMB implementation of CEATTLE. One top-level folder per stock (or per group
 of related experiments); each is a self-contained RStudio project.
+
+NOTE: These are not the operational assessment models.
 
 `Rceattle install.R` installs the package and its dependencies.
 
