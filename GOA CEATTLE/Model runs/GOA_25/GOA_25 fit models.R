@@ -8,7 +8,15 @@ setwd("Model runs/GOA_25/")
 # Passing them directly still works but warns, and will be removed.
 
 # Manually add in diet data
-combined_data <- read_data(file = "Data/GOA_25_data_1977_2025.xlsx")
+#
+# The `_dietfix` file is the 2025 data with its `diet_data` sheet rebuilt: the
+# shipped sheet was truncated at age 10, which dropped arrowtooth ages 11-21 --
+# 79% of that predator's diet mass. An age with no diet row is not estimated
+# under `suitMode = 0`, it is switched off (`suit_other = 1`: eats only other
+# food, exerts no predation, is never eaten), so the shipped file removed the
+# most piscivorous half of the dominant GOA predator. Regenerate the file with
+# Data/build_diet_data.R, which documents the repair.
+combined_data <- read_data(file = "Data/GOA_25_data_1977_2025_dietfix.xlsx")
 plot_data(combined_data)
 
 # What the configuration below actually requires / ignores

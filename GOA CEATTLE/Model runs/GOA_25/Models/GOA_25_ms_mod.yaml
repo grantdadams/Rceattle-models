@@ -1,0 +1,29 @@
+# Rceattle run configuration
+# saved: 2026-08-21 19:20:55 UTC
+# Rceattle: 5.10.0
+#
+# <Rceattle model_config>
+#   msmMode  : 1 
+#   initMode : NonEquilibrium 
+#   avgnMode : 0 
+#   suitMode : 0 
+#   niter    : 3 
+#   HCR      : 0 
+#   recFun   : build_srr(srr_fun = 0 )
+#   M1Fun    : build_M1(M1_model = 1, 2, 1 )
+#   growthFun: build_growth(fun = empirical )
+
+model:
+  # Predation-mortality mode  (0 single-species / 1 Holsman MSVPA / 2 Holling-III MSVPA)
+  msmMode: 1.0
+  # Natural-mortality specification (build_M1)
+  M1Fun:
+    M1_model:
+    - 1
+    - 2
+    - 1
+estimation:
+  # First year of the diet/suitability averaging window
+  suit_styr: 1990.0
+  # Last year of the diet/suitability averaging window
+  suit_endyr: 2015.0
