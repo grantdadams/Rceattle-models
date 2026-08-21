@@ -11,9 +11,39 @@ output:
     keep_tex: yes
     latex_engine: xelatex
 ---
+
+<!--
+Updated for Rceattle >= 5.10.0. What changed, and what it means for the ESP
+indices this document writes:
+
+* `quantities$ration` is now `quantities$consumption_at_age` (the annual ration
+  of ONE fish, kg/yr) and `quantities$biomassByage` is
+  `quantities$biomass_at_age`. Both old names now resolve to NULL.
+* Population-level consumption is `consumption_at_age * avgN_at_age`, not
+  ration x biomass. The old formula multiplied by weight-at-age twice (it was a
+  direct port of the ADMB `biomassByage * ration2`, where ration2 is a RELATIVE
+  ration in g/g). The corrected ration index is therefore lower than the 2024
+  index by roughly the consumption-weighted mean weight-at-age: about 10% for
+  pollock and arrowtooth, about 4x for Pacific cod. Flag this in the ESP
+  submission -- it is a units fix, not a change in the model.
+* `plot_*()` return ggplot objects, so figures are saved with `ggsave()` and
+  annotated with layers; `jpeg()` / `dev.off()` / `mtext()` / `legend()`
+  chains no longer work.
+* In `plot_m_at_age()` and `plot_ration()`, colour separates the MODELS and
+  line type separates the SEXES. `lty` used to key on the model.
+* `M_at_age` and `B_eaten_as_prey` are REPORTed but no longer ADREPORTed, so
+  the fit carries no standard errors for them (`plot_m_at_age(add_ci = TRUE)`
+  says the same thing). The uncertainty block below reports NA rather than a
+  number the model never produced.
+* `fit_mod()`'s `phase` / `verbose` arguments moved onto `fit_control()`; see
+  "GOA_25 fit models.R".
+-->
+
 ```{r echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 library(Rceattle)
+library(ggplot2)
 library(lubridate)
+library(writexl)
 
 # Load models and code
 source("ESP_Figure_Code.R")
@@ -21,220 +51,252 @@ source("ESR_Figure_Code.R")
 load("Models/GOA_25_mod_list.RData")
 
 # Get model objects for use below
+#  [[1]] single-species, fixed M   [[2]] single-species, estimated M
+#  [[3]] multi-species
+ss_model         <- mod_list_all[[1]]
 ceattle_esr_model <- mod_list_all[[3]]
-years <- ceattle_esr_model$data_list$styr:2025
+
+# Years come from the model rather than a literal, so a rerun with another
+# terminal year does not need this document edited.
+years  <- ceattle_esr_model$data_list$styr:ceattle_esr_model$data_list$endyr
 thisYr <- years[length(years)]
+nyrs   <- length(years)
+
+spnames <- ceattle_esr_model$data_list$spnames   # Pollock, Arrowtooth flounder, Cod
+nspp    <- ceattle_esr_model$data_list$nspp
+nsex    <- ceattle_esr_model$data_list$nsex
+nages   <- ceattle_esr_model$data_list$nages
 
 # Uncertainty of key parameters
-b_eaten_as_prey <- ceattle_esr_model$quantities$B_eaten_as_prey
-b_eaten_as_prey_sd <- replace(b_eaten_as_prey, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "B_eaten_as_prey")])
+#
+# `M_at_age` and `B_eaten_as_prey` are REPORTed but their ADREPORT lines are
+# commented out in ceattle.cpp, so `sdrep` holds nothing for them. Earlier
+# versions of this document pulled the sd straight out of `sdrep$sd`; that now
+# matches zero elements and errors. Return an NA array instead, so the terminal
+# values below are still reported and the missing uncertainty is visible rather
+# than silently invented.
+sdrep_array <- function(model, name, template) {
+  hit <- which(names(model$sdrep$value) == name)
+  if (length(hit) != length(template)) {
+    warning(name, " is not in the sdreport (it is REPORTed, not ADREPORTed): ",
+            "reporting NA for its standard error.", call. = FALSE)
+    return(array(NA_real_, dim = dim(template), dimnames = dimnames(template)))
+  }
+  array(model$sdrep$sd[hit], dim = dim(template), dimnames = dimnames(template))
+}
 
-M_at_age <- ceattle_esr_model$quantities$M_at_age
-M_at_age_sd <- replace(M_at_age, values = ceattle_esr_model$sdrep$sd[which(names(ceattle_esr_model$sdrep$value) == "M_at_age")])
+b_eaten_as_prey    <- ceattle_esr_model$quantities$B_eaten_as_prey
+b_eaten_as_prey_sd <- sdrep_array(ceattle_esr_model, "B_eaten_as_prey", b_eaten_as_prey)
+
+M_at_age    <- ceattle_esr_model$quantities$M_at_age
+M_at_age_sd <- sdrep_array(ceattle_esr_model, "M_at_age", M_at_age)
 
 
 # Mortality rates and means/peaks
-peak_M <- c()
-avg_M <- c()
-avg_Age1_Beaten <- c()
-avg_Beaten <- c()
-avg_Ration <- c()
-terminal_M <- c()
-terminal_M_sd <- c()
-terminal_Age1_Beaten <- c()
-terminal_Age1_Beaten_sd <- c()
-terminal_Beaten <- c()
-terminal_Ration <- c()
-peak_M_ind <- c()
-peak_M_years <- c()
-ind <- 1
-for(sp in 1:3){
-  for(sex in 1:ceattle_esr_model$data_list$nsex[sp]){
-    
-    # Sex-specific M_at_age
-    peak_M[ind] <- max(ceattle_esr_model$quantities$M_at_age[sp,sex,1,1:length(years)])
-    avg_M[ind] <- mean(ceattle_esr_model$quantities$M_at_age[sp,sex,1,1:length(years)])
-    terminal_M[ind] <- ceattle_esr_model$quantities$M_at_age[sp,sex,1,length(years)]
-    terminal_M_sd[ind] <- M_at_age_sd[sp,sex,1,length(years)]
-    terminal_Age1_Beaten[ind] <- (ceattle_esr_model$quantities$B_eaten_as_prey[sp,sex,1,length(years)])
-    terminal_Age1_Beaten_sd[ind] <- b_eaten_as_prey_sd[sp,sex,1,length(years)]
-    
-    peak_M_ind[ind] <- which(ceattle_esr_model$quantities$M_at_age[sp,sex,1,1:length(years)] == peak_M[ind])
-    peak_M_years[ind] <- years[peak_M_ind[ind]]
-    ind <- ind+1
-  }
-  
-  # B-eaten
-  avg_Beaten[sp] <- mean(apply(ceattle_esr_model$quantities$B_eaten_as_prey[sp,,,1:length(years)], 3, sum))
-  terminal_Beaten[sp] <- sum(ceattle_esr_model$quantities$B_eaten_as_prey[sp,,,length(years)])
-  
-  avg_Age1_Beaten[sp] <- mean(colSums(ceattle_esr_model$quantities$B_eaten_as_prey[sp,,1,1:length(years)]))
-  terminal_Age1_Beaten[sp] <- sum(ceattle_esr_model$quantities$B_eaten_as_prey[sp,,1,length(years)])
-  
-  # Ration
-  ration <- weighted_ration(ceattle_esr_model, spp = sp, endyr = 2022, minage = 4)
-  avg_Ration[sp] <- mean(ration)
-  terminal_Ration[sp] <- ration[length(ration)]
-}
+#
+# Two levels of summary, kept in separate objects. `mort` is one row per
+# species x sex (age-1 M and the age-1 biomass eaten); `pred` is one row per
+# species (biomass eaten and ration, summed over sex). The old script wrote both
+# into the same vectors, so the per-sex arrowtooth entries were overwritten by
+# the per-species totals.
+mort <- do.call(rbind, lapply(seq_len(nspp), function(sp) {
+  do.call(rbind, lapply(seq_len(nsex[sp]), function(sex) {
+    M_ts <- ceattle_esr_model$quantities$M_at_age[sp, sex, 1, 1:nyrs]
+    data.frame(
+      Species           = spnames[sp],
+      Sex               = if (nsex[sp] == 1) "Combined" else c("Female", "Male")[sex],
+      peak_M            = max(M_ts),
+      peak_M_year       = years[which.max(M_ts)],
+      avg_M             = mean(M_ts),
+      terminal_M        = M_ts[nyrs],
+      terminal_M_sd     = M_at_age_sd[sp, sex, 1, nyrs],
+      terminal_Age1_Beaten    = b_eaten_as_prey[sp, sex, 1, nyrs],
+      terminal_Age1_Beaten_sd = b_eaten_as_prey_sd[sp, sex, 1, nyrs],
+      stringsAsFactors = FALSE)
+  }))
+}))
 
-# Percent change in mortality
-prcnt_change <- round(abs(100 * (terminal_M-peak_M)/peak_M),2)
+pred <- do.call(rbind, lapply(seq_len(nspp), function(sp) {
+  be     <- ceattle_esr_model$quantities$B_eaten_as_prey[sp, , , 1:nyrs, drop = FALSE]
+  be_tot <- apply(be, 4, sum)                       # over sex and age
+  be_a1  <- apply(be[, , 1, , drop = FALSE], 4, sum) # age 1 only, over sex
+  ration <- weighted_ration(ceattle_esr_model, spp = sp, endyr = thisYr, minage = 4)
+  data.frame(
+    Species              = spnames[sp],
+    avg_Beaten           = mean(be_tot),
+    terminal_Beaten      = be_tot[nyrs],
+    avg_Age1_Beaten      = mean(be_a1),
+    terminal_Age1_Beaten = be_a1[nyrs],
+    avg_Ration           = mean(ration),
+    terminal_Ration      = ration[length(ration)],
+    stringsAsFactors = FALSE)
+}))
 
-# Format some values
-avg_Beaten <- format(round(avg_Beaten, 0), scientific = FALSE, big.mark = ",")
-terminal_Beaten <- format(round(terminal_Beaten, 0), scientific = FALSE, big.mark = ",")
+# Percent change in age-1 mortality between the peak and the terminal year
+mort$prcnt_change <- round(abs(100 * (mort$terminal_M - mort$peak_M) / mort$peak_M), 2)
 
-avg_Age1_Beaten <- format(round(avg_Age1_Beaten, 0), scientific = FALSE, big.mark = ",")
-terminal_Age1_Beaten <- format(round(terminal_Age1_Beaten, 0), scientific = FALSE, big.mark = ",")
-terminal_Age1_Beaten_sd <- format(round(terminal_Age1_Beaten_sd, 0), scientific = FALSE, big.mark = ",")
+# Format some values for inline reporting
+comma <- function(x) format(round(x, 0), scientific = FALSE, big.mark = ",")
+
+avg_Beaten           <- comma(pred$avg_Beaten)
+terminal_Beaten      <- comma(pred$terminal_Beaten)
+avg_Age1_Beaten      <- comma(pred$avg_Age1_Beaten)
+terminal_Age1_Beaten <- comma(pred$terminal_Age1_Beaten)
 ```
 
 ```{r chunk3, echo=FALSE, eval=TRUE, include=FALSE}
-sclr<-1
+sclr <- 1
 
 cols <- nmfspalette::nmfs_palette("oceans")(3)[3:2]
+mod_names <- c("Single-spp CEATTLE", "Multi-spp CEATTLE")
+ss_ms <- list(ss_model, ceattle_esr_model)
+
+# The plot_*() functions return ggplot objects. Save with ggsave() rather than
+# jpeg()/dev.off(); the model legend is drawn by the plot itself, so the old
+# legend() / mtext() calls are gone.
+#
+# The package theme puts the legend along the bottom. plot_m_at_age() draws two
+# guides there (model colour and sex line type), which run off a 4.5-inch
+# figure side by side, so stack the guide boxes instead. Only the box layout is
+# touched: the plotters already drop a guide that has one level, and forcing
+# `guides()` here would put those single-entry legends back.
+save_fig <- function(plot, file, width = 4.5, height = 5) {
+  if (inherits(plot, "ggplot")) plot <- plot + theme(legend.box = "vertical")
+  ggsave(file, plot = plot, width = width * sclr, height = height * sclr,
+         units = "in", dpi = 350)
+}
 
 # Figure 1: Time series of biomass
-jpeg(file="Results/ATF_ESP_Fig1.jpg",height=3.5*sclr, width=4.5*sclr, units="in",res=350)
-plot_biomass(list(mod_list_all[[1]], mod_list_all[[3]]), line_col = cols, species = 2, model_names = "Single-spp CEATTLE", "Multi-spp CEATTLE")
-legend("topright",c( "Single-spp CEATTLE", "Multi-spp CEATTLE"), bty = "n", col = cols, lwd = 2)
-mtext(side = 2, "Age-1+ biomass (million mt)", line = 2)
-dev.off()
+save_fig(
+  plot_biomass(ss_ms, line_col = cols, species = 2, model_names = mod_names,
+               ylab = "Age-1+ biomass (million mt)"),
+  "Results/ATF_ESP_Fig1.jpg", height = 3.5)
 
 # Figure 2: Time series of mortality
-jpeg(file="Results/ATF_ESP_Fig2_age1.jpg",height=5*sclr, width=4.5*sclr, units="in",res=350)
-plot_m_at_age(list(mod_list_all[[1]], mod_list_all[[3]]), age = 1, species = 2,  line_col = cols, lty = c(2,1))
-dev.off()
-
-jpeg(file="Results/ATF_ESP_Fig2_age2.jpg",height=5*sclr, width=4.5*sclr, units="in",res=350)
-plot_m_at_age(list(mod_list_all[[1]], mod_list_all[[3]]), age = 2, species = 2,  line_col = cols, lty = c(2,1))
-dev.off()
-
-jpeg(file="Results/ATF_ESP_Fig2_age3.jpg",height=5*sclr, width=4.5*sclr, units="in",res=350)
-plot_m_at_age(list(mod_list_all[[1]], mod_list_all[[3]]), age = 3, species = 2,  line_col = cols, lty = c(2,1))
-dev.off()
+# Colour separates the models; line type separates female (solid) from male
+# (dashed) arrowtooth -- `lty` keyed on the model before Rceattle 5.x.
+for (a in 1:3) {
+  save_fig(
+    plot_m_at_age(ss_ms, age = a, species = 2, line_col = cols,
+                  model_names = mod_names, lty = c(1, 2)),
+    paste0("Results/ATF_ESP_Fig2_age", a, ".jpg"))
+}
 
 # Figure 3: Time series of biomass consumed
-jpeg(file="Results/ATF_ESP_Fig3.jpg",height=5*sclr, width=4.5*sclr, units="in",res=350)
-plot_b_eaten(mod_list_all[[3]], line_col = cols[2], species = 2)
-dev.off()
-
+save_fig(
+  plot_b_eaten(ceattle_esr_model, line_col = cols[2], species = 2),
+  "Results/ATF_ESP_Fig3.jpg")
 
 # Figure 4: Time series of annual ration
-jpeg(file="Results/ATF_ESP_Fig4.jpg",height=5*sclr, width=4.5*sclr, units="in",res=350)
-plot_ration(mod_list_all[[3]], line_col = cols[2], species = 2, minage = 4)
-dev.off()
+save_fig(
+  plot_ration(ceattle_esr_model, line_col = cols[2], species = 2, minage = 4),
+  "Results/ATF_ESP_Fig4.jpg")
 
 # Figure 5: Combined plots
-# - Pollock
-jpeg(file="Results/Pollock_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
-ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 1)
-dev.off()
-
-# - Cod
-jpeg(file="Results/Cod_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
-ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 3)
-dev.off()
-
-# - Atf
-jpeg(file="Results/ATF_ESP_Fig5.jpg",height=8*sclr, width=4.5*sclr, units="in",res=350)
-ESP_plot(msModel = mod_list_all[[3]], ssModel = mod_list_all[[1]], age = 1, minage = 4, endyr = 2023, species = 2)
-dev.off()
-```	
-
-
+for (sp in seq_len(nspp)) {
+  stub <- c("Pollock", "ATF", "Cod")[sp]
+  save_fig(
+    ESP_plot(msModel = ceattle_esr_model, ssModel = ss_model,
+             age = 1, minage = 4, endyr = thisYr, species = sp),
+    paste0("Results/", stub, "_ESP_Fig5.jpg"), height = 8)
+}
+```
 
 # Indices
-```{r}
+
+```{r echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
 
 # Annual biomass of GOA Pacific cod consumed by predators
 # Annual biomass of GOA pollock consumed by predators
 # Annual ration of GOA Pacific cod
 # Annual ration of GOA pollock
 # Total natural mortality (m1+m2) of age-1 GOA Pacific cod
-# Total natural mortality (m1+m2) of age-1 GOA pollock 
+# Total natural mortality (m1+m2) of age-1 GOA pollock
 
-# -- Pollock and cod
-for(i in c(1,3)){
-  sp = i
-  
-  spname = mod_list_all[[3]]$data_list$spnames[sp]
-  nages <- mod_list_all[[3]]$data_list$nages[sp]
-  
-  Matage1 = data.frame(Year = years,
-                       MS_M = mod_list_all[[3]]$quantities$M_at_age[sp,1,1,1:length(years)], 
-                       SS_M = mod_list_all[[1]]$quantities$M_at_age[sp,1,1,1:length(years)])
-  
-  Biomass = data.frame(Year = years,
-                       SS_Biomass = mod_list_all[[1]]$quantities$biomass[sp,1:length(years)],
-                       SS_SSB = mod_list_all[[1]]$quantities$ssb[sp,1:length(years)],
-                       
-                       MS_Biomass = mod_list_all[[3]]$quantities$biomass[sp,1:length(years)],
-                       MS_SSB = mod_list_all[[3]]$quantities$ssb[sp,1:length(years)]
-  )
-  
-  B_eaten = data.frame(Year = years,
-                       Biomass_eaten_as_prey = colSums(mod_list_all[[3]]$quantities$B_eaten_as_prey[sp,1,,1:length(years)]))
-  
-  Ration = data.frame(Year = years,
-                      `Age4plusTotal` = weighted_ration(ceattle_esr_model, spp = sp, endyr = 2025, minage = 4),
-                      `Age1plusTotal` =weighted_ration(ceattle_esr_model, spp = sp, endyr = 2025, minage = 1)
-  )
-  
-  
+# -- Pollock and cod (both sex-combined: nsex == 1)
+for (sp in c(1, 3)) {
+
+  spname <- spnames[sp]
+
+  Matage1 <- data.frame(
+    Year = years,
+    MS_M = ceattle_esr_model$quantities$M_at_age[sp, 1, 1, 1:nyrs],
+    SS_M = ss_model$quantities$M_at_age[sp, 1, 1, 1:nyrs])
+
+  Biomass <- data.frame(
+    Year = years,
+    SS_Biomass = ss_model$quantities$biomass[sp, 1:nyrs],
+    SS_SSB     = ss_model$quantities$ssb[sp, 1:nyrs],
+
+    MS_Biomass = ceattle_esr_model$quantities$biomass[sp, 1:nyrs],
+    MS_SSB     = ceattle_esr_model$quantities$ssb[sp, 1:nyrs])
+
+  # Summed over age (and over sex, which is one level for these two species)
+  B_eaten <- data.frame(
+    Year = years,
+    Biomass_eaten_as_prey = apply(
+      ceattle_esr_model$quantities$B_eaten_as_prey[sp, , , 1:nyrs, drop = FALSE], 4, sum))
+
+  # Population consumption in mt/yr: individual ration x average numbers-at-age
+  Ration <- data.frame(
+    Year = years,
+    Age4plusTotal = weighted_ration(ceattle_esr_model, spp = sp, endyr = thisYr, minage = 4),
+    Age1plusTotal = weighted_ration(ceattle_esr_model, spp = sp, endyr = thisYr, minage = 1))
+
   # Indices to share
-  library(writexl)
   write_xlsx(
-    list(Age1_M = Matage1,
+    list(Age1_M  = Matage1,
          Biomass = Biomass,
          B_eaten = B_eaten,
-         Ration = Ration
-    )
-    ,paste0("Results/GOA 2025 ", spname, " ESP Indices.xlsx")
-    )
+         Ration  = Ration),
+    paste0("Results/GOA ", thisYr, " ", spname, " ESP Indices.xlsx"))
 }
 
 
+# -- ATF (two sexes, so M and consumption are reported by sex)
+atf <- 2
 
+Female_M <- cbind(
+  data.frame(Year = years),
+  as.data.frame(t(ceattle_esr_model$quantities$M_at_age[atf, 1, 1:nages[atf], 1:nyrs])),
+  data.frame(M = ss_model$quantities$M_at_age[atf, 1, 1, 1:nyrs]))
+colnames(Female_M) <- c("Year", paste0("Multi-spp M Age_", 1:nages[atf]), "Single-spp M")
 
-# -- ATF
-nages <- mod_list_all[[3]]$data_list$nages[2]
+Male_M <- cbind(
+  data.frame(Year = years),
+  as.data.frame(t(ceattle_esr_model$quantities$M_at_age[atf, 2, 1:nages[atf], 1:nyrs])),
+  data.frame(M = ss_model$quantities$M_at_age[atf, 2, 1, 1:nyrs]))
+colnames(Male_M) <- c("Year", paste0("Multi-spp M Age_", 1:nages[atf]), "Single-spp M")
 
-Female_M = cbind(years,t(mod_list_all[[3]]$quantities$M_at_age[2,1,,1:length(years)]), data.frame(M = mod_list_all[[1]]$quantities$M_at_age[2,1,1,1:length(years)]))
+B_eaten_F <- apply(ceattle_esr_model$quantities$B_eaten_as_prey[atf, 1, , 1:nyrs, drop = FALSE], 4, sum)
+B_eaten_M <- apply(ceattle_esr_model$quantities$B_eaten_as_prey[atf, 2, , 1:nyrs, drop = FALSE], 4, sum)
 
-colnames(Female_M) <- c("Year", paste0("Multi-spp M Age_",1:nages), "Single-spp M")
-
-Male_M = cbind(years,t(mod_list_all[[3]]$quantities$M_at_age[2,2,,1:length(years)]), data.frame(M = mod_list_all[[1]]$quantities$M_at_age[2,2,1,1:length(years)]))
-
-colnames(Male_M) <- c("Year", paste0("Multi-spp M Age_",1:nages), "Single-spp M")
+Ration_F <- weighted_ration(ceattle_esr_model, spp = atf, endyr = thisYr, minage = 4, sex = 1)
+Ration_M <- weighted_ration(ceattle_esr_model, spp = atf, endyr = thisYr, minage = 4, sex = 2)
 
 # Indices to share
-library(writexl)
 write_xlsx(
   list(Female_M = Female_M,
-       Male_M = Male_M,
-       
-       Biomass = data.frame(Year = years,
-                            SS_Biomass = mod_list_all[[1]]$quantities$biomass[2,1:length(years)],
-                            SS_SSB = mod_list_all[[1]]$quantities$ssb[2,1:length(years)],
-                            
-                            MS_Biomass = mod_list_all[[3]]$quantities$biomass[2,1:length(years)],
-                            MS_SSB = mod_list_all[[3]]$quantities$ssb[2,1:length(years)]
-       ),
-       
-       B_eaten = data.frame(Year = years,
-                            Biomass_eaten_as_prey_F = colSums(mod_list_all[[3]]$quantities$B_eaten_as_prey[2,1,,1:length(years)]),
-                            Biomass_eaten_as_prey_M = colSums(mod_list_all[[3]]$quantities$B_eaten_as_prey[2,2,,1:length(years)]),
-                            Total_biomass_eaten_as_prey = colSums(mod_list_all[[3]]$quantities$B_eaten_as_prey[2,2,,1:length(years)]) + colSums(mod_list_all[[3]]$quantities$B_eaten_as_prey[2,1,,1:length(years)])),
-       
-       Ration = data.frame(Year = years,
-                           `4+Female` = colSums(mod_list_all[[3]]$quantities$ration[2,1,4:21,1:length(years)]),
-                           `4+Male` = colSums(mod_list_all[[3]]$quantities$ration[2,2,4:21,1:length(years)]),
-                           `4+Total` = colSums(mod_list_all[[3]]$quantities$ration[2,1,4:21,1:length(years)]) + colSums(mod_list_all[[3]]$quantities$ration[2,2,4:21,1:length(years)])
-       )
-  )
-  ,"Results/GOA 2025 ATF ESP Indices.xlsx")
+       Male_M   = Male_M,
 
+       Biomass = data.frame(
+         Year = years,
+         SS_Biomass = ss_model$quantities$biomass[atf, 1:nyrs],
+         SS_SSB     = ss_model$quantities$ssb[atf, 1:nyrs],
 
+         MS_Biomass = ceattle_esr_model$quantities$biomass[atf, 1:nyrs],
+         MS_SSB     = ceattle_esr_model$quantities$ssb[atf, 1:nyrs]),
 
+       B_eaten = data.frame(
+         Year = years,
+         Biomass_eaten_as_prey_F     = B_eaten_F,
+         Biomass_eaten_as_prey_M     = B_eaten_M,
+         Total_biomass_eaten_as_prey = B_eaten_F + B_eaten_M),
+
+       Ration = data.frame(
+         Year = years,
+         Age4plusFemale = Ration_F,
+         Age4plusMale   = Ration_M,
+         Age4plusTotal  = Ration_F + Ration_M)),
+  paste0("Results/GOA ", thisYr, " ATF ESP Indices.xlsx"))
 ```
