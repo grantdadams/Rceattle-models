@@ -14,7 +14,7 @@
 # Writes:  nothing; console comparison tables and interactive plots
 # Prereq:  "01-build-data.R", and "00-fit-admb.R" for the ADMB comparison.
 #
-# THIS FILE CARRIES THE RECONCILIATION LOG (S1-S4, L1-L7, D1-D8, R1 below). The other
+# THIS FILE CARRIES THE RECONCILIATION LOG (S1-S4, L1-L7, D1-D8 below). The other
 # scripts in this folder cite those codes rather than repeating the detail.
 # =============================================================================
 # ADMB BRIDGING
@@ -70,37 +70,13 @@
 #   D8. AMAK average-selectivity penalty retained (Sel_avgsel_pen = 10); BTS
 #       selectivity random-walk penalty applied over the survey period only.
 #
-# Residual likelihood difference -- Rceattle >= 5.9.0 (NOT reconcilable Rceattle-side)
-#   R1. The natural-scale normal index likelihood (Index_distribution = "Normal")
-#       is LEFT-TRUNCATED AT ZERO in Rceattle from 5.9.0. An index cannot be
-#       negative and data_check() will not accept one, so the density is
-#       renormalized over (0, Inf) and each fitted observation carries
-#       + log(Phi(mu / sigma)) on top of -log(phi(obs; mu, sigma)).
-#       ADMB's avo_like / cpue_like are the untruncated 0.5*(obs - q*pred)^2/sigma^2,
-#       so this term has no ADMB counterpart. It applies to the two Normal-family
-#       fleets here: AVO (L5/L6/D3) and the 1965-76 Japanese CPUE fleet (D5).
-#
-#       Size: with the 18 ob_avo_std values and a prediction at the observed AVO
-#       scale (~1.74 million tonnes), sum(log Phi(mu/sigma)) is about -0.021,
-#       rising to -0.16 at mu = 1.2 and -0.51 at mu = 0.9. The component-by-
-#       component bridge in "02-bridge.R" currently reports an AVO residual of
-#       -0.00001, so at the nominal scale this term is some three orders of
-#       magnitude larger than that agreement. See the "Rceattle >= 5.9.0" section
-#       of HANDOFF_pm_full_likelihood.md, which that handoff's plan depends on:
-#       it assumes the whole Rceattle-ADMB gap is a constant, and this term is
-#       not one.
-#
-#       It is NOT an additive constant. The term depends on mu = q * pred, so it
-#       carries a gradient and shifts the optimum, not just the objective level.
-#       Objective comparisons against ADMB for these two fleets therefore no
-#       longer match to machine precision, and the difference is not a fixed
-#       offset that can be subtracted. For an exact ADMB check, compare the
-#       untruncated part -- -sum(dnorm(obs, pred, sigma, log = TRUE)) recomputed
-#       from the reported index_hat -- rather than jnll_comp row 1.
-#
-#       This is a deliberate package change (the simulator and the likelihood now
-#       agree on the same density), not a bridging defect. The lognormal and
-#       MVN/MVNORM fleets are unaffected.
+# Simulation-only note (Rceattle >= 5.9.0; no effect on this bridge)
+#   The natural-scale normal fleets here (AVO, and the CPUE fleet in D5) are
+#   SIMULATED from a normal left-truncated at zero, because a negative draw is
+#   not a valid index and data_check() rejects it. The LIKELIHOOD is untruncated
+#   and unchanged, precisely so index_hat stays E[obs] and this bridge keeps
+#   matching ADMB's avo_like / cpue_like. Nothing here needs adjusting; the
+#   truncation is visible only through sim_mod() / self_test().
 
 # The fishery terminal-year length composition is not fit (ADMB use_endyr_len = 0).
 # There is nothing to switch off Rceattle-side -- the workbooks carry no length

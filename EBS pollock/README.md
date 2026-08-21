@@ -107,11 +107,6 @@ configuration lives in **one place**: the header of `2024/03-model-comparison.R`
 - **L1–L7** — likelihood/data/parameter alignment, applied in ADMB (`ADMB/m23_rceattle_full/`)
 - **D1–D8** — Rceattle-side data and configuration conversions (no ADMB edits),
   applied in `2024/01-build-data.R` and baked into the workbook
-- **R1** — a residual likelihood difference that cannot be reconciled from this
-  side: Rceattle ≥ 5.9.0 fits the natural-scale normal index (AVO, CPUE) as a
-  normal left-truncated at zero, which ADMB's `avo_like`/`cpue_like` are not.
-  Small, but it carries a gradient, so those two fleets no longer match ADMB to
-  machine precision.
 
 The other scripts and the ADMB run READMEs cite those codes rather than repeating
 the detail. ADMB-side edits are also flagged `MODIFIED (m23_rceattle...)` in `pm.tpl`.
