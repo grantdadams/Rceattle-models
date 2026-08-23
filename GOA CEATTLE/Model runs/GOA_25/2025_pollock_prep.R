@@ -6,10 +6,15 @@ setwd("Model runs/GOA_24")
 
 # Load data ----
 pollock23 <- read_data("Data/GOA_23_pollock_single_species_1970-2023.xlsx")
+# Canonical names for the pre-5.0 Comp_loglike / Age_max_selected. Both still
+# reach the model under the old spellings, but only because this workbook has
+# no Comp_distribution or Sel_norm_bin column for switch_check() to prefer --
+# add either to the workbook and the legacy assignment below it goes quiet.
+# Verified equivalent: jnll 20678.5269 either way.
 pollock23$fleet_control <- pollock23$fleet_control %>%
   select(-c(Accumatation_age_upper, Accumatation_age_lower)) %>%
-  mutate(Comp_loglike = 0,
-         Age_max_selected = c(3, 10, 10, NA, NA, 1, NA, 7))
+  mutate(Comp_distribution = "Multinomial",
+         Sel_norm_bin = c(3, 10, 10, NA, NA, 1, NA, 7))
 safe24 <- readRDS("Data/SAFE data/fit.RDS")
 
 
@@ -178,7 +183,9 @@ pollock_base <- fit_mod(data_list = pollock23,
 
 
 # Fit dirichlet model ----
-pollock23$fleet_control$Comp_loglike <- 0
+# Canonical name, as at the top of the file. Note this sets the plain
+# multinomial (0), not a Dirichlet-multinomial, despite the heading.
+pollock23$fleet_control$Comp_distribution <- "Multinomial"
 
 # * Catchability on the Shelikof acoustic survey ----
 # The Rogers et al. (2024) QAR1: an AR1 process on log-q, with the SAFE model's
