@@ -179,11 +179,36 @@ pollock_base <- fit_mod(data_list = pollock23,
 
 # Fit dirichlet model ----
 pollock23$fleet_control$Comp_loglike <- 0
-pollock23$fleet_control$Estimate_q[1] <- 6
-pollock23$fleet_control$Time_varying_q[1] <- 1
+
+# * Catchability on the Shelikof acoustic survey ----
+# The Rogers et al. (2024) QAR1: an AR1 process on log-q, with the SAFE model's
+# environmental series observed against it. This was `Estimate_q[1] <- 6`, which
+# never worked -- build_map() gated the deviates on Time_varying_q, which under
+# that switch holds an env_data column index rather than a mode, so the deviates
+# stayed mapped out and q came back constant. Rceattle 5.12.0 refuses the switch;
+# the linkage is the working form, and matches GOA pollock/2025.
+#
+# The fleet's own Catchability is an ordinary estimated q with no legacy
+# time-varying structure -- the linkage supplies the deviates.
+#
+# obs_sd is the Ecov observation SD the SAFE model holds fixed (exp(-3.912) =
+# 0.02); the old switch never asked for it. QcovPol is missing 1999 and 2011,
+# which is fine: env_data is filled out to styr..endyr by Year, and an observed
+# covariate is scored only in the years it is present.
+SHELIKOF <- 1L   # Pollock_survey_1_shelikof_acoustic
+pollock23$fleet_control$Catchability[SHELIKOF]   <- "Estimated"
+pollock23$fleet_control$Time_varying_q[SHELIKOF] <- "Off"
+
+q_spec <- build_catchability(linkages = list(
+  q = linkage_spec(~ ar1(1 | Year),
+                   fleet = SHELIKOF,
+                   observe = "QcovPol",
+                   obs_sd = exp(safe24$parList$log_Ecov_obs_sd))))
+
 pollock_dm <- fit_mod(data_list = pollock23,
                       inits = NULL, # Initial parameters = 0
                       file = NULL, # Don't save
+                      qFun = q_spec,
                       estimateMode = 3, # Estimate
                       random_rec = TRUE, # No random recruitment
                       msmMode = 0, # Single species mode
