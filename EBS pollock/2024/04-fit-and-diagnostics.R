@@ -111,7 +111,7 @@ hist(log(ebs_2024_jitters$nll - min(ebs_2024_jitters$nll)),
 plot_biomass(ebs_2024_jitters$Rceattle_list) + theme(legend.position="none")    # tight overlap => stable optimum
 
 # * Self-test ----
-ebs_2024_sims <- self_test(ebs_2024, nsim = 50)
+ebs_2024_sims <- self_test(ebs_2024, nsim = 50, start = "estimated")
 length(ebs_2024_sims)                           # simulations that converged (non-converged dropped)
 
 plot_biomass(c(ebs_2024_sims, list(ebs_2024)), line_col = c(rep("grey", length(ebs_2024_sims)), 1)) + theme(legend.position="none")

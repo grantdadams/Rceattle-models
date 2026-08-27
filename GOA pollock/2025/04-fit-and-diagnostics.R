@@ -164,6 +164,38 @@ plot_biomass(c(mod_25_sims, list(mod_25)), line_col = c(rep("grey", length(mod_2
 # * Likelihood profile on sigmaR ----
 prof_sigmaR <- profile(fitted = mod_25, param = "sigmaR", slots = list(1),
                        values = list(seq(0.1, 1.5, by = 0.05)))
-plot(prof_sigmaR$grid$slot_1,
-     prof_sigmaR$nll - min(prof_sigmaR$nll, na.rm = TRUE),
-     type = "l", xlab = "sigmaR", ylab = "dNLL")
+prof_sigmaR                                    # does the grid bracket the minimum?
+plot_profile(prof_sigmaR, xlab = "sigmaR")
+
+# * Likelihood profile on M ----
+# The total NLL says how well the data determine M, not whether the data sources
+# agree about it: a smooth total can be two surveys pulling opposite ways.
+# plot_profile() draws each component separately, re-zeroed at its own minimum,
+# so the spread of the minima along the x axis is the disagreement.
+#
+# M is empirical and age-varying here (1.39 at age 1 falling to 0.30 from age 6
+# on), so the whole vector is scaled together and keeps its shape, as goa_pk
+# profiles it. One slot per age bin, all on one grid of multipliers; 1 is the
+# fitted model. Ages run minage .. minage + nages - 1.
+SP <- 1
+M_slots <- lapply(seq_len(mod_25$data_list$nages[SP]),
+                  function(a) c(SP, 1, a))
+
+# 0.6-1.4 spans an age-6 M of 0.18-0.42, the range goa_pk profiles over.
+prof_M <- profile(fitted = mod_25, param = "M1",
+                  slots  = M_slots,
+                  values = list(seq(0.6, 1.4, by = 0.05)),
+                  joint  = "multiply")
+prof_M                                         # does the grid bracket the minimum?
+
+plot_profile(prof_M, xlab = "M multiplier (1 = base; age-6 M = 0.30 x multiplier)")
+
+# One component can dwarf the rest and flatten the others onto the axis;
+# "scaled" puts every curve on 0 to 1 so their minima can be compared.
+plot_profile(prof_M, relative = "scaled", minfraction = 0.02,
+             xlab = "M multiplier (1 = base)")
+
+# The numbers behind the figure, one row per grid point per component, each
+# labelled with the fleet or species it belongs to.
+prof_M_comps <- profile_components(prof_M, minfraction = 0.01)
+subset(prof_M_comps, series != "Total" & fit == which.min(prof_M$nll))
