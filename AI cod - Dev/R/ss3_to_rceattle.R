@@ -204,7 +204,7 @@ ss3_to_rceattle <- function(ss3_dir,
   d$pop_wt_index     <- rep(1L, nspp)        # use Wt_index = 1 for total biomass
   d$ssb_wt_index     <- rep(2L, nspp)        # use Wt_index = 2 for SSB
   d$pop_age_transition_index <- rep(1L, nspp)
-  d$sigma_rec_prior  <- rep(ctllist$SR_sigmaR %||%
+  d$sigma_rec  <- rep(ctllist$SR_sigmaR %||%
     get_par_value(parlist$SR_parms, "SR_sigmaR") %||% 0.6, nspp)
   d$other_food       <- rep(1e5, nspp)       # unused in single-species
 
@@ -278,7 +278,7 @@ ss3_to_rceattle <- function(ss3_dir,
   for (nm in c("Ceq","Cindex","Pvalue","fday","CA","CB","Qc","Tco","Tcm","Tcl","CK1","CK4"))
     d[[nm]] <- rep(1, nspp)
   d$CB                  <- rep(-1, nspp)
-  d$Diet_loglike        <- rep(0, nspp)
+  d$Diet_distribution        <- rep(0, nspp)
   d$Diet_comp_weights   <- rep(1, nspp)
 
   # Init mode -- "FishedNonEquilibrium" mirrors SS3 best for stocks with
@@ -322,7 +322,7 @@ mark_inactive_fleets_off <- function(d, msg = function(...) invisible()) {
         paste(d$fleet_control$Fleet_name[inactive_idx], collapse = ", "), "\n")
     d$fleet_control$Fleet_type[inactive_idx] <- "Off"
     # Off-fleets shouldn't claim projection F or estimated Q
-    d$fleet_control$proj_F_prop[inactive_idx]  <- NA_real_
+    d$fleet_control$Proj_F_proportion[inactive_idx]  <- NA_real_
     d$fleet_control$Catchability[inactive_idx] <- NA
   }
   d
@@ -423,34 +423,34 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
     Sel_curve_pen1          = NA,
     Sel_curve_pen2          = NA,
     Time_varying_sel        = 0,                 # blocks captured by per-year emp_sel rows
-    Time_varying_sel_sd_prior = 1,
+    Time_varying_sel_sd = 1,
     Bin_first_selected      = 1L,
-    Sel_norm_bin1           = NA,                # NA -> skip normalization in C++
-    Sel_norm_bin2           = NA,
-    Comp_loglike            = "Multinomial",
+    Sel_norm_bin           = NA,                # NA -> skip normalization in C++
+    Sel_norm_bin_upper           = NA,
+    Comp_distribution            = "Multinomial",
     Comp_weights            = 1,
-    CAAL_loglike            = "Multinomial",
+    CAAL_distribution            = "Multinomial",
     CAAL_weights            = 1,
-    Weight1_Numbers2        = units_w1n2,
+    Observation_units        = units_w1n2,
     Weight_index            = seq_len(n_flt) + 2L,  # slots 1=pop,2=ssb,3..=fleets
     Age_transition_index    = 1L,
-    Q_index                 = seq_len(n_flt),
+    Catchability_index                 = seq_len(n_flt),
     Catchability            = ifelse(rce_type == "Survey", "Estimated", NA),
-    Q_prior                 = ifelse(rce_type == "Survey", 1, NA),
-    Q_sd_prior              = ifelse(rce_type == "Survey", 0.2, NA),
+    Catchability_init                 = ifelse(rce_type == "Survey", 1, NA),
+    Catchability_prior_sd              = ifelse(rce_type == "Survey", 0.2, NA),
     Time_varying_q          = ifelse(rce_type == "Survey", 0, NA),
-    Time_varying_q_sd_prior = ifelse(rce_type == "Survey", 1, NA),
+    Time_varying_q_sd = ifelse(rce_type == "Survey", 1, NA),
     Estimate_index_sd       = ifelse(rce_type == "Survey", 0, NA),
-    Index_sd_prior          = ifelse(rce_type == "Survey", 1, NA),
+    Index_sd          = ifelse(rce_type == "Survey", 1, NA),
     Estimate_catch_sd       = ifelse(rce_type == "Fishery", 0, NA),
-    Catch_sd_prior          = ifelse(rce_type == "Fishery", 1, NA),
-    proj_F_prop             = NA_real_,          # set below
+    Catch_sd          = ifelse(rce_type == "Fishery", 1, NA),
+    Proj_F_proportion             = NA_real_,          # set below
     stringsAsFactors = FALSE
   ) -> fc
 
-  # proj_F_prop must sum to 1 across fisheries per species. Equal split.
+  # Proj_F_proportion must sum to 1 across fisheries per species. Equal split.
   n_fish <- sum(fc$Fleet_type == "Fishery")
-  if (n_fish > 0) fc$proj_F_prop[fc$Fleet_type == "Fishery"] <- 1 / n_fish
+  if (n_fish > 0) fc$Proj_F_proportion[fc$Fleet_type == "Fishery"] <- 1 / n_fish
   fc
 }
 

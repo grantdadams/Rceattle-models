@@ -37,8 +37,8 @@
 #    bias_adj from rec_dev so the *fixed* recruitment series matches urm exactly.)
 # 2. sigmaR. urm ESTIMATES sigmaR with a tight lognormal prior
 #    (mean_sigmaR=1.5, cv_sigmaR=0.01 -> effectively fixed near 1.5).
-#    Rceattle uses a fixed sigma_rec_prior (default 0.707). We set Rceattle's
-#    sigma_rec_prior = 1.5 to match, but it is not a freely-estimated parameter.
+#    Rceattle uses a fixed sigma_rec (default 0.707). We set Rceattle's
+#    sigma_rec = 1.5 to match, but it is not a freely-estimated parameter.
 # 3. INITIAL NUMBERS-AT-AGE. urm builds a *fished* initial equilibrium from
 #    log_mean_R_init (R_init) and log_F_init (F_init) plus per-age initial
 #    deviations log_Rt[1:(A-1)] and a geometric plus-group term. Rceattle
@@ -84,8 +84,8 @@
 #    offset (~0.00125 in log space, ~0.1% on M) -> negligible.
 #
 #  * q (estimated in both). urm: dnorm(log q, log(mean_q), cv_q). Rceattle (cpp
-#    ~2911): dnorm(log q, log(Q_prior), Q_sd_prior), NO bias correction -> the
-#    two forms MATCH exactly. We set Q_prior=mean_q=1.0 and Q_sd_prior=cv_q=0.45
+#    ~2911): dnorm(log q, log(Catchability_init), Catchability_prior_sd), NO bias correction -> the
+#    two forms MATCH exactly. We set Catchability_init=mean_q=1.0 and Catchability_prior_sd=cv_q=0.45
 #    (log-scale) and Catchability="Estimated-with-prior". NOTE the 2022 template
 #    had instead FIXED q at 0.95 (not estimated) - that has been changed here so
 #    the estimated models are comparable to urm (urm estimated q ~= 0.56).
@@ -93,7 +93,7 @@
 #  * sigmaR. urm ESTIMATES sigmaR with a very tight prior dnorm(log(sigmaR/
 #    mean_sigmaR), 0, cv_sigmaR) (mean 1.5, cv 0.01 -> effectively fixed at 1.5),
 #    and this term is in the objective. Rceattle does NOT estimate sigmaR at all:
-#    sigma_rec_prior is a fixed constant (we set it to 1.5). So Rceattle has no
+#    sigma_rec is a fixed constant (we set it to 1.5). So Rceattle has no
 #    sigmaR prior term and one fewer estimated parameter. Net sigmaR ~= 1.5 in
 #    both, but the objective and parameter count differ (see structural diff #2).
 # -----------------------------------------------------------------------------
@@ -136,7 +136,7 @@ mydata <- template
 mydata$styr  <- min(yrs)                 # 1961
 mydata$endyr <- max(yrs)                 # 2024
 mydata$spawn_month   <- dat$spawn_mo     # 5
-mydata$sigma_rec_prior <- dat$mean_sigmaR  # 1.5 (urm estimates near this; see diff #2)
+mydata$sigma_rec <- dat$mean_sigmaR  # 1.5 (urm estimates near this; see diff #2)
 
 ## --- helper: build a comp_data block (obs is nbins x nyears) ------------------
 make_comp <- function(obs, comp_years, fleet_name, fleet_code, age0len1, month, iss) {
@@ -250,12 +250,12 @@ mydata$fleet_control$Comp_weights <- 0.5   # see structural diff #4
 ## --- survey catchability prior (see PRIOR DIFFERENCES note) -------------------
 # The 2022 template fixed q at 0.95. urm ESTIMATES q with a lognormal prior
 # (mean_q=1, cv_q=0.45 on the log scale), so switch to Estimated-with-prior with
-# urm's values. Q_prior is natural scale (-> log internally); Q_sd_prior is the
-# log-scale prior sd (index_q_sd = exp(log(Q_sd_prior)) = Q_sd_prior in the cpp).
+# urm's values. Catchability_init is natural scale (-> log internally); Catchability_prior_sd is the
+# log-scale prior sd (index_q_sd = exp(log(Catchability_prior_sd)) = Catchability_prior_sd in the cpp).
 srv_row <- which(mydata$fleet_control$Fleet_type == "Survey")
 mydata$fleet_control$Catchability[srv_row] <- "Estimated-with-prior"
-mydata$fleet_control$Q_prior[srv_row]      <- dat$mean_q   # 1.0
-mydata$fleet_control$Q_sd_prior[srv_row]   <- dat$cv_q     # 0.45 (log-scale sd)
+mydata$fleet_control$Catchability_init[srv_row]      <- dat$mean_q   # 1.0
+mydata$fleet_control$Catchability_prior_sd[srv_row]   <- dat$cv_q     # 0.45 (log-scale sd)
 
 ## --- write the bridged 2024 Rceattle data file -------------------------------
 Rceattle::write_data(mydata, file = "Data/2024_GOA_northern_rockfish.xlsx")

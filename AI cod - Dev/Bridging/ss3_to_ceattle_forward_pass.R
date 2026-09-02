@@ -304,11 +304,11 @@ for (fi in seq_len(n_flt)) {
   # rather than "Multinomial" (= 0), whose dmultinom() carries the large
   # lgamma normalizing constant that SS3 omits -- so absolute NLL is
   # comparable to SS3's Length_comp / Age_comp values.
-  cod$fleet_control$Comp_loglike[fi] <- "MultinomialAFSC"
+  cod$fleet_control$Comp_distribution[fi] <- "MultinomialAFSC"
   # CAAL only supports Multinomial (0) / DirichletMultinomial (1) in this
   # Rceattle build (no deviance form), so its absolute NLL carries the
   # dmultinom lgamma constant that SS3's Age_comp omits -- a documented offset.
-  cod$fleet_control$CAAL_loglike[fi] <- "Multinomial"
+  cod$fleet_control$CAAL_distribution[fi] <- "Multinomial"
 }
 
 # Extract SS3 realized sel-at-length (terminal year) per fleet

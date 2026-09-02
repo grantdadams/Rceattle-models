@@ -51,7 +51,7 @@ pk$pop_wt_index         <- 3  # waa_pointer_jan1
 pk$ssb_wt_index         <- 2  # waa_pointer_ssb
 pk$pop_age_transition_index <- 1
 pk$spawn_month <- dat$fracyr_SSB[1] * 12          # 0.21 -> 2.52
-pk$sigma_rec_prior <- 1                            # WHAM sigmaR FIXED at 1
+pk$sigma_rec <- 1                            # WHAM sigmaR FIXED at 1
 pk$other_food <- 0
 pk$srr_fun <- 0; pk$srr_pred_fun <- 0              # random-about-mean recruitment
 
@@ -83,7 +83,7 @@ fc$N_sel_bins <- nages          # data_check requires 1:nages even for Fixed blo
 #     age-specific block has no shape penalty). NOTE: the hardcoded avg_sel normalization
 #     penalty (cpp ~2780, weight 2) is always on for NonParametric -- it soft-pins the SCALE
 #     (mean(exp(sel))=1), which is confounded with q for a survey, so it moves q not shape.
-#   - Sel_norm_bin1 < 0 -> normalize by max. WHAM's age-specific saturates at 1 (ages 6-7),
+#   - Sel_norm_bin < 0 -> normalize by max. WHAM's age-specific saturates at 1 (ages 6-7),
 #     so max-normalization reproduces WHAM's scale exactly (VERIFIED to 6.5e-07).
 fc$Sel_curve_pen1 <- c(0, rep(NA, 5), 0)
 fc$Sel_curve_pen2 <- c(0, rep(NA, 5), 0)
@@ -92,18 +92,18 @@ fc$Sel_curve_pen2 <- c(0, rep(NA, 5), 0)
 # bridging script's custom map NA's out the descending-limb deviates so only the ascending
 # limb varies (RandomWalkAscending would force a random walk with the first deviate fixed).
 fc$Time_varying_sel <- c(rep(0L, nindex), 1L)         # 1 = IID (ascending-only via map)
-fc$Time_varying_sel_sd_prior <- NA
-fc$Time_varying_sel_sd_prior[FISH] <- 0.1
+fc$Time_varying_sel_sd <- NA
+fc$Time_varying_sel_sd[FISH] <- 0.1
 fc$Bin_first_selected <- c(3L, rep(1L, 6))            # Shelikof: zero ages 1-2
-fc$Sel_norm_bin1 <- c(-1L, rep(NA, 6))               # Shelikof: normalize by max
-fc$Sel_norm_bin2 <- NA
-fc$Comp_loglike <- 0                                  # multinomial
+fc$Sel_norm_bin <- c(-1L, rep(NA, 6))               # Shelikof: normalize by max
+fc$Sel_norm_bin_upper <- NA
+fc$Comp_distribution <- 0                                  # multinomial
 fc$Comp_weights <- 1
-fc$CAAL_loglike <- 0
-fc$Weight1_Numbers2 <- c(dat$units_indices, 1L)       # 1,1,1,2,2,1 ; fishery biomass
+fc$CAAL_distribution <- 0
+fc$Observation_units <- c(dat$units_indices, 1L)       # 1,1,1,2,2,1 ; fishery biomass
 fc$Weight_index <- c(2L, 3L, 3L, 2L, 2L, 4L, 1L)      # waa_pointer_indices ; fishery -> waa[1]
 fc$Age_transition_index <- 1
-fc$Q_index <- c(1:6, NA)
+fc$Catchability_index <- c(1:6, NA)
 # q1 (Shelikof) and q3 (ADF&G) are time-varying; SDs FIXED at 0.038 / 0.05.
 # WHAM uses AR1 with rho par = 10 -> tanh(10) ~ 1, i.e. effectively a RANDOM WALK. Rceattle's
 # native "AR1" catchability (est_index_q=6) is the Rogers et al env-index-driven variant (it
@@ -111,14 +111,14 @@ fc$Q_index <- c(1:6, NA)
 # RandomWalk (dnorm(dev_y - dev_{y-1}, 0, sd)) -- the correct match for WHAM's rho~1 AR1.
 # NOTE: no q prior -- pkwham's use_q_prior = 0 (see bridging script header).
 fc$Catchability <- c(1L, 1L, 1L, 1L, 1L, 1L, NA)      # 1 = Estimated
-fc$Q_prior <- NA; fc$Q_sd_prior <- NA
+fc$Catchability_init <- NA; fc$Catchability_prior_sd <- NA
 fc$Time_varying_q <- c(4L, 0L, 4L, 0L, 0L, 0L, NA)    # 4 = RandomWalk (indices 1, 3)
-fc$Time_varying_q_sd_prior <- c(0.038, NA, 0.05, NA, NA, NA, NA)
+fc$Time_varying_q_sd <- c(0.038, NA, 0.05, NA, NA, NA, NA)
 fc$Estimate_index_sd <- 0                             # SDs are data (agg_index_sigma)
-fc$Index_sd_prior <- NA
+fc$Index_sd <- NA
 fc$Estimate_catch_sd <- 0                             # catch SD = 0.05, fixed
-fc$Catch_sd_prior <- NA
-fc$proj_F_prop <- c(rep(NA, nindex), 1)
+fc$Catch_sd <- NA
+fc$Proj_F_proportion <- c(rep(NA, nindex), 1)
 pk$fleet_control <- fc
 
 # Catch data ----

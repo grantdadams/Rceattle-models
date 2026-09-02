@@ -245,7 +245,7 @@ for(i in 1:length(mod_list_all)){
   f_ratio <- f_ratio/sum(f_ratio)
   
   # Adjust future F proportion to each fleet
-  mod_list_all[[i]]$data_list$fleet_control$proj_F_prop <- c(rep(0, 7), 1,0,0,1, 0,0, f_ratio, 0, 0)
+  mod_list_all[[i]]$data_list$fleet_control$Proj_F_proportion <- c(rep(0, 7), 1,0,0,1, 0,0, f_ratio, 0, 0)
   mod_list_all[[i]]$estimated_params$proj_F_prop <- mod_list_all[[i]]$data_list$fleet_control$proj_F_prop
 }
 

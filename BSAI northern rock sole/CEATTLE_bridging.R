@@ -283,7 +283,7 @@ round(bridging_model_3$quantities$jnll_comp - fixed_model$quantities$jnll_comp, 
 
 
 # Tight q prior ----
-mydata_nrs$fleet_control$Q_sd_prior[1] <- 0.03086067
+mydata_nrs$fleet_control$Catchability_prior_sd[1] <- 0.03086067
 bridging_model_4 <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       inits = NULL,
                                       TMBfilename = "ceattle_v01_10_nrs_ll",
@@ -307,7 +307,7 @@ bridging_model_4 <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       initMode = 1)
 
 # Set q to 0.2 ----
-mydata_nrs$fleet_control$Q_sd_prior[1] <- 0.2
+mydata_nrs$fleet_control$Catchability_prior_sd[1] <- 0.2
 bridging_model_5 <- Rceattle::fit_mod(data_list = mydata_nrs,
                                       inits = NULL,
                                       TMBfilename = "ceattle_v01_10_nrs_ll",

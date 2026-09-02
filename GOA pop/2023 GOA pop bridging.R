@@ -86,7 +86,7 @@
 #     Model 3 estimates M with a prior.
 #
 #  9. sigmaR (structural). ADMB estimates sigmaR (= 0.764438). Rceattle fixes
-#     sigma_rec_prior (= 0.70710678 in the control sheet) and penalizes
+#     sigma_rec (= 0.70710678 in the control sheet) and penalizes
 #     recruitment deviations against it. This shifts the recruitment likelihood
 #     and the estimated rec deviations - by design.
 #
@@ -305,7 +305,7 @@ cat("Forward pass vs ADMB - mean |%diff|:",
 config_est <- function(sel) {
   d <- prep_data()
   d$initMode <- 1                              # unfished-equilibrium + init devs
-  d$sigma_rec_prior <- sigr                    # diff #9: match ADMB sigmaR
+  d$sigma_rec <- sigr                    # diff #9: match ADMB sigmaR
   d$fleet_control$Selectivity      <- sel
   d$fleet_control$N_sel_bins       <- nage
   d$fleet_control$Time_varying_sel <- 0        # time-invariant (no IID/blocks)

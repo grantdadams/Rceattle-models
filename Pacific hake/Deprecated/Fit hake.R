@@ -6,8 +6,8 @@ library(readxl)
 # Data
 ################################################
 hakedata <- Rceattle::read_data(file = "Data/hake_yr24_241125.xlsx")
-hakedata$fleet_control$Age_max_selected = NA
-hakedata$fleet_control$Comp_loglike = 0
+hakedata$fleet_control$Sel_norm_bin = NA
+hakedata$fleet_control$Comp_distribution = 0
 hakedata$styr <- 1966
 
 ################################################
@@ -32,7 +32,7 @@ hake_ss <- Rceattle::fit_mod(data_list = hakedata,
                              initMode = 2) # Unfished equilibrium with devs
 
 
-hakedata$fleet_control$Comp_loglike = 1 # Dirichlet multinomial
+hakedata$fleet_control$Comp_distribution = 1 # Dirichlet multinomial
 hake_ss_dm <- Rceattle::fit_mod(data_list = hakedata,
                                 inits = NULL, # Initial parameters = 0
                                 file = NULL, # Don't save

@@ -706,13 +706,13 @@ cod_ss3$emp_sel <- cod_ss3$emp_sel %>%
   dplyr::ungroup() %>%
   as.data.frame()
 
-# Route every fleet through the empirical path. Sel_norm_bin1 = NA disables
+# Route every fleet through the empirical path. Sel_norm_bin = NA disables
 # the divide-by-max normalization in selectivity.hpp:62 (becomes -999 -> skip),
 # so the SS3 values flow through verbatim.
 cod_ss3$fleet_control$Selectivity           <- "Fixed"
 cod_ss3$fleet_control$Time_varying_sel      <- 0
-cod_ss3$fleet_control$Sel_norm_bin1         <- NA
-cod_ss3$fleet_control$Sel_norm_bin2         <- NA
+cod_ss3$fleet_control$Sel_norm_bin         <- NA
+cod_ss3$fleet_control$Sel_norm_bin_upper         <- NA
 cod_ss3$fleet_control$Selectivity_dimension <- "Age"
 
 cat(sprintf("emp_sel built: %d rows across %d fleets, %d years\n",

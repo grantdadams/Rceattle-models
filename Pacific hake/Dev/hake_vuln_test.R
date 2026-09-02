@@ -47,7 +47,7 @@ ms_run$quantities$jnll #2229.18 (dev-CAAL 2229.18)
 # FIX SUITABILITY AND SUM across prey ages (NEW PART)
 # Create initial parameter list:
 test_data <- SBF_ATF_hakedata
-test_data$Diet_loglike <- rep(1, test_data$nspp) # Dirichlet
+test_data$Diet_distribution <- rep(1, test_data$nspp) # Dirichlet
 inits = ms_run$estimated_params
 map = ms_run$map # gam_a, gam_b, and log_phi are turned off here AND M1
 

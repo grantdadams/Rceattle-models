@@ -29,8 +29,8 @@ pollock_base <- fit_mod(data_list = mydata_pollock,
 ################################################
 mydata_pcod <- Rceattle::read_data( file = "Data/GOA_24_pcod_single_species_1977-2024.xlsx")
 mydata_pcod$fleet_control <- mydata_pcod$fleet_control  %>%
-  mutate(Comp_loglike = 0,
-         Age_max_selected = NA)
+  mutate(Comp_distribution = 0,
+         Sel_norm_bin = NA)
 mydata_pcod$pmature[1,2:13] <- 2
 mydata_pcod$estDynamics[1] = 0
 # - Using same length comp data as 2023 because marginals werent output in 2024
@@ -56,11 +56,11 @@ cod_base <- Rceattle::fit_mod(data_list = mydata_pcod,
 mydata_atf <- Rceattle::read_data( file = "Data/GOA_24_arrowtooth_single_species_1977-2024.xlsx")
 mydata_atf$estDynamics = 0
 mydata_atf$srv_biom$Log_sd <- mydata_atf$srv_biom$Log_sd/mydata_atf$srv_biom$Observation
-mydata_atf$fleet_control$proj_F_prop <- c(1,1,1)
+mydata_atf$fleet_control$Proj_F_proportion <- c(1,1,1)
 
 mydata_atf$fleet_control <- mydata_atf$fleet_control  %>%
-  mutate(Comp_loglike = 0,
-         Age_max_selected = NA)
+  mutate(Comp_distribution = 0,
+         Sel_norm_bin = NA)
 
 # - Fit single-species models
 atf_base <- Rceattle::fit_mod(data_list = mydata_atf,

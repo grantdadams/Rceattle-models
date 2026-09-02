@@ -334,9 +334,9 @@ surv_fleets <- c("Srv", "LLSrv")
 # Rceattle's length convolution leaks the asc-limb floor into age 0
 # (e.g. Srv init = 0.091 → sel_at_age[0] = 0.091), inflating the
 # predicted-survey calc by ~35% via the large recruit cohort. Setting
-# Age_first_selected = 1 zeros sel_at_age[0] post-convolution.
-if (!"Age_first_selected" %in% colnames(cod_pcod$fleet_control)) {
-  cod_pcod$fleet_control$Age_first_selected <- 0L  # default no floor
+# Bin_first_selected = 1 zeros sel_at_age[0] post-convolution.
+if (!"Bin_first_selected" %in% colnames(cod_pcod$fleet_control)) {
+  cod_pcod$fleet_control$Bin_first_selected <- 0L  # default no floor
 }
 # SS3 addtocomp from dat file len_info / age_info (Pcod = 1e-4 for all fleets).
 # Adds a small constant to every comp bin before sum=1 normalization;
@@ -357,22 +357,22 @@ for (fname in active_sel_fleets) {
   cod_pcod$fleet_control$Selectivity[fi]           <- "DoubleNormal"
   cod_pcod$fleet_control$Selectivity_dimension[fi] <- "Length"
   # IID maps every hindcast year (so per-year dev_seq injection covers all).
-  # Setting Time_varying_sel_sd_prior <= 0 tells the cpp to SKIP the N(0,σ)
+  # Setting Time_varying_sel_sd <= 0 tells the cpp to SKIP the N(0,σ)
   # penalty on the deviates (Phase 1 forward-pass: devs are pre-baked from
   # SS3, not estimated, so no prior should fire).
   cod_pcod$fleet_control$Time_varying_sel[fi]          <- "IID"
-  cod_pcod$fleet_control$Time_varying_sel_sd_prior[fi] <- -1
+  cod_pcod$fleet_control$Time_varying_sel_sd[fi] <- -1
   # SS3 robust multinomial kernel: NLL = N * sum_j obs_s * log(obs_s/hat_s)
   # with obs/hat smoothed by addtocomp. Matches SS3 Method-5 likelihood.
-  cod_pcod$fleet_control$Comp_loglike[fi]          <- "SS3Robust"
-  cod_pcod$fleet_control$CAAL_loglike[fi]          <- "SS3Robust"
+  cod_pcod$fleet_control$Comp_distribution[fi]          <- "SS3Robust"
+  cod_pcod$fleet_control$CAAL_distribution[fi]          <- "SS3Robust"
   # Verified via SS3 source (SS_global.tpl:338) + empirical test: SS3 uses
   # data_timing_seas = 0.5 for both INDEX and CAAL with Pcod obs month=7.
   # Setting Month=7 instead breaks the INDEX (machine precision -> 5% off)
   # without consistently improving CAAL (Age 1 gets worse; the peak cell
   # dominates mean rel err). Mid-year (Month=6) is correct for both.
   cod_pcod$fleet_control$Month[fi] <- 6L
-  cod_pcod$fleet_control$Age_first_selected[fi]    <- 2L   # 1-based: zero ages < 2 (= zero age 0 and age 1 in SS3 0-based? no, age 1 in R = age 0 in SS3)
+  cod_pcod$fleet_control$Bin_first_selected[fi]    <- 2L   # 1-based: zero ages < 2 (= zero age 0 and age 1 in SS3 0-based? no, age 1 in R = age 0 in SS3)
 }
 
 # Override per-obs index_data Month to match SS3's "Time = season midpoint"
@@ -387,7 +387,7 @@ for (fname in surv_fleets) {
   if (length(rows) > 0)
     cod_pcod$index_data$Month[rows] <- 6L
 }
-# Age_first_selected indexing: 1-based, R->C++ via -1 in rearrange_data.R.
+# Bin_first_selected indexing: 1-based, R->C++ via -1 in rearrange_data.R.
 # Setting = 2 means "first selected slot = 2", i.e. zero slot 1 (= age 0 at
 # minage=0). The C++ loop `for (age=0; age<1; age++) sel_at_age=0` zeros age 0.
 
@@ -1124,7 +1124,7 @@ dump_param_audit <- function(default_params, injected_params,
                               #   default IS the SS3 value -> equality is
                               #   expected, not a missing injection
     "log_M1_dev", "M1_beta", "M1_rho", "M1_dev_log_sd",  # no M devs configured
-    "log_Flimit", "log_Ftarget", "log_Finit", "proj_F_prop",  # projection
+    "log_Flimit", "log_Ftarget", "log_Finit", "Proj_F_proportion",  # projection
     "log_growth_par_devs",    # no growth devs
     "weight_length_pars",     # SS3 alpha/beta passed via data_list at build
     "sel_coff", "sel_coff_dev",  # non-parametric sel slots, not used here
@@ -1136,7 +1136,7 @@ dump_param_audit <- function(default_params, injected_params,
     "sel_dev_log_sd",         # set by data_list at build_params
     "sel_curve_pen",
     "index_log_sd", "catch_log_sd", "index_log_q",
-    "index_q_log_sd",         # q-prior SD: set by data_list$fleet_control$Q_sd_prior
+    "index_q_log_sd",         # q-prior SD: set by data_list$fleet_control$Catchability_prior_sd
     "R_log_sd"
   )
 

@@ -50,7 +50,7 @@ cv_2_sd <- function(x) {
 #'   hindcast fit (estimateMode = 1). Increase when reference points from an HCR
 #'   projection (estimateMode = 0) are wanted.
 #' @param sigmaR_floor Lower bound applied to the OM `logR_sd` when seeding
-#'   `sigma_rec_prior`. The deterministic OM case (C0) has `logR_sd == 0`, which
+#'   `sigma_rec`. The deterministic OM case (C0) has `logR_sd == 0`, which
 #'   is a degenerate recruitment SD; the floor keeps the parameter well-defined.
 #'   The value used is recorded on the returned object as
 #'   `attr(., "sigmaR_true")` / `attr(., "sigmaR_floored")` so callers can see
@@ -79,7 +79,7 @@ om_to_rceattle <- function(om_input, om_output = NULL, em_input,
   # OM versions differ in which field carries the survey observation: a
   # biomass index (`surveyB.obs`) or a numbers-based index (`survey.obs`).
   # Prefer a non-empty biomass field; otherwise fall back to the numbers index.
-  # `Weight1_Numbers2` on the survey fleet is set to match (1 = biomass,
+  # `Observation_units` on the survey fleet is set to match (1 = biomass,
   # 2 = numbers). This choice is a coordination item with the FIMS team -- see
   # README.md.
   surveyB <- em_input[["surveyB.obs"]]
@@ -118,7 +118,7 @@ om_to_rceattle <- function(om_input, om_output = NULL, em_input,
   simData$alpha_wt_len             <- 0.0001
   simData$beta_wt_len              <- 3
   simData$pop_age_transition_index <- 1L
-  simData$sigma_rec_prior          <- sigmaR_floored
+  simData$sigma_rec          <- sigmaR_floored
   simData$other_food               <- 1e6
   simData$estDynamics              <- 0
 
@@ -131,7 +131,7 @@ om_to_rceattle <- function(om_input, om_output = NULL, em_input,
   # Switch codes used here (see Rceattle::switch_check / R/0-switches.R):
   #   Fleet_type   Fishery = 1, Survey = 2
   #   Selectivity  Logistic = 1
-  #   Comp_loglike Multinomial = 0
+  #   Comp_distribution Multinomial = 0
   #   Catchability Analytical = 3  (closed-form MLE q; robust, no init needed)
   #
   # The survey uses Analytical catchability rather than a freely estimated q so
@@ -149,27 +149,27 @@ om_to_rceattle <- function(om_input, om_output = NULL, em_input,
     Sel_curve_pen1            = NA,
     Sel_curve_pen2            = NA,
     Time_varying_sel          = 0,
-    Time_varying_sel_sd_prior = 1,
+    Time_varying_sel_sd = 1,
     Bin_first_selected        = 1,
-    Sel_norm_bin1             = NA,
-    Sel_norm_bin2             = NA,
-    Comp_loglike              = 0L,                 # Multinomial
+    Sel_norm_bin             = NA,
+    Sel_norm_bin_upper             = NA,
+    Comp_distribution              = 0L,                 # Multinomial
     Comp_weights              = 1,
-    CAAL_loglike              = 0,
-    Weight1_Numbers2          = c(1L, survey_units_code),  # fishery biomass; survey per units
+    CAAL_distribution              = 0,
+    Observation_units          = c(1L, survey_units_code),  # fishery biomass; survey per units
     Weight_index              = 1,
     Age_transition_index      = 1,
-    Q_index                   = c(NA, 1),
+    Catchability_index                   = c(NA, 1),
     Catchability              = c(NA, 3L),          # survey: Analytical q
-    Q_prior                   = c(NA, 1),
-    Q_sd_prior                = c(NA, 0.2),
+    Catchability_init                   = c(NA, 1),
+    Catchability_prior_sd                = c(NA, 0.2),
     Time_varying_q            = c(NA, 0),
-    Time_varying_q_sd_prior   = c(NA, 1),
+    Time_varying_q_sd   = c(NA, 1),
     Estimate_index_sd         = c(NA, 0),
-    Index_sd_prior            = c(NA, 1),
+    Index_sd            = c(NA, 1),
     Estimate_catch_sd         = c(0, NA),
-    Catch_sd_prior            = c(1, NA),
-    proj_F_prop               = c(1, NA),
+    Catch_sd            = c(1, NA),
+    Proj_F_proportion               = c(1, NA),
     stringsAsFactors          = FALSE
   )
 
@@ -279,7 +279,7 @@ om_to_rceattle <- function(om_input, om_output = NULL, em_input,
   simData$Ceq <- 1; simData$Cindex <- 1; simData$Pvalue <- 1; simData$fday <- 1
   simData$CA <- 1; simData$CB <- 1; simData$Qc <- 1
   simData$Tco <- 1; simData$Tcm <- 1; simData$Tcl <- 1; simData$CK1 <- 1; simData$CK4 <- 1
-  simData$Diet_loglike <- 1; simData$Diet_comp_weights <- 1
+  simData$Diet_distribution <- 1; simData$Diet_comp_weights <- 1
 
   simData$env_data <- data.frame(Year = years, Index1 = 0)
 

@@ -17,7 +17,7 @@ library(Rceattle)
 # Slide: Workflow (data)
 # -----------------------------------------------------------------------------
 pk_data <- read_data("Pollock_2023.xlsx")
-pk_data$fleet_control$proj_F_prop <- 1
+pk_data$fleet_control$Proj_F_proportion <- 1
 plot_data(pk_data, subplots = 2)
 
 
@@ -94,7 +94,7 @@ plot_comp(pk_model)
 # -----------------------------------------------------------------------------
 # Slide: Closed-Loop MSE in Action
 # -----------------------------------------------------------------------------
-pk_data$fleet_control$proj_F_prop <- 1 # One fishing fleet, so F is apportioned all to that
+pk_data$fleet_control$Proj_F_proportion <- 1 # One fishing fleet, so F is apportioned all to that
 
 # - Build EM-HCR
 em_model <- fit_mod(

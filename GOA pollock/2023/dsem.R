@@ -18,7 +18,7 @@ setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
 load("Data/Pollock23.Rdata")
 parList <- fit$obj$env$parList(fit$obj$env$last.par.best) # HEAD "a506609"
 pollock23 <- Rceattle::read_data( file = "Data/Pollock_2023.xlsx")
-pollock23$sigma_rec_prior <- 1.1
+pollock23$sigma_rec <- 1.1
 
 
 

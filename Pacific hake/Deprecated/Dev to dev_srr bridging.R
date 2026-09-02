@@ -9,11 +9,11 @@ library(dplyr)
 ################################################
 # Data
 hakedata <- Rceattle::read_data(file = "hake_yr24_241125.xlsx")
-hakedata$fleet_control$Accumatation_age_lower <- NA
-hakedata$fleet_control$Accumatation_age_upper <- NA
+hakedata$fleet_control$Comp_accum_young <- NA
+hakedata$fleet_control$Comp_accum_old <- NA
 hakedata$fleet_control <- hakedata$fleet_control %>%
-    rename(Estimate_survey_sd = Estimate_index_sd, Survey_sd_prior = Index_sd_prior) %>%
-    select("Fleet_name", "Fleet_code", "Fleet_type", "Species", "Selectivity_index", "Selectivity", "Nselages", "Time_varying_sel", "Sel_sd_prior", "Age_first_selected", "Accumatation_age_lower", "Accumatation_age_upper", "Weight1_Numbers2", "Weight_index", "Age_transition_index", "Q_index", "Estimate_q", "Q_prior", "Q_sd_prior", "Time_varying_q", "Time_varying_q_sd_prior", "Estimate_survey_sd", "Survey_sd_prior", "Estimate_catch_sd", "Catch_sd_prior", "proj_F_prop", "Comp_weights") %>%
+    rename(Estimate_index_sd = Estimate_index_sd, Index_sd = Index_sd) %>%
+    select("Fleet_name", "Fleet_code", "Fleet_type", "Species", "Selectivity_index", "Selectivity", "N_sel_bins", "Time_varying_sel", "Time_varying_sel_sd", "Bin_first_selected", "Comp_accum_young", "Comp_accum_old", "Observation_units", "Weight_index", "Age_transition_index", "Catchability_index", "Catchability", "Catchability_init", "Catchability_prior_sd", "Time_varying_q", "Time_varying_q_sd", "Estimate_index_sd", "Index_sd", "Estimate_catch_sd", "Catch_sd", "Proj_F_proportion", "Comp_weights") %>%
     as.data.frame()
 hakedata$styr <- 1966
 
@@ -35,9 +35,9 @@ load("~/Documents/GitHub/Rceattle-models/Pacific hake/ssv10.RData")
 # Data
 check_data <-  mod_objects$data_list
 check_data$fleet_control <- check_data$fleet_control %>%
-    rename(Estimate_index_sd = Estimate_survey_sd,  Index_sd_prior = Survey_sd_prior)
-check_data$fleet_control$Age_max_selected = NA
-check_data$fleet_control$Comp_loglike = -1
+    rename(Estimate_index_sd = Estimate_index_sd,  Index_sd = Index_sd)
+check_data$fleet_control$Sel_norm_bin = NA
+check_data$fleet_control$Comp_distribution = -1
 check_data$index_data <- check_data$srv_biom
 check_data$catch_data <- check_data$fsh_biom
 check_data$stom_prop_data <- check_data$UobsWtAge
@@ -102,7 +102,7 @@ map <- build_map(hake_ss$data_list, inits)
 names(map$mapList)[!names(map$mapList) %in% names(inits)]
 names(inits)[!names(inits) %in% names(map$mapList)]
 
-hake_ss$data_list$fleet_control$Comp_loglike <- -1
+hake_ss$data_list$fleet_control$Comp_distribution <- -1
 ss_init <- Rceattle::fit_mod(data_list = hake_ss$data_list,
                             inits = inits, # Initial parameters = 0
                             file = NULL, # Don't save

@@ -94,7 +94,7 @@
 #     REPORTED selfish is rescaled to max 1, and the per-year max-sel is folded
 #     into the reported t.series$fmort (so fmort_ts = maxsel * exp(log_avg_fmort+
 #     fmort_dev)). Rceattle can hold selectivity UNNORMALIZED too - set the
-#     fishery Sel_norm_bin1 = NA (the default here), which makes
+#     fishery Sel_norm_bin = NA (the default here), which makes
 #     normalize_and_project_selectivity skip normalization (cpp selectivity.hpp).
 #     We therefore reconstruct ADMB's unnormalized fishery selectivity,
 #        maxsel(i)        = fmort_ts(i) / exp(log_avg_fmort + fmort_dev(i))
@@ -214,7 +214,7 @@ extend_sel <- function(mat38) {                  # 65 x 38  ->  65 x 44
   cbind(mat38, matrix(mat38[, ncol(mat38)], nrow = nrow(mat38), ncol = nages - ncol(mat38)))
 }
 # fishery: reconstruct ADMB's UNNORMALIZED selectivity (diff #5) so log_F can be
-# the literal log_avg_fmort + fmort_dev. Sel_norm_bin1 = NA keeps it unnormalized.
+# the literal log_avg_fmort + fmort_dev. Sel_norm_bin = NA keeps it unnormalized.
 fmort_ts <- as.numeric(ts[ts[, "year"] %in% yrs, "fmort"])
 maxsel   <- fmort_ts / exp(log_avg_fmort + fmort_dev)      # per-year ADMB max-sel (> 1)
 sel_fish <- extend_sel(admb$selfish * maxsel)              # fishery (unnormalized, time-varying)
@@ -239,7 +239,7 @@ emp_sel_fwd <- rbind(
 # =============================================================================
 mydata_fwd <- mydata
 mydata_fwd$fleet_control$Selectivity   <- 0        # diffs #1,#2: empirical sel for all fleets
-mydata_fwd$fleet_control$Sel_norm_bin1 <- NA       # diff #5: hold sel UNNORMALIZED (default)
+mydata_fwd$fleet_control$Sel_norm_bin <- NA       # diff #5: hold sel UNNORMALIZED (default)
 mydata_fwd$emp_sel <- emp_sel_fwd
 mydata_fwd$M1_base[grep("^Age", names(mydata_fwd$M1_base))] <- M_admb   # diff #6
 
@@ -318,8 +318,8 @@ mydata_est$emp_sel <- emp_sel_fwd[0, ]                       # no empirical sel
 # EBS q stays free. This anchors the scale and gives a positive-definite Hessian.
 ai_row <- mydata_est$fleet_control$Fleet_name == "AI_survey"
 mydata_est$fleet_control$Catchability[ai_row] <- "Estimated-with-prior"
-mydata_est$fleet_control$Q_prior[ai_row]      <- 1
-mydata_est$fleet_control$Q_sd_prior[ai_row]   <- 0.15
+mydata_est$fleet_control$Catchability_init[ai_row]      <- 1
+mydata_est$fleet_control$Catchability_prior_sd[ai_row]   <- 0.15
 
 bridging_model_2 <- Rceattle::fit_mod(
   data_list    = mydata_est,

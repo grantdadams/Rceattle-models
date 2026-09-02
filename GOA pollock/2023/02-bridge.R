@@ -113,7 +113,7 @@ pkinits$index_q_dev[2,] <- parList$log_q2_dev
 pkinits$index_q_dev[3,] <- parList$log_q3_dev
 
 # * Fit fixed parameters ----
-pollock23$sigma_rec_prior <- 1.2
+pollock23$sigma_rec <- 1.2
 pollock_fixed <- fit_mod(data_list = pollock_base$data_list,
                          inits = pkinits, # Initial parameters = 0
                          map = pollock_base$map,

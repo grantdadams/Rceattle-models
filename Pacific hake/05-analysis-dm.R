@@ -6,7 +6,7 @@ SBF_ATF_hakedata_DM<- SBF_ATF_hakedata
 head(SBF_ATF_hakedata_DM$fleet_control)
 
 ## DEFINE DM for compositional data
-SBF_ATF_hakedata_DM$fleet_control$Comp_loglike <- c(1,1) # default: DM for age comps
+SBF_ATF_hakedata_DM$fleet_control$Comp_distribution <- c(1,1) # default: DM for age comps
 
 # Manually add diet_ll_type -- length must equal nspp
 SBF_ATF_hakedata_DM$diet_ll_type <- rep(1L, SBF_ATF_hakedata_DM$nspp)  # default: DM for diet comps

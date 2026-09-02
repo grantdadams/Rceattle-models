@@ -7,7 +7,7 @@ library(Rceattle)
 setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
 
 pollock23 <- Rceattle::read_data( file = "Data/Pollock_2023.xlsx")
-pollock23$fleet_control$Comp_loglike = 0
+pollock23$fleet_control$Comp_distribution = 0
 
 # - Fit single-species models
 pollock_base <- fit_mod(data_list = pollock23,

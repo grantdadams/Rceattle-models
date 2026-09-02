@@ -7,9 +7,9 @@ setwd("Model runs/GOA_24")
 # Load data ----
 pollock23 <- read_data("Data/GOA_23_pollock_single_species_1970-2023.xlsx")
 pollock23$fleet_control <- pollock23$fleet_control %>%
-  select(-c(Accumatation_age_upper, Accumatation_age_lower)) %>%
-  mutate(Comp_loglike = 0,
-         Age_max_selected = c(3, 10, 10, NA, NA, 1, NA, 7))
+  select(-c(Comp_accum_old, Comp_accum_young)) %>%
+  mutate(Comp_distribution = 0,
+         Sel_norm_bin = c(3, 10, 10, NA, NA, 1, NA, 7))
 safe24 <- readRDS("Data/SAFE data/fit.RDS")
 
 
@@ -178,8 +178,8 @@ pollock_base <- fit_mod(data_list = pollock23,
 
 
 # Fit dirichlet model ----
-pollock23$fleet_control$Comp_loglike <- 0
-pollock23$fleet_control$Estimate_q[1] <- 6
+pollock23$fleet_control$Comp_distribution <- 0
+pollock23$fleet_control$Catchability[1] <- 6
 pollock23$fleet_control$Time_varying_q[1] <- 1
 pollock_dm <- fit_mod(data_list = pollock23,
                       inits = NULL, # Initial parameters = 0
@@ -242,8 +242,8 @@ pkinits$index_q_dev_ln_sd[1] <- safe24$parList$log_Ecov_sd
 pkinits$comp_weights[c(1:3,6,8)] <- safe24$parList$log_DM_pars
 
 # * Fit fixed parameters ----
-pollock23$fleet_control$Age_max_selected[7] <- 3
-pollock23$fleet_control$Age_max_selected[8] <- 7
+pollock23$fleet_control$Sel_norm_bin[7] <- 3
+pollock23$fleet_control$Sel_norm_bin[8] <- 7
 pollock_fixed <- fit_mod(data_list = pollock23,
                          inits = pkinits, # Initial parameters = 0
                          file = NULL, # Don't save

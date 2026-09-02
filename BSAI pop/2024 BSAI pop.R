@@ -43,8 +43,8 @@ nyr <- length(yrs)
 #    AI prior is enough to identify the model.
 ai <- mydata$fleet_control$Fleet_name == "AI_survey"
 mydata$fleet_control$Catchability[ai] <- "Estimated-with-prior"
-mydata$fleet_control$Q_prior[ai]      <- 1
-mydata$fleet_control$Q_sd_prior[ai]   <- 0.15
+mydata$fleet_control$Catchability_init[ai]      <- 1
+mydata$fleet_control$Catchability_prior_sd[ai]   <- 0.15
 
 # 2) NON-PARAMETRIC SELECTIVITY BINS. 38 age bins leaves the old-age coefficients
 #    (ages with ~no fish) unidentified -> non-positive-definite Hessian. The

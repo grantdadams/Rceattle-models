@@ -4,13 +4,13 @@ setwd("~/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA pollock")
 
 pollock23 <- read_data("Data/GOA_23_pollock_single_species_1970-2023.xlsx")
 pollock23$index_data$Observation <- pollock23$index_data$Observation * 1e6
-pollock23$fleet_control$Q_sd_prior[2] = 0.1
-pollock23$fleet_control$Q_prior[2] <- 0.85
+pollock23$fleet_control$Catchability_prior_sd[2] = 0.1
+pollock23$fleet_control$Catchability_init[2] <- 0.85
 
 pollock23$fleet_control <- pollock23$fleet_control %>%
-  select(-c(Accumatation_age_upper, Accumatation_age_lower)) %>%
-  mutate(Comp_loglike = -1,
-         Age_max_selected = c(3, 10, 10, NA, NA, 1, NA, 7))
+  select(-c(Comp_accum_old, Comp_accum_young)) %>%
+  mutate(Comp_distribution = -1,
+         Sel_norm_bin = c(3, 10, 10, NA, NA, 1, NA, 7))
 
 pollock23$catch_data$Catch <- fit$obj$env$data$cattot
 

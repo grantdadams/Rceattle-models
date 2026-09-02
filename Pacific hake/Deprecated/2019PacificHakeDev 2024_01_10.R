@@ -24,8 +24,8 @@ pk_base <- Rceattle::fit_mod(data_list = mydata_pollock,
                              phase = "default")
 # pk_base$quantities$jnll_comp
 
-mydata_pollock$fleet_control$Age_first_selected <- c(1,2)
-mydata_pollock$fleet_control$Nselages <- c(6, 6)
+mydata_pollock$fleet_control$Bin_first_selected <- c(1,2)
+mydata_pollock$fleet_control$N_sel_bins <- c(6, 6)
 mydata_pollock$fleet_control$Time_varying_sel <- c(1,0)
 pk_base_init <- Rceattle::fit_mod(data_list = mydata_pollock,
                              inits = NULL, # Initial parameters = 0

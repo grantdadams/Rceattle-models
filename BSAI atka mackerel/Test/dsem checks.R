@@ -37,29 +37,29 @@ mydata_atka$Pyrs <- mydata_atka$Pyrs %>%
   dplyr::mutate(Sex = 0 )
 
 # Prior for q
-mydata_atka$fleet_control$Estimate_q[1] <- 2   # Estimate with prior
-mydata_atka$fleet_control$Q_prior[1] <- 1      # Prior mean
-mydata_atka$fleet_control$Q_sd_prior[1] <- 0.2 # SD of prior
+mydata_atka$fleet_control$Catchability[1] <- 2   # Estimate with prior
+mydata_atka$fleet_control$Catchability_init[1] <- 1      # Prior mean
+mydata_atka$fleet_control$Catchability_prior_sd[1] <- 0.2 # SD of prior
 
 # Add in time-varying fishery sel
 mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
   dplyr::mutate(Sel_curve_pen1 = Time_varying_sel,
-                Sel_curve_pen2 = Sel_sd_prior,
+                Sel_curve_pen2 = Time_varying_sel_sd,
                 Time_varying_sel = c(0,1),
-                Sel_sd_prior = c(0, 0.35),
+                Time_varying_sel_sd = c(0, 0.35),
                 Sel_curve_pen1 = 1/(2 * Sel_curve_pen1^2), # AMAK conversion (TODO, convert CEATTLE to variance)
                 Sel_curve_pen2 = 1/Sel_curve_pen2^2)  %>%  # AMAK conversion
-  dplyr::relocate(Sel_curve_pen1, .after = Nselages) %>%
+  dplyr::relocate(Sel_curve_pen1, .after = N_sel_bins) %>%
   dplyr::relocate(Sel_curve_pen2, .after = Sel_curve_pen1)
 
 # Selectivity normalization ages for survey
-mydata_atka$fleet_control$Age_max_selected[1] <- 4
-mydata_atka$fleet_control$Age_max_selected_upper <- NA
-mydata_atka$fleet_control$Age_max_selected_upper[1] <- 10
+mydata_atka$fleet_control$Sel_norm_bin[1] <- 4
+mydata_atka$fleet_control$Sel_norm_bin_upper <- NA
+mydata_atka$fleet_control$Sel_norm_bin_upper[1] <- 10
 
 
 # Fit model ----
-mydata_atka$sigma_rec_prior <- 0.4723773
+mydata_atka$sigma_rec <- 0.4723773
 Rceattle_atka <- Rceattle::fit_mod(
   data_list = mydata_atka,
   inits = NULL, # Initial parameters = 0

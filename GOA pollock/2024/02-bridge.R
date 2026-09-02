@@ -24,7 +24,7 @@ pollock_base <- fit_mod(data_list = pollock24,
 
 
 # Fit dirichlet model ----
-pollock24$fleet_control$Comp_loglike <- 1
+pollock24$fleet_control$Comp_distribution <- 1
 pollock24$fleet_control$Catchability[1] <- 6
 pollock24$fleet_control$Time_varying_q[1] <- 1
 pollock_dm <- fit_mod(data_list = pollock24,
@@ -87,9 +87,9 @@ pkinits$index_q_dev_ln_sd[1] <- fit$parList$log_Ecov_sd
 pkinits$comp_weights[c(1:3,6,8)] <- fit$parList$log_DM_pars
 
 # * Fit fixed parameters ----
-pollock24$fleet_control$Age_max_selected <- NA
-pollock24$fleet_control$Age_max_selected[7] <- 3
-pollock24$fleet_control$Age_max_selected[8] <- 7
+pollock24$fleet_control$Sel_norm_bin <- NA
+pollock24$fleet_control$Sel_norm_bin[7] <- 3
+pollock24$fleet_control$Sel_norm_bin[8] <- 7
 pollock_fixed <- fit_mod(data_list = pollock24,
                          inits = pkinits, # Initial parameters = 0
                          file = NULL, # Don't save

@@ -26,14 +26,14 @@ cod_pcod$fleet_control$CAAL_weights <- 1
 # let devs explode (-5 to +4), overfitting length comp via sel devs and
 # producing a discontinuous-likelihood at convergence.
 # Same applies to LLSrv's IID q-dev prior (was sigma=1.0 from the
-# converter default Time_varying_q_sd_prior=1, letting Survey NLL drop
+# converter default Time_varying_q_sd=1, letting Survey NLL drop
 # 67 below SS3 via overfitting per-year q deviations).
 active_fi <- which(cod_pcod$fleet_control$Fleet_name %in% active_sel_fleets)
-cod_pcod$fleet_control$Time_varying_sel_sd_prior[active_fi] <- 0.3
+cod_pcod$fleet_control$Time_varying_sel_sd[active_fi] <- 0.3
 
 # CRITICAL: build_params writes sel_dev_log_sd / index_q_dev_log_sd into the
 # parameter list from data_list$fleet_control AT mod0 BUILD TIME. mod0 was
-# built with Time_varying_sel_sd_prior = -1 (FP sentinel: skip prior), so
+# built with Time_varying_sel_sd = -1 (FP sentinel: skip prior), so
 # inits$sel_dev_log_sd is currently log(exp(-999)) = -999 (skip prior).
 # Likewise inits$index_q_dev_log_sd is log(1.0) = 0 (sigma=1 for LLSrv).
 # Updating fleet_control here doesn't re-run build_params, so we have to

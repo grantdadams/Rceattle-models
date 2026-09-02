@@ -206,13 +206,13 @@ pollock23$Pyrs <- rbind(pollock23$Pyrs %>%
                         pyrs_new)
 
 # Fit dirichlet model ----
-pollock23$fleet_control$Comp_loglike <- 1
-pollock23$fleet_control$Estimate_q[1] <- 6
+pollock23$fleet_control$Comp_distribution <- 1
+pollock23$fleet_control$Catchability[1] <- 6
 pollock23$fleet_control$Time_varying_q[1] <- 1
 
 # * Sel normalization age ----
-pollock23$fleet_control$Age_max_selected[7] <- 3
-pollock23$fleet_control$Age_max_selected[8] <- 7
+pollock23$fleet_control$Sel_norm_bin[7] <- 3
+pollock23$fleet_control$Sel_norm_bin[8] <- 7
 
 
 
