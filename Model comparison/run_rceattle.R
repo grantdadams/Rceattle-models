@@ -187,11 +187,19 @@ count_na_standard_errors <- function(sdreport) {
 #' the value RCEATTLE already computes inside fit_mod() during its own
 #' convergence check (fit$convergence$checks$hessian_conditioning).
 #'
+#' Rceattle 5.26.0 reads its own conditioning check on the CORRELATION matrix, so
+#' `data$condition_number` is no longer kappa of the Hessian and is not
+#' comparable with FIMS. `data$covariance_condition_number` is the quantity this
+#' helper wants; the bare name is the pre-5.26.0 fallback.
+#'
 #' @param fit A fitted "Rceattle" object.
 get_condition_number <- function(fit) {
-  cn <- tryCatch(
-    fit$convergence$checks$hessian_conditioning$data$condition_number,
-    error = function(e) NULL)
+  d <- tryCatch(fit$convergence$checks$hessian_conditioning$data,
+                error = function(e) NULL)
+  cn <- d$covariance_condition_number
+  if (is.null(cn) && !is.null(d) && is.null(d$se_ratio)) {
+    cn <- d$condition_number          # pre-5.26.0: this WAS the covariance kappa
+  }
   if (!is.null(cn) && is.finite(cn)) return(as.numeric(cn))
   # Safe fallback: dense Hessian, fixed-effects models only (never spHess).
   if (length(fit$obj[["env"]][["random"]]) == 0L) {

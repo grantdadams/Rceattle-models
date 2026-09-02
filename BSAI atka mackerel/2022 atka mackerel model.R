@@ -45,12 +45,18 @@ mydata_atka$fleet_control$Catchability_prior_sd[1] <- 0.2 # SD of prior
 
 # Add in time-varying fishery sel
 mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
-  dplyr::mutate(Sel_curve_pen1 = Time_varying_sel,
-                Sel_curve_pen2 = Time_varying_sel_sd,
-                Time_varying_sel = c(0,1),
-                Time_varying_sel_sd = c(0, 0.35),
-                Sel_curve_pen1 = 1/(2 * Sel_curve_pen1^2), # AMAK conversion (TODO, convert CEATTLE to variance)
-                Sel_curve_pen2 = 1/Sel_curve_pen2^2)  %>%  # AMAK conversion
+  dplyr::mutate(
+    # The workbook's Time_varying_sel column holds the ADMB curvature sd and
+    # Time_varying_sel_sd the decreasing-penalty sd, not switch values. Each
+    # becomes the weight Rceattle reads, and they go to opposite columns from
+    # the ones they are named after: Sel_curve_pen1 is the DECREASING weight
+    # (amak.tpl 2531, 0.5*d^2/seldec_pen, over a seldec_pen squared on input at
+    # line 615) and Sel_curve_pen2 the CURVATURE weight (amak.tpl 948).
+    # Reproduces Data/mod23/input.log: Curv_pen 2 / 0.558712.
+    Sel_curve_pen1 = 0.5 / (Time_varying_sel_sd^2)^2,
+    Sel_curve_pen2 = 1 / (2 * Time_varying_sel^2),
+    Time_varying_sel = c(0,1),
+    Time_varying_sel_sd = c(0, 0.35)) %>%
   dplyr::relocate(Sel_curve_pen1, .after = N_sel_bins) %>%
   dplyr::relocate(Sel_curve_pen2, .after = Sel_curve_pen1)
 

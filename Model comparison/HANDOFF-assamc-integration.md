@@ -308,8 +308,14 @@ Dimension traps this helper must centralise (all confirmed against Rceattle sour
   `Σ_flt exp(log_F)`, equal to apical F only when selectivity maxes at 1.
 - **Do not** re-invoke `obj$env$spHess()` on a returned fit to get a condition number — that can
   segfault uncatchably for random-effects models. Read the value Rceattle already computed at
-  `fit$convergence$checks$hessian_conditioning$data$condition_number`, as the ported
+  `fit$convergence$checks$hessian_conditioning$data$covariance_condition_number`, as the ported
   `get_condition_number()` does.
+- **From Rceattle 5.26.0 the bare `data$condition_number` is kappa of the CORRELATION matrix**,
+  not of the Hessian, so it is not comparable with FIMS and is not the parity quantity. The
+  covariance value moved to `data$covariance_condition_number`; `get_condition_number()` reads
+  that and falls back to the bare name only for pre-5.26.0 fits (detected by the absence of
+  `data$se_ratio`). Any `condition_number_<scenario>.RDS` saved before that boundary is on the
+  old definition.
 
 ---
 

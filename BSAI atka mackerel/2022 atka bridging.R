@@ -34,7 +34,7 @@ mydata_atka$index_data$Log_sd <- mydata_atka$index_data$Log_sd/mydata_atka$index
 mydata_atka$spawn_month <- 7
 
 mydata_atka$index_data$Month <- 6.5
-mydata_atka$Pyrs <- mydata_atka$Pyrs %>%
+mydata_atka$ration_data <- mydata_atka$ration_data %>%
   dplyr::filter(Sex == 1) %>%
   dplyr::mutate(Sex = 0 )
 
@@ -44,18 +44,32 @@ mydata_atka$fleet_control$Catchability_init[1] <- 1
 mydata_atka$fleet_control$Catchability_prior_sd[1] <- 0.2
 mydata_atka$fleet_control$Comp_distribution <- -1
 
-# Add in time-varying fishery sel
+# Add in time-varying fishery sel. The workbook's Time_varying_sel columns hold
+# the ADMB penalty sds, not switch codes, so the two penalty columns are created
+# here and then set from the control file below; Time_varying_sel itself becomes
+# the switch. The ADMB switch numbered a random walk 1, where Rceattle numbers
+# IID 1, so it is respelled rather than carried across as an integer.
 mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
-  dplyr::mutate(Sel_curve_pen1 = Time_varying_sel,
-                Sel_curve_pen2 = Time_varying_sel_sd,
-                Time_varying_sel = c(0,1),
+  dplyr::mutate(Sel_curve_pen1 = NA_real_,
+                Sel_curve_pen2 = NA_real_,
+                Time_varying_sel = c("Off","RandomWalk"),
                 Time_varying_sel_sd = c(0, 0.35)) %>%
   dplyr::relocate(Sel_curve_pen1, .after = N_sel_bins) %>%
   dplyr::relocate(Sel_curve_pen2, .after = Sel_curve_pen1)
 
-mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
-  dplyr::mutate(Sel_curve_pen1 = 1/(2 * Sel_curve_pen1^2), # AMAK conversion
-                Sel_curve_pen2 = 1/Sel_curve_pen2^2) # AMAK conversion
+# Penalty weights from the ADMB control inputs (Data/mod23/input.log), on the
+# columns Rceattle reads:
+#   Sel_curve_pen1 = decreasing weight = 0.5 / seldec_pen^2   (amak.tpl 615, 2531)
+#   Sel_curve_pen2 = curvature  weight = 1 / (2 * curv_pen^2) (amak.tpl 948, 2516)
+# survey  seldec_pen_ind = 0.16,   Curv_pen_ind = 2
+# fishery seldec_pen_fsh = 106.09, Curv_pen_fsh = 0.558712
+mydata_atka$fleet_control$Sel_curve_pen1 <- c(0.5/0.16^2, 0.5/106.09^2)
+mydata_atka$fleet_control$Sel_curve_pen2 <- c(2, 0.558712)
+
+# Score the walk and the coefficient level the way AMAK does: a bare sum of
+# squares with no normalizing constant, and 20 * avg_sel^2 (amak.tpl 2524, 2534).
+mydata_atka$fleet_control$Sel_penalty_form <- "AMAK"
+mydata_atka$fleet_control$Sel_avgsel_pen   <- 20
 
 mydata_atka$fleet_control$Sel_norm_bin[1] <- 4
 mydata_atka$fleet_control$Sel_norm_bin_upper <- NA
@@ -137,7 +151,7 @@ atka_22_pars$init_dev[1,1:(nages-1)] <- rev(rec_dev[1:(nages-1)])
 fmort <- scan()
 0.0530101023634 0.0561024376746 0.0330769681907 0.0261104459337 0.0208154057087 0.0169856336577 0.0110533640368 0.0422606285434 0.0663299711394 0.0728626969911 0.0559588230830 0.0489978156798 0.0304274736092 0.0268130774748 0.0438505306539 0.0597299573205 0.0893086218765 0.115293256651 0.186592145070 0.268003323235 0.161688621860 0.196273137674 0.144445727278 0.131861404772 0.174123166995 0.125315040294 0.106743691615 0.0853148839373 0.0816002361206 0.0918603405215 0.0913846480520 0.114696556307 0.174721858641 0.168737335918 0.116500460993 0.139835409924 0.0586199908521 0.0646491294465 0.140754118027 0.136785873667 0.155207745830 0.163152240286 0.140802056026 0.157148872271 0.166198121447 0.194063574816
 
-atka_22_pars$ln_F[2,] <- log(fmort)
+atka_22_pars$log_F[2,] <- log(fmort)
 
 # Fishery selectivity
 log_selcoffs_fsh <- scan()
@@ -201,7 +215,7 @@ atka_22_pars$sel_coff[1,1,1:10] <- log_selcoffs_ind
 
 
 # Catchability
-atka_22_pars$index_ln_q[1] <- 0.447267456766
+atka_22_pars$index_log_q[1] <- 0.447267456766
 
 # * Fit fixed parameters ----
 mydata_atka$index_data$Month <- 6.5
@@ -215,7 +229,6 @@ model_3 <- fit_mod(
   verbose = 1,
   phase = TRUE,
   initMode = 2,
-  TMBfilename = "src/ceattle_v01_11_amak",
   recFun = build_srr(srr_pred_fun = 2,
                      proj_mean_rec = FALSE,
                      srr_est_mode = 2, # Prior on steepness
@@ -389,26 +402,29 @@ round(model_3$quantities$jnll_comp[1:17,], 5)
 
 #FIXME AMAK length/age comp likelihoods are reported out same
 
-# Check penalties
+# Check penalties, survey fleet ------------------------------------------------
+# Reconstructed here from the reported curve, against the row the model prints.
+# log_non_par_sel is the mean-centred curve the penalties are written on; the
+# normalized sel_at_age is NOT, so do not substitute it.
+L   <- model_3$quantities$log_non_par_sel[1, 1, , 1]
+w1  <- mydata_atka$fleet_control$Sel_curve_pen1[1]   # decreasing
+w2  <- mydata_atka$fleet_control$Sel_curve_pen2[1]   # curvature
 
-log_selcoffs_ind
-log_sel_ind <- c(log_selcoffs_ind, log_selcoffs_ind[10])
-log_sel_ind <- log_sel_ind - log(mean(exp(log_sel_ind)))
+# - Curvature penalty (amak.tpl 2516)
+pen_curv <- w2 * sum(diff(diff(L))^2)
 
-# - Curvature penalty
-pen1 <- sum(2*(diff(diff(log(model_3$quantities$non_par_sel[1,1,,1])))^2))
-pen1
+# - Decreasing penalty (amak.tpl 2531); one-sided on the decreasing direction
+d        <- -diff(L)                       # positive where selectivity decreases
+pen_decr <- w1 * sum(((abs(d) + d)/2)^2)
 
-# - Descending penalty
-difftmp = -diff(log_sel_ind) # Decreasing will be positive
-difftmp <- difftmp
-difftmp = (abs(difftmp) + difftmp)/2
-pen2 <- sum(difftmp^2) / 2 / 0.4^2
-pen2
+# - Level penalty (amak.tpl 2534), 20 * avg_sel^2 under Sel_penalty_form "AMAK"
+pen_lvl  <- 20 * model_3$quantities$avg_sel[1, 1, 1]^2
 
-# - Avgsel
-pen3 <- 2 * log(mean(exp(log_selcoffs_ind)))^2
-pen3
+c(curvature = pen_curv, decreasing = pen_decr, level = pen_lvl,
+  total = pen_curv + pen_decr + pen_lvl,
+  reported = model_3$quantities$jnll_comp[
+    grep("^Non-parametric selectivity", rownames(model_3$quantities$jnll_comp)), 1],
+  AMAK = 4.43662)
 
 
 # SAFE model ----
