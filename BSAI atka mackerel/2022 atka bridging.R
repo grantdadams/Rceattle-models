@@ -45,26 +45,20 @@ mydata_atka$fleet_control$Catchability_prior_sd[1] <- 0.2
 mydata_atka$fleet_control$Comp_distribution <- -1
 
 # Add in time-varying fishery sel. The workbook's Time_varying_sel columns hold
-# the ADMB penalty sds, not switch codes, so the two penalty columns are created
-# here and then set from the control file below; Time_varying_sel itself becomes
-# the switch. The ADMB switch numbered a random walk 1, where Rceattle numbers
-# IID 1, so it is respelled rather than carried across as an integer.
+# the ADMB penalty sds rather than switch codes, so both are overwritten here
+# and the penalties set from the control file below. The ADMB switch numbered a
+# random walk 1, where Rceattle numbers IID 1, so it is respelled rather than
+# carried across as an integer.
 mydata_atka$fleet_control <- mydata_atka$fleet_control %>%
-  dplyr::mutate(Sel_curve_pen1 = NA_real_,
-                Sel_curve_pen2 = NA_real_,
-                Time_varying_sel = c("Off","RandomWalk"),
-                Time_varying_sel_sd = c(0, 0.35)) %>%
-  dplyr::relocate(Sel_curve_pen1, .after = N_sel_bins) %>%
-  dplyr::relocate(Sel_curve_pen2, .after = Sel_curve_pen1)
+  dplyr::mutate(Time_varying_sel = c("Off","RandomWalk"),
+                Time_varying_sel_sd = c(0, 0.35))
 
-# Penalty weights from the ADMB control inputs (Data/mod23/input.log), on the
-# columns Rceattle reads:
-#   Sel_curve_pen1 = decreasing weight = 0.5 / seldec_pen^2   (amak.tpl 615, 2531)
-#   Sel_curve_pen2 = curvature  weight = 1 / (2 * curv_pen^2) (amak.tpl 948, 2516)
-# survey  seldec_pen_ind = 0.16,   Curv_pen_ind = 2
-# fishery seldec_pen_fsh = 106.09, Curv_pen_fsh = 0.558712
-mydata_atka$fleet_control$Sel_curve_pen1 <- c(0.5/0.16^2, 0.5/106.09^2)
-mydata_atka$fleet_control$Sel_curve_pen2 <- c(2, 0.558712)
+# ADMB's control inputs (Data/mod23/input.log) verbatim. Rceattle takes these
+# penalties as standard deviations and applies weight = 1/(2*sd^2) itself, which
+# is the same conversion amak.tpl does at line 948 (curvature) and 615
+# (decreasing), so the raw inputs transfer with no arithmetic.
+mydata_atka$fleet_control$Sel_shape_sd     <- c(0.16, 106.09)  # seldec_pen
+mydata_atka$fleet_control$Sel_curvature_sd <- c(0.5,  0.946)   # curv_pen
 
 # Score the walk and the coefficient level the way AMAK does: a bare sum of
 # squares with no normalizing constant, and 20 * avg_sel^2 (amak.tpl 2524, 2534).
@@ -104,6 +98,12 @@ model_1 <- Rceattle::fit_mod(
 # * Fixed selectivity ----
 fixed_sel <- mydata_atka
 fixed_sel$fleet_control$Selectivity <- 0
+# Empirical selectivity has no shape or curvature penalty to weight, and the
+# penalty-SD columns are refused on a form that does not use them.
+fixed_sel$fleet_control$Sel_shape_sd       <- NA
+fixed_sel$fleet_control$Sel_curvature_sd   <- NA
+fixed_sel$fleet_control$Sel_penalty_form   <- "Rceattle"
+fixed_sel$fleet_control$Sel_avgsel_pen     <- 0
 model_2 <- Rceattle::fit_mod(data_list = fixed_sel,
                              inits = NULL, # Initial parameters = 0
                              file = NULL, # Don't save
