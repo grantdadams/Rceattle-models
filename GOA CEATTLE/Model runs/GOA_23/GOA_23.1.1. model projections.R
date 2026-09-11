@@ -1,7 +1,10 @@
 pacman::p_load(Rceattle, readxl, dplyr, tidyr, nmfspalette)
 setwd("Model runs/GOA_23.1.1/")
-load("Models/GOA_23_1_1_mod_list.RData")
+load("Models/GOA_23_1_1_mod_list.RData") # Inits predate the current parameter set: re-run "GOA_23.1.1. fit models.R" first
 combined_data <- read_data(file = "Data/GOA_23_1_1_data_1977_2023_edited.xlsx")
+# Cod diet at ages 11-12 lies past the cod model's ages 1-10: fold it into age 10.
+source("fold_diet_plus_group.R")
+combined_data <- fold_diet_plus_group(combined_data)
 combined_data$projyr <- 2100
 
 
@@ -9,8 +12,6 @@ combined_data$projyr <- 2100
 for(i in 1:length(mod_list_all)){
   mod_list_all[[i]]$estimated_params$rec_dev <- cbind(
     mod_list_all[[i]]$estimated_params$rec_dev, matrix(0, nrow = 3, ncol = 50))
-  
-  mod_list_all[[i]]$estimated_params$beta_rec_pars <- matrix(0, 3, 1)
 }
 
 
@@ -87,7 +88,9 @@ climate_data <- merge(temp_data, zoo_data, by = "Year") %>%
   arrange(Year)
 
 # - add to Rceattle object
-combined_data$fleet_control$Fleet_type[18] <- 0
+# Pcod spawning and seine surveys have an index but no composition data to inform
+# their selectivity, so they are excluded (Fleet_type 0 = "Off").
+combined_data$fleet_control$Fleet_type[combined_data$fleet_control$Fleet_name %in% c("Pcod_spawn_srv", "Pcod_seine_srv")] <- 0
 ssp_dat_126 <- ssp_dat_245 <- ssp_dat_585 <- combined_data
 
 ssp_dat_126$env_data <- climate_data %>%
@@ -99,6 +102,17 @@ ssp_dat_245$env_data <- climate_data %>%
 ssp_dat_585$env_data <- climate_data %>%
   select(Year, BT_value_ssp585, BT_value_ssp585z, BT_value_squared_ssp585z, MZL_value_ssp585z )
 
+# * Recruitment-environment linkage ----
+# srr_env_indices = c(2,3,4) counted env_data columns after Year: winter bottom
+# temperature, BT squared and zooplankton (z-scores). Rceattle now expresses that
+# log-linear effect, one slope per species per covariate, as a linkage on R0;
+# scenario-agnostic column names let one spec serve every SSP.
+# Caveat: under proj_mean_rec = TRUE (the default), projected years use hindcast mean
+# recruitment without this R0 effect (2023 applied it).
+env_names <- c("Year", "BT", "BT_z", "BT2_z", "MZL_z")
+names(ssp_dat_126$env_data) <- names(ssp_dat_245$env_data) <- names(ssp_dat_585$env_data) <- env_names
+rec_env <- linkage_spec(~ BT_z + BT2_z + MZL_z)
+
 
 ## Hindcast (climate naive) ----
 # - Est single-species fixed M
@@ -108,8 +122,8 @@ ss_mod <- Rceattle::fit_mod(data_list = combined_data,
                             estimateMode = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
                             msmMode = 0, # Single species mode
-                            verbose = 1,
-                            phase = NULL)
+                            fit_control = fit_control(phase = FALSE, verbose = 1),
+                            initMode = 2)
 
 # - Est single-species estimated M
 ss_mod_M <- Rceattle::fit_mod(data_list = combined_data,
@@ -118,8 +132,8 @@ ss_mod_M <- Rceattle::fit_mod(data_list = combined_data,
                               estimateMode = 0, # Estimate
                               random_rec = FALSE, # No random recruitment
                               msmMode = 0, # Single species mode
-                              verbose = 1,
-                              phase = NULL,
+                              fit_control = fit_control(phase = FALSE, verbose = 1),
+                              initMode = 2,
                               M1Fun = build_M1(M1_model = c(1,2,1),
                                                M1_use_prior = FALSE,
                                                M2_use_prior = FALSE))
@@ -131,13 +145,14 @@ ms_mod <- Rceattle::fit_mod(data_list = combined_data,
                             estimateMode = 0, # Estimate
                             random_rec = FALSE, # No random recruitment
                             msmMode = 1, # Multi species mode
-                            verbose = 1,
+                            fit_control = fit_control(phase = FALSE, verbose = 1),
                             niter = 5,
-                            meanyr = 2018,
-                            phase = NULL,
+                            suit_endyr = 2018,
+                            initMode = 2,
                             M1Fun = build_M1(M1_model = c(1,2,1),
                                              M1_use_prior = FALSE,
-                                             M2_use_prior = FALSE))
+                                             M2_use_prior = FALSE),
+                            recFun = build_srr(srr_mse_switchyr = 2018)) # Mean recruitment over 1977-2018
 
 ## Climate projections ----
 # * Single species ----
@@ -147,11 +162,11 @@ ss_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat_126,
                                    file = NULL, # Don't save
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)),
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env)),
                                    msmMode = 0, # Single species mode
-                                   verbose = 1,
-                                   phase = NULL)
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
+                                   initMode = 2)
 
 # -- SSP245
 ss_mod_ssp245 <- Rceattle::fit_mod(data_list = ssp_dat_245,
@@ -159,11 +174,11 @@ ss_mod_ssp245 <- Rceattle::fit_mod(data_list = ssp_dat_245,
                                    file = NULL, # Don't save
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)),
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env)),
                                    msmMode = 0, # Single species mode
-                                   verbose = 1,
-                                   phase = NULL)
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
+                                   initMode = 2)
 
 # -- SSP585
 ss_mod_ssp585 <- Rceattle::fit_mod(data_list = ssp_dat_585,
@@ -171,11 +186,11 @@ ss_mod_ssp585 <- Rceattle::fit_mod(data_list = ssp_dat_585,
                                    file = NULL, # Don't save
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)),
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env)),
                                    msmMode = 0, # Single species mode
-                                   verbose = 1,
-                                   phase = NULL)
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
+                                   initMode = 2)
 
 
 
@@ -188,15 +203,16 @@ ms_mod_ssp126 <- Rceattle::fit_mod(data_list = ssp_dat_126,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 1, # Multi species mode
-                                   verbose = 1,
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
                                    niter = 5,
-                                   meanyr = 2018,
-                                   phase = NULL,
+                                   suit_endyr = 2018,
+                                   initMode = 2,
                                    M1Fun = build_M1(M1_model = c(1,2,1),
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)))
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env),
+                                                      srr_mse_switchyr = 2018))
 
 # -- SSP245
 ms_mod_ssp245 <- Rceattle::fit_mod(data_list = ssp_dat_245,
@@ -205,15 +221,16 @@ ms_mod_ssp245 <- Rceattle::fit_mod(data_list = ssp_dat_245,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 1, # Multi species mode
-                                   verbose = 1,
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
                                    niter = 5,
-                                   meanyr = 2018,
-                                   phase = NULL,
+                                   suit_endyr = 2018,
+                                   initMode = 2,
                                    M1Fun = build_M1(M1_model = c(1,2,1),
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)))
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env),
+                                                      srr_mse_switchyr = 2018))
 
 # -- SSP585
 ms_mod_ssp585 <- Rceattle::fit_mod(data_list = ssp_dat_585,
@@ -222,15 +239,16 @@ ms_mod_ssp585 <- Rceattle::fit_mod(data_list = ssp_dat_585,
                                    estimateMode = 0, # Estimate
                                    random_rec = FALSE, # No random recruitment
                                    msmMode = 1, # Multi species mode
-                                   verbose = 1,
+                                   fit_control = fit_control(phase = FALSE, verbose = 1),
                                    niter = 5,
-                                   meanyr = 2018,
-                                   phase = NULL,
+                                   suit_endyr = 2018,
+                                   initMode = 2,
                                    M1Fun = build_M1(M1_model = c(1,2,1),
                                                     M1_use_prior = FALSE,
                                                     M2_use_prior = FALSE),
-                                   recFun = build_srr(srr_fun = 1,
-                                                      srr_env_indices = c(2,3,4)))
+                                   recFun = build_srr(srr_fun = 0,
+                                                      linkages = list(R0 = rec_env),
+                                                      srr_mse_switchyr = 2018))
 
 
 ## Adjust f prop ----
@@ -239,14 +257,14 @@ mod_list_all <- list(ss_mod, ss_mod_M, ms_mod,
                      ms_mod_ssp126, ms_mod_ssp245, ms_mod_ssp585)
 
 for(i in 1:length(mod_list_all)){
-  avg_F <- (exp(mod_list_all[[i]]$estimated_params$ln_mean_F+mod_list_all[[i]]$estimated_params$F_dev)) # Average F from last 2 years
+  avg_F <- (exp(mod_list_all[[i]]$estimated_params$log_F)) # Average F from last 2 years
   avg_F <- rowMeans(avg_F[,(ncol(avg_F)-2) : ncol(avg_F)])
   f_ratio <- avg_F[14:16]
   f_ratio <- f_ratio/sum(f_ratio)
   
   # Adjust future F proportion to each fleet
   mod_list_all[[i]]$data_list$fleet_control$Proj_F_proportion <- c(rep(0, 7), 1,0,0,1, 0,0, f_ratio, 0, 0)
-  mod_list_all[[i]]$estimated_params$proj_F_prop <- mod_list_all[[i]]$data_list$fleet_control$proj_F_prop
+  mod_list_all[[i]]$estimated_params$proj_F_prop <- mod_list_all[[i]]$data_list$fleet_control$Proj_F_proportion
 }
 
 ss_mod <- mod_list_all[[1]]
@@ -270,12 +288,12 @@ ss_mod_tier3 <- Rceattle::fit_mod(data_list = ss_mod$data_list,
                                   random_rec = FALSE, # No random recruitment
                                   msmMode = 0, # Single species mode
                                   HCR = build_hcr(HCR = 5, # Tier3 HCR
-                                                  FsprTarget = 0.4, # F40%
-                                                  FsprLimit = 0.35, # F35%
+                                                  Ftarget = 0.4, # F40%
+                                                  Flimit = 0.35, # F35%
                                                   Plimit = c(0.2, 0, 0.2), # No fishing when SB<SB20
                                                   Alpha = 0.05),
-                                  verbose = 1,
-                                  phase = NULL)
+                                  fit_control = fit_control(phase = FALSE, verbose = 1),
+                                  initMode = 2)
 
 # - Est single-species estimated M
 ss_mod_M_tier3 <- Rceattle::fit_mod(data_list = ss_mod_M$data_list,
@@ -284,14 +302,14 @@ ss_mod_M_tier3 <- Rceattle::fit_mod(data_list = ss_mod_M$data_list,
                                     estimateMode = 0, # Estimate
                                     random_rec = FALSE, # No random recruitment
                                     msmMode = 0, # Single species mode
-                                    verbose = 1,
-                                    phase = NULL,
+                                    fit_control = fit_control(phase = FALSE, verbose = 1),
+                                    initMode = 2,
                                     M1Fun = build_M1(M1_model = c(1,2,1),
                                                      M1_use_prior = FALSE,
                                                      M2_use_prior = FALSE),
                                     HCR = build_hcr(HCR = 5, # Tier3 HCR
-                                                    FsprTarget = 0.4, # F40%
-                                                    FsprLimit = 0.35, # F35%
+                                                    Ftarget = 0.4, # F40%
+                                                    Flimit = 0.35, # F35%
                                                     Plimit = c(0.2, 0, 0.2), # No fishing when SB<SB20
                                                     Alpha = 0.05)
   )
@@ -340,34 +358,26 @@ om_list <- c(om_list_ss, om_list_ms)
 om_names <- paste0(rep(c("SS-", "MS-"), each = 4), model_names)
 
 # * Test env significance
-aic_vec <- sapply(om_list, function(x) x$opt$AIC)
+aic_vec <- sapply(om_list, function(x) TMBAIC(x$opt))
 
 
-# * Management strategies ----
-# 1. Single-species fix M
-# 2. Single-species estimate M
-# Tier 3 HCR
-sampling_period <- c(2,2,1,2,2,2,2,1,2,2,1,2,2,1,1,1,1,1)
-em_hcr_list <- hcr_list
-em_hcr_names <- c("SS_fixM_Tier3_EM", "SS_estM_Tier3_EM")
-
-
-# - Run the MSE
-source("~/GitHub/Rceattle_MSE/R/Functions/Run_full_MSE_function.R", echo=TRUE)
-source("~/GitHub/Rceattle/R/11a-mse_run_parallel.R", echo=TRUE)
-run_mse(system = "GOA1977", recname = "ConstantR", om_list = om_list, om_names = om_names, em_hcr_list = em_hcr_list, em_hcr_names = em_hcr_names, sampling_period = sampling_period, nsim = 10, cap = c(1, 0.17, 1))
+# * Run the MSE ----
+# The MSE for these operating models is maintained in ../Climate_MSE
+# (entry point R/Climate_MSE_GOA_runs.R), which runs them through Rceattle::run_mse().
 
 
 # * Get catch ----
 catch_list <- list()
 model_names_all <- c(paste0("SS ", model_names), 
                      paste0("MS ", model_names))
-for(i in c(4:6, 10:12)){
-  catch_list[[model_names_all[i]]] <- proj_list_all[[i]]$data_list$fsh_biom
+# proj_list_all holds the 2 HCR fits, then 4 SS and 4 MS operating models: take the SSP ones
+for(i in c(4:6, 8:10)){
+  nm <- model_names_all[i - 2]
+  catch_list[[nm]] <- proj_list_all[[i]]$data_list$catch_data
   
-  catch_list[[model_names_all[i]]]$Catch[which(catch_list[[model_names_all[i]]]$Year > 2023)] <- proj_list_all[[i]]$quantities$fsh_bio_hat[which(catch_list[[model_names_all[i]]]$Year > 2023)]
+  catch_list[[nm]]$Catch[which(catch_list[[nm]]$Year > 2023)] <- proj_list_all[[i]]$quantities$catch_hat[which(catch_list[[nm]]$Year > 2023)]
   
-  catch_list[[model_names_all[i]]] <- catch_list[[model_names_all[i]]] %>%
+  catch_list[[nm]] <- catch_list[[nm]] %>%
     select(-Fleet_code, - Species, - Month, - Selectivity_block, -Log_sd) %>%
     pivot_wider(names_from = Fleet_name, values_from = c(Catch)) %>%
     as.data.frame()

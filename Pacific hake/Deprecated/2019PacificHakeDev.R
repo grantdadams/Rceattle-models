@@ -15,7 +15,7 @@ pk_base <- Rceattle::fit_mod(data_list = mydata_pollock,
                                file = NULL, # Don't save
                                estimateMode = 1,
                                msmMode = 0, # Single species mode
-                               phase = "default")
+                               fit_control = fit_control(phase = TRUE))
 
 ################################################
 # Bridging
@@ -27,7 +27,7 @@ bridge_mod1 <- Rceattle::fit_mod(data_list = bridge1,
                              file = NULL, # Don't save
                              estimateMode = 1,
                              msmMode = 0, # Single species mode
-                             phase = "default")
+                             fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod1)
 
 # Update survey index (remove pollock surveys and add hake survey)
@@ -38,7 +38,7 @@ bridge_mod2 <- Rceattle::fit_mod(data_list = bridge2,
                                  file = NULL, # Don't save
                                  estimateMode = 1,
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod2)
 
 
@@ -50,7 +50,7 @@ bridge_mod3 <- Rceattle::fit_mod(data_list = bridge3,
                                  file = NULL, # Don't save
                                  estimateMode = 1,
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod3)
 plot_comp(bridge_mod3)
 
@@ -63,7 +63,7 @@ bridge_mod4 <- Rceattle::fit_mod(data_list = bridge4,
                                  file = NULL, # Don't save
                                  estimateMode = 1,
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod4)
 plot_comp(bridge_mod4)
 
@@ -75,7 +75,7 @@ bridge_mod5 <- Rceattle::fit_mod(data_list = bridge5,
                                  file = NULL, # Don't save
                                  estimateMode = 1,
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod5)
 plot_comp(bridge_mod5)
 
@@ -88,7 +88,7 @@ bridge_mod6 <- Rceattle::fit_mod(data_list = bridge5,
                                  file = NULL, # Don't save
                                  estimateMode = 1,
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 plot_biomass(bridge_mod6)
 plot_comp(bridge_mod6)
 
@@ -100,9 +100,9 @@ bridge_mod6 <- Rceattle::fit_mod(data_list = bridge6,
                                  inits = NULL, # Initial parameters = 0
                                  file = NULL, # Don't save
                                  estimateMode = 1,
-                                 initMode = 2,
+                                 initMode = "FishedNonEquilibrium",
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 print(plot_biomass(bridge_mod6) + ggplot2::ggtitle("Biomass"))
 print(plot_ssb(bridge_mod6) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod6)
@@ -116,15 +116,15 @@ bridge_mod6 <- Rceattle::fit_mod(data_list = bridge6,
                                  estimateMode = 1,
                                  M1Fun = Rceattle::build_M1(M1_model = 1,
                                                             M1_use_prior = TRUE,
-                                                            M1_prior_mean = 0.2,
-                                                            M1_prior_sd = .1),
-                                 recFun = build_srr(srr_fun = 1,
+                                                            M_prior = 0.2,
+                                                            M_prior_sd = .1),
+                                 recFun = build_srr(srr_fun = "BevertonHolt",
                                                     proj_mean_rec = FALSE,
                                                     srr_est_mode = 1,
-                                                    srr_prior_mean = 0.777,
+                                                    srr_prior = 0.777,
                                                     srr_prior_sd = 0.113),
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 print(plot_biomass(bridge_mod6) + ggplot2::ggtitle("Biomass"))
 print(plot_ssb(bridge_mod6) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod6)
@@ -133,7 +133,7 @@ print(plot_ssb(bridge_mod6) + ggplot2::ggtitle("SSB"))
 library(readxl)
 ss_dat <- read_xlsx("Data/Stock_synthesis_output.xlsx")
 ss_mod <- bridge_mod6
-ss_mod$quantities$biomassSSB[1:length(ss_dat$SSB)] <- ss_dat$SSB/2
+ss_mod$quantities$ssb[1:length(ss_dat$SSB)] <- ss_dat$SSB/2
 
 plot_ssb(list(ss_mod, bridge_mod6), model_names = c("SS", "CEATTLE"))
 
@@ -149,9 +149,9 @@ bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                  inits = NULL, # Initial parameters = 0
                                  file = NULL, # Don't save
                                  estimateMode = 1,
-                                 initMode = 2,
+                                 initMode = "FishedNonEquilibrium",
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 print(plot_biomass(bridge_mod7) + ggplot2::ggtitle("Biomass"))
 print(plot_ssb(bridge_mod7) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod7)
@@ -165,15 +165,15 @@ bridge_mod7 <- Rceattle::fit_mod(data_list = bridge7,
                                  estimateMode = 1,
                                  M1Fun = Rceattle::build_M1(M1_model = 1,
                                                             M1_use_prior = TRUE,
-                                                            M1_prior_mean = 0.2,
-                                                            M1_prior_sd = .1),
-                                 recFun = build_srr(srr_fun = 1, # Beverton holt
+                                                            M_prior = 0.2,
+                                                            M_prior_sd = .1),
+                                 recFun = build_srr(srr_fun = "BevertonHolt",
                                                     proj_mean_rec = FALSE,
-                                                    srr_est_mode = 2, # Use prior on steepness
-                                                    srr_prior_mean = 0.777,
+                                                    srr_est_mode = "LognormalPrior", # Prior on steepness
+                                                    srr_prior = 0.777,
                                                     srr_prior_sd = 0.113),
                                  msmMode = 0, # Single species mode
-                                 phase = "default")
+                                 fit_control = fit_control(phase = TRUE))
 print(plot_biomass(bridge_mod7) + ggplot2::ggtitle("Biomass"))
 print(plot_ssb(bridge_mod7) + ggplot2::ggtitle("SSB"))
 # plot_comp(bridge_mod7)
@@ -182,6 +182,6 @@ print(plot_ssb(bridge_mod7) + ggplot2::ggtitle("SSB"))
 library(readxl)
 ss_dat <- read_xlsx("Data/Stock_synthesis_output.xlsx", sheet = 2)
 ss_mod <- bridge_mod7
-ss_mod$quantities$biomassSSB[1:length(ss_dat$SSB)] <- ss_dat$SSB
+ss_mod$quantities$ssb[1:length(ss_dat$SSB)] <- ss_dat$SSB
 
 plot_ssb(list(ss_mod, bridge_mod7), model_names = c("SS", "CEATTLE"))
