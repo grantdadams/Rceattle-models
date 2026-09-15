@@ -466,10 +466,10 @@ cod_avg/cod_avg[2]
 #######################################################
 # Population scalar
 #######################################################
-round(mod_list_all[[11]]$quantities$pop_scalar[4,1],4)
+round(mod_list_all[[11]]$quantities$pop_scalar[4],4)
 round(mod_list_all[[11]]$sdrep$sd[which(names(mod_list_all[[11]]$sdrep$value) == "pop_scalar")][4],2)
 
-round(mod_list_all[[16]]$quantities$pop_scalar[4,1],4)
+round(mod_list_all[[16]]$quantities$pop_scalar[4],4)
 round(mod_list_all[[16]]$sdrep$sd[which(names(mod_list_all[[16]]$sdrep$value) == "pop_scalar")][4],2)
 
 
