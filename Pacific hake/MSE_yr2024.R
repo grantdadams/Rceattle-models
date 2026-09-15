@@ -5,7 +5,7 @@ library(dplyr)
 CSL_SBF_ATF_hakedata_DM <- read_data(file = "MSE_hake_yr24_final.xlsx")
 
 CSL_SBF_ATF_hakedata_DM$index_data <- CSL_SBF_ATF_hakedata_DM$index_data %>%
-  dplyr::select(-Q_block)
+    dplyr::select(-Q_block)
 
 CSL_SBF_ATF_hakedata_DM$endyr <- 2023
 CSL_SBF_ATF_hakedata_DM$projyr <- 2030 # Need to changes
@@ -20,59 +20,59 @@ CSL_SBF_ATF_hakedata_DM$Diet_distribution <- rep(1, CSL_SBF_ATF_hakedata_DM$nspp
 # predator's diet keeps the DM weights identifiable (see setup note 2 above).
 comp_flts <- CSL_SBF_ATF_hakedata_DM$fleet_control$Fleet_code
 compFun <- build_composition(linkages = list(
-  theta_comp = linkage_spec(formula = ~ 1,
-                            by = ~ fleet,
-                            fleet   = comp_flts,
-                            priors = list(`(Intercept)` = prior_lognormal(0, 2))),
-  theta_diet = linkage_spec(formula = ~ 1,
-                            by = ~ species,
-                            species = seq_len(CSL_SBF_ATF_hakedata_DM$nspp),
-                            priors = list(`(Intercept)` = prior_lognormal(0, 2)))))
+    theta_comp = linkage_spec(formula = ~ 1,
+                              by = ~ fleet,
+                              fleet   = comp_flts,
+                              priors = list(`(Intercept)` = prior_lognormal(0, 2))),
+    theta_diet = linkage_spec(formula = ~ 1,
+                              by = ~ species,
+                              species = seq_len(CSL_SBF_ATF_hakedata_DM$nspp),
+                              priors = list(`(Intercept)` = prior_lognormal(0, 2)))))
 
 # 1. Single-species: no future F ----
 ss_run_DM_CSL <- fit_mod(data_list = CSL_SBF_ATF_hakedata_DM,
-                     inits = NULL,
-                     compFun = compFun,
-                     estimateMode = "Estimate", # 0 or "Estimate" works
-                     msmMode = "SingleSpecies", # 0 or "SingleSpecies" works
-                     random_rec = FALSE,
-                     initMode = "NonEquilibrium", # 2 or "NonEquilibrium" works
-                     fit_control = fit_control(phase = TRUE, verbose = 1))
+                         inits = NULL,
+                         compFun = compFun,
+                         estimateMode = "Estimate", # 0 or "Estimate" works
+                         msmMode = "SingleSpecies", # 0 or "SingleSpecies" works
+                         random_rec = FALSE,
+                         initMode = "NonEquilibrium", # 2 or "NonEquilibrium" works
+                         fit_control = fit_control(phase = TRUE, verbose = 1))
 summary(ss_run_DM_CSL)   # 2195.76
 
 plot_recruitment(ss_run_DM_CSL, species =1)
 
 # 2. Single-species: category 1 HCR ----
 ss_run_DM_hcr_CSL <- fit_mod(data_list = CSL_SBF_ATF_hakedata_DM,
-                         inits = NULL,
-                         compFun = compFun,
-                         estimateMode = "Estimate",
-                         msmMode = "SingleSpecies",
-                         random_rec = FALSE,
-                         initMode = "NonEquilibrium",
-                         HCR = build_hcr(HCR = 6, # Cat 1 HCR
-                                         Flimit = c(0.45, 0.45,  0.3, 0.45), # F45%
-                                         Ptarget = c(0.4, 0.4, 0.25, 0.4), # Target is 40% B0
-                                         Plimit = c(0.1, 0.1, 0.05, 0.1), # No fishing when SB<SB10
-                                         Pstar = 0.45,
-                                         Sigma = 0.5),
-                         fit_control = fit_control(phase = TRUE, verbose = 1))
+                             inits = NULL,
+                             compFun = compFun,
+                             estimateMode = "Estimate",
+                             msmMode = "SingleSpecies",
+                             random_rec = FALSE,
+                             initMode = "NonEquilibrium",
+                             HCR = build_hcr(HCR = 6, # Cat 1 HCR
+                                             Flimit = c(0.45, 0.45,  0.3, 0.45), # F45%
+                                             Ptarget = c(0.4, 0.4, 0.25, 0.4), # Target is 40% B0
+                                             Plimit = c(0.1, 0.1, 0.05, 0.1), # No fishing when SB<SB10
+                                             Pstar = 0.45,
+                                             Sigma = 0.5),
+                             fit_control = fit_control(phase = TRUE, verbose = 1))
 summary(ss_run_DM_hcr_CSL) #2196.57
 
 # 3. MSVPA with estimated M ----
 ms_run_DM_CSL <- fit_mod(data_list = CSL_SBF_ATF_hakedata_DM,
-                     inits = ss_run_DM_CSL$estimated_params,
-                     compFun = compFun,
-                     M1Fun = build_M1(M1_model = "sex_age_invariant"),  # estimate M without prior (1 or "sex_age_invariant" works)
-                     estimateMode = "Estimate",
-                     msmMode = "MSVPA", # 1 or "MSVPA" works
-                     suitMode = "Empirical", # 0 or "Empirical" works
-                     niter = 3,
-                     random_rec = FALSE,
-                     suit_styr  = c(1980, 1980, 1980, 1980),
-                     suit_endyr = c(2019, 2019, 2019, 2019),
-                     initMode = "NonEquilibrium",
-                     fit_control = fit_control(phase = FALSE, verbose = 1))
+                         inits = ss_run_DM_CSL$estimated_params,
+                         compFun = compFun,
+                         M1Fun = build_M1(M1_model = "sex_age_invariant"),  # estimate M without prior (1 or "sex_age_invariant" works)
+                         estimateMode = "Estimate",
+                         msmMode = "MSVPA", # 1 or "MSVPA" works
+                         suitMode = "Empirical", # 0 or "Empirical" works
+                         niter = 3,
+                         random_rec = FALSE,
+                         suit_styr  = c(1980, 1980, 1980, 1980),
+                         suit_endyr = c(2019, 2019, 2019, 2019),
+                         initMode = "NonEquilibrium",
+                         fit_control = fit_control(phase = FALSE, verbose = 1))
 summary(ms_run_DM_CSL)   # 2201.71
 
 # 4. Estimated suitability ----
@@ -110,26 +110,114 @@ map$mapList$diet_comp_weights[2:3] <- 2:3
 map$mapFactor$diet_comp_weights <- factor(map$mapList$diet_comp_weights)
 
 run_ms_CSL_Mest_prior_DM_CSL <- fit_mod(data_list = CSL_SBF_ATF_hakedata_DM,
-                                    inits = inits,
-                                    map = map,
-                                    compFun = compFun,
-                                    M1Fun = build_M1(M1_model = "sex_age_invariant",
-                                                     M1_use_prior = TRUE,
-                                                     M_prior = 0.2,
-                                                     M_prior_sd = 0.1),
-                                    estimateMode = "Estimate",
-                                    msmMode = "MSVPA",
-                                    suitMode = c("Empirical", "LognormalWeight", "LognormalWeight", "Empirical"), # c(0, 4, 4) also works
-                                    suit_styr  = c(1980, 2013, 2005, 1980),   # hake, arrowtooth, sablefish
-                                    suit_endyr = c(2019, 2018, 2008, 2019),
-                                    initMode = "NonEquilibrium",
-                                    niter = 3,
-                                    random_rec = FALSE,
-                                    fit_control = fit_control(
-                                      loopnum = 5,
-                                      phase = TRUE,
-                                      verbose = 1))
+                                        inits = inits,
+                                        map = map,
+                                        compFun = compFun,
+                                        M1Fun = build_M1(M1_model = "sex_age_invariant",
+                                                         M1_use_prior = TRUE,
+                                                         M_prior = 0.2,
+                                                         M_prior_sd = 0.1),
+                                        estimateMode = "Estimate",
+                                        msmMode = "MSVPA",
+                                        suitMode = c("Empirical", "LognormalWeight", "LognormalWeight", "Empirical"), # c(0, 4, 4) also works
+                                        suit_styr  = c(1980, 2013, 2005, 1980),   # hake, arrowtooth, sablefish
+                                        suit_endyr = c(2019, 2018, 2008, 2019),
+                                        initMode = "NonEquilibrium",
+                                        niter = 3,
+                                        random_rec = FALSE,
+                                        fit_control = fit_control(
+                                            loopnum = 5,
+                                            phase = TRUE,
+                                            verbose = 1))
 summary(run_ms_CSL_Mest_prior_DM_CSL)  # 2421.14.
+
+
+# 5. Beverton-Holt as a recruitment penalty (Ianelli form) ----
+# Help initializing, by starting at values fit externally to previous model's SSB and R (may not need).
+nyr_h   <- run_ms_CSL_Mest_prior_DM_CSL$data_list$endyr - run_ms_CSL_Mest_prior_DM_CSL$data_list$styr + 1
+ssb_lag <- run_ms_CSL_Mest_prior_DM_CSL$quantities$ssb[1, 1:(nyr_h - 1)]  # hake SSB (mt)
+rec_h   <- run_ms_CSL_Mest_prior_DM_CSL$quantities$R[1, 2:nyr_h]          # hake recruits
+bh_start <- optim(c(log(2 * median(rec_h / ssb_lag)), log(2 * median(rec_h / ssb_lag) / mean(rec_h))),
+                  function(p) sum((log(rec_h) - log(exp(p[1]) * ssb_lag / (1 + exp(p[2]) * ssb_lag)))^2),
+                  method = "BFGS")$par
+
+inits_bh <- inits
+inits_bh$rec_pars[1, 2:3] <- bh_start   # log alpha, log beta
+inits_bh$beta_linkage <- rep(0, 7) # Mapped off to 0 -> the "linkage" intercept's prior is redirected to rec_pars
+
+map_bh <- map
+map_bh$mapList$beta_linkage <- rep(NA, 7)
+map_bh$mapFactor$beta_linkage <- factor(map_bh$mapList$beta_linkage)
+map_bh$mapList$rec_pars[1, 2:3] <- max(map_bh$mapList$rec_pars, na.rm = TRUE) + 1:2 # Turn on alpha and beta
+map_bh$mapFactor$rec_pars <- factor(map_bh$mapList$rec_pars)
+
+# A prior on hake alpha goes via "linkage"
+run_ms_CSL_Mest_prior_DM_CSL_BH <- fit_mod(
+    data_list = CSL_SBF_ATF_hakedata_DM,
+    inits = inits_bh,
+    map = map_bh,
+    compFun = compFun,
+    M1Fun = build_M1(M1_model = "sex_age_invariant",
+                     M1_use_prior = TRUE,
+                     M_prior = 0.2,
+                     M_prior_sd = 0.1),
+    recFun = build_srr(srr_fun = "mean",
+                       srr_pred_fun = "BevertonHolt", # Extra stock-recruit penalty is added when srr_fun != srr_pred_fun
+                       srr_est_mode = "Estimated",
+                       linkages = list(
+                           alpha = linkage_spec(~ 1, species = 1,
+                                                init = list(intercept = 2.581713),
+                                                priors = list(intercept = prior_lognormal(log(100), 0.05)),
+                                                # est_phase = 0 # Fixes value at init
+                                                ))), #
+    estimateMode = "Estimate",
+    msmMode = "MSVPA",
+    suitMode = c("Empirical", "LognormalWeight", "LognormalWeight", "Empirical"), # c(0, 4, 4) also works
+    suit_styr  = c(1980, 2013, 2005, 1980),   # hake, arrowtooth, sablefish
+    suit_endyr = c(2019, 2018, 2008, 2019),
+    initMode = "NonEquilibrium",
+    niter = 3,
+    random_rec = FALSE,
+    fit_control = fit_control(
+        loopnum = 5,
+        phase = TRUE,
+        verbose = 1))
+plot_stock_recruit(run_ms_CSL_Mest_prior_DM_CSL_BH, species = 1)
+
+
+# 6. Beverton and Holt (R0 estimated to initialize pop then uses stock-recruit function)
+run_ms_CSL_Mest_prior_DM_CSL_BHv_2 <- fit_mod(
+    data_list = CSL_SBF_ATF_hakedata_DM,
+    inits = inits_bh,
+    map = map_bh,
+    compFun = compFun,
+    M1Fun = build_M1(M1_model = "sex_age_invariant",
+                     M1_use_prior = TRUE,
+                     M_prior = 0.2,
+                     M_prior_sd = 0.1),
+    recFun = build_srr(srr_fun = "BevertonHolt",
+                       linkages = list(
+                           alpha = linkage_spec(~ 1, species = 1,
+                                                init = list(intercept = 2.581713),
+                                                priors = list(intercept = prior_lognormal(log(100), 0.05))))),
+    estimateMode = "Estimate",
+    msmMode = "MSVPA",
+    suitMode = c("Empirical", "LognormalWeight", "LognormalWeight", "Empirical"), # c(0, 4, 4) also works
+    suit_styr  = c(1980, 2013, 2005, 1980),   # hake, arrowtooth, sablefish
+    suit_endyr = c(2019, 2018, 2008, 2019),
+    initMode = "NonEquilibrium",
+    niter = 3,
+    random_rec = FALSE,
+    fit_control = fit_control(
+        loopnum = 5,
+        phase = TRUE,
+        verbose = 1))
+plot_stock_recruit(run_ms_CSL_Mest_prior_DM_CSL_BHv_2, species = 1)
+run_ms_CSL_Mest_prior_DM_CSL_BHv_2$estimated_params$rec_pars
+run_ms_CSL_Mest_prior_DM_CSL_BH$estimated_params$rec_pars
+
+
+
 
 run_ms_CSL_Mest_prior_DM_CSL$quantities$vulnerability
 # arrowtooth->hake 0.807
@@ -177,9 +265,9 @@ run_ms_CSL_Mest_prior_DM_CSL_stable<- fit_mod(data_list = run_ms_CSL_Mest_prior_
                                               niter = 3,
                                               random_rec = FALSE,
                                               fit_control = fit_control(
-                                                loopnum = 5,
-                                                phase = TRUE,
-                                                verbose = 1))
+                                                  loopnum = 5,
+                                                  phase = TRUE,
+                                                  verbose = 1))
 
 summary(run_ms_CSL_Mest_prior_DM_CSL_stable) #2421.14
 run_ms_CSL_Mest_prior_DM_CSL_stable$convergence
@@ -191,28 +279,28 @@ run_ms_CSL_Mest_prior_DM_CSL_stable$convergence
 # -- Constant F as a percentage of SB0
 
 ss_run_DM_hcr_B0 <- fit_mod(data_list = CSL_SBF_ATF_hakedata_DM,
-                             inits = NULL,
-                             compFun = compFun,
-                             estimateMode = "Estimate",
-                             msmMode = "SingleSpecies",
-                             random_rec = FALSE,
-                             initMode = "NonEquilibrium",
-                             HCR = build_hcr(HCR = 3, # Constant F HCR
-                                             Ftarget = 0.4,
-                                             DynamicHCR = FALSE),
-                             fit_control = fit_control(phase = TRUE, verbose = 1))
+                            inits = NULL,
+                            compFun = compFun,
+                            estimateMode = "Estimate",
+                            msmMode = "SingleSpecies",
+                            random_rec = FALSE,
+                            initMode = "NonEquilibrium",
+                            HCR = build_hcr(HCR = 3, # Constant F HCR
+                                            Ftarget = 0.4,
+                                            DynamicHCR = FALSE),
+                            fit_control = fit_control(phase = TRUE, verbose = 1))
 summary(ss_run_DM_hcr_B0)
 
 # Current management applied against multi-species model ----
-mse1_CSL <- run_mse(om = run_ms_CSL_Mest_prior_DM_CSL_stable,
-                em = ss_run_DM_hcr_CSL,
-                nsim = 2, cores = 2,
-                assessment_period = 1,
-                sampling_period = c(1, 2), # Fishery samples yearly, survey every other year
+mse1_CSL <- run_mse(om = run_ms_CSL_Mest_prior_DM_CSL_BH,
+                    em = ss_run_DM_hcr_B0,
+                    nsim = 2, cores = 2,
+                    assessment_period = 1,
+                    sampling_period = c(1, 2), # Fishery samples yearly, survey every other year
 
-                simulate_data = TRUE,
-                sample_rec = TRUE
+                    simulate_data = TRUE,
+                    sample_rec = TRUE
 )
 
 mse_summary(mse1_CSL)
-plot_biomass(list(mse1_CSL$Sim_1$OM, run_ms_CSL_Mest_prior_DM_CSL_stable), species =1)
+plot_biomass(list(mse1_CSL$Sim_1$OM, run_ms_CSL_Mest_prior_DM_CSL_BH), species =1, incl_proj = TRUE)
