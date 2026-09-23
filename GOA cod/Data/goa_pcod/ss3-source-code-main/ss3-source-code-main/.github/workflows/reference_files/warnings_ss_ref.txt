@@ -1,0 +1,3 @@
+g++ -std=c++17 -O3 -oss3 ss3.obj "/usr/local/admb/lib/libadmb-contrib-x86_64-linux-g++13.a"
+*** Linking: ss3.obj 
+

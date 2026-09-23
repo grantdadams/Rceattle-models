@@ -1,0 +1,301 @@
+# Builds admb from source and then builds the stock synthesis executables from source for testing and distribution.
+# for macOS x86_64, macOS latest (arm64 architecture), linux, Windows
+# Runs on a scheduled basis weekly to ensure that this workflow will work IF the build-ss3.yml workflow stops
+# working due to issues with the admb docker image.
+name: build-admb-and-ss3-from-source
+
+on:
+    workflow_dispatch:
+    schedule:
+      - cron: '0 15 * * 2' # every Tuesday at 3pm UTC (= 1 0am EST or 11am EDT Eastern time)
+jobs:
+  build-admb-and-ss3-from-source:
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: windows-latest}
+          - {os: macos-latest}
+          - {os: macos-15-intel}
+          - {os: ubuntu-latest}
+    # Limit run time to 90 min to avoid wasting action minutes.
+    # Compiling admb and ss3 on all operating systems takes ~30 min
+    timeout-minutes: 90
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v6
+
+      - name: Update Homebrew
+        if: matrix.config.os == 'macos-15-intel'
+        run: brew update
+
+      - name: Install qpdf
+        if: matrix.config.os == 'macos-15-intel'
+        run: brew install qpdf
+    
+    # Set up R
+      - name: Set up R, specify rtools version and path for Windows
+        uses: r-lib/actions/setup-r@v2
+        with: 
+          r-version: 'release'
+          rtools-version: '42'
+          windows-path-include-rtools: TRUE
+          update-rtools: TRUE
+
+    # Checkout ADMB repository
+      - name: Checkout admb
+        uses: actions/checkout@v6
+        with:
+          repository: admb-project/admb
+          path: admb
+          ref: admb-13.2
+
+    # Build ADMB for Windows
+      - name: Build admb for Windows using rtools 42
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          cd admb
+          make -j 4
+        shell: cmd
+
+      - name: Put admb in path, Windows
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          echo "D:\a\ss3-source-code\ss3-source-code\admb\build\admb\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo $env:GITHUB_PATH
+
+    # Build ADMB for macOS
+      - name: Clean, macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: cd admb && make clean
+
+      - name: See where admb is, macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          ls
+          cd admb && ls
+
+      - name: Compile admb, macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          cd admb && make -j 4
+
+      # - name: See where admb is, mac
+      #   if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+      #   run: |
+      #     cd admb && ls -l
+
+      - name: Change permissions of admb and put in path, macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          sudo mv admb /usr/local/bin
+          sudo chmod 755 /usr/local/bin/admb
+          echo "/usr/local/bin/admb" >> $GITHUB_PATH
+
+    # Build ADMB for Linux
+      - name: Update Ubuntu packages
+        if: matrix.config.os == 'ubuntu-latest'
+        run: sudo apt-get update
+
+      - name: Change permissions of admb and put in path, linux
+        if: matrix.config.os == 'ubuntu-latest'
+        run: |
+          cd admb && make clean
+          num_cpus=`cat /proc/cpuinfo | grep processor | wc -l`
+          num_cpus_minus1=$((num_cpus-1))
+          make -j $num_cpus_minus1
+          ls -l
+          chmod a+x admb
+          sudo mv admb /usr/local/bin
+          echo "/usr/local/bin/admb" >> $GITHUB_PATH
+    
+    # Fetch Tags
+      - name: Fetch git tags
+        run: |
+          git fetch --tags
+          git fetch --prune --unshallow || true
+
+      - name: Get the last tag on Windows
+        id: get-latest-tag-win
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          git tag
+          $latest_tag = (git describe --abbrev=0 --tags)
+          $latest_tag_commit = ( git rev-list -n 1 $latest_tag)
+          $latest_commit = (git rev-list HEAD -n 1)
+          echo "tag=${latest_tag}" >> $env:GITHUB_OUTPUT
+          echo "tag_commit=${latest_tag_commit}" >> $env:GITHUB_OUTPUT
+          echo "commit=${latest_commit}" >> $env:GITHUB_OUTPUT
+
+      - name: Pull the last tag value to use in the Rscript on Windows
+        id: get-version-win
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          Out-File -InputObject ${{ steps.get-latest-tag-win.outputs.tag }} -FilePath .github/last_tag.txt
+          Out-File -InputObject ${{ steps.get-latest-tag-win.outputs.tag_commit }} -FilePath .github/last_tag_commit.txt
+          Out-File -InputObject ${{ steps.get-latest-tag-win.outputs.commit}} -FilePath .github/last_commit.txt
+
+      - name: Get the last tag on unix (macOS and linux)
+        id: get-latest-tag-unix
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel' || matrix.config.os == 'ubuntu-latest'
+        run: |
+          git tag
+          latest_tag=$(git describe --abbrev=0 --tags)
+          latest_tag_commit=$(git rev-list -n 1 $latest_tag)
+          latest_commit=$(git rev-list HEAD -n 1)
+          echo "tag=${latest_tag}" >> $GITHUB_OUTPUT
+          echo "tag_commit=${latest_tag_commit}" >> $GITHUB_OUTPUT
+          echo "commit=${latest_commit}" >> $GITHUB_OUTPUT
+
+      - name: Pull the last tag value to use in the Rscript on unix (macOS and linux)
+        id: get-version-unix
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel' || matrix.config.os == 'ubuntu-latest'
+        run: |
+          echo "${{ steps.get-latest-tag-unix.outputs.tag }}" > .github/last_tag.txt
+          echo "${{ steps.get-latest-tag-unix.outputs.tag_commit }}" > .github/last_tag_commit.txt
+          echo "${{ steps.get-latest-tag-unix.outputs.commit }}" >  .github/last_commit.txt
+
+    # R code to edit version info
+      - name: Edit the version info for safe version using R code
+        run: |
+          # Get the version
+          # get the last tag from the repository
+          tag_label <- readLines(".github/last_tag.txt")
+          # get commits from from the repository
+          tag_commit <- readLines(".github/last_tag_commit.txt")
+          last_commit <- readLines(".github/last_commit.txt")
+          message("The tag_label is ", tag_label)
+          if (substr(tag_label, start = 1, stop = 6) == "v3.30.") {
+            ver_num_full <- strsplit(tag_label, split = "v3.30", fixed = TRUE)[[1]][2]
+            ver_num <- strsplit(ver_num_full, split = ".", fixed = TRUE)[[1]][2]
+            if(length(grep("-", ver_num)) > 0) {
+              ver_num <- strsplit(ver_num, split = "-", fixed = TRUE)[[1]][1]
+            }
+          } else {
+            ver_num <- "unknown"
+          }
+          message("tag commit: ", tag_commit)
+          message("last  commit: ", last_commit)
+          if(tag_commit == last_commit) {
+            # figure out the version using the tag
+            if(ver_num == "unknown") {
+            fix_ver_num <- "unknown"
+            } else {
+              ver_num_full_split <- strsplit(ver_num_full, split = ".", fixed = TRUE)[[1]]
+              if(length(ver_num_full_split) == 3) {
+                fix_ver_num <- ver_num_full_split[3]
+              } else if(length(ver_num_full_split) == 2) {
+                if(length(grep("-", ver_num_full_split, fixed = TRUE)) > 0) {
+                  fix_ver_num <- strsplit(ver_num_full_split[2], split = "-", fixed = TRUE)[[1]][2]
+                  fix_ver_num <- paste0("00-", fix_ver_num)
+                } else {
+                  fix_ver_num <- "00"
+                }
+              } else {
+                fix_ver_num <- "unknown"
+              }
+            }
+          } else {
+           fix_ver_num <- "beta: not an official version of SS"
+          }
+          message("The minor version label is ", ver_num)
+          message("The patch version label is ", fix_ver_num)
+
+          # add version numbers to files
+          # safe file
+          ver_info <- readLines("SS_versioninfo_330safe.tpl")
+          ver_info_start <- grep('Create string with version info', ver_info, fixed = TRUE)
+          ver_info[ver_info_start + 1] <-
+            gsub('\\.xx', paste0('\\.', ver_num), ver_info[ver_info_start + 1])
+          ver_info[ver_info_start + 1] <-
+            gsub('\\.yy', paste0('\\.', fix_ver_num), ver_info[ver_info_start+1])
+          writeLines(ver_info, "SS_versioninfo_330safe.tpl")
+          #opt file
+          ver_info <- readLines("SS_versioninfo_330opt.tpl")
+          ver_info_start <- grep('Create string with version info', ver_info, fixed = TRUE)
+          ver_info[ver_info_start + 1] <-
+            gsub('\\.xx', paste0('\\.', ver_num), ver_info[ver_info_start + 1])
+          ver_info[ver_info_start + 1] <-
+            gsub('\\.yy', paste0('\\.', fix_ver_num), ver_info[ver_info_start+1])
+          writeLines(ver_info, "SS_versioninfo_330opt.tpl")
+        shell: Rscript {0}
+    
+    # Build SS3 for Windows
+      - name: Build stock synthesis for Windows
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          cd Compile
+          ./Make_SS_fast.bat || true
+          ./Make_SS_safe.bat || true
+          cd ..
+
+      - name: Move exes to a new folder on windows
+        if: matrix.config.os == 'windows-latest'
+        run: |
+          mkdir SS330
+          chmod 777 SS330
+          mv Compile/ss3.exe SS330/
+          mv Compile/ss3_opt.exe SS330/
+          mv SS330/ss3.exe SS330/ss3_win.exe
+          mv SS330/ss3_opt.exe SS330/ss3_opt_win.exe
+
+    # Build SS3 for macOS
+      - name: Build stock synthesis for macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          rm -rf SS330
+          rm -rf ss3_osx.tar
+          mkdir SS330
+          chmod 777 SS330
+          /bin/bash ./Make_SS_330_new.sh -b SS330
+          /bin/bash ./Make_SS_330_new.sh -b SS330 -o
+
+      - name: Verify binary on macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          shasum -a 256 SS330/ss3
+          shasum -a 256 SS330/ss3_opt
+          
+      - name: Delete unnecessary files and change exe names on macOS
+        if: matrix.config.os == 'macos-latest' || matrix.config.os == 'macos-15-intel'
+        run: |
+          cd SS330
+          rm *.obj *.htp *.cpp ss3_opt.tpl
+          mv ss3 ss3_osx
+          mv ss3_opt ss3_opt_osx
+
+    # Build SS3 for Linux
+      - name: Build stock synthesis for linux with p flag
+        if:  matrix.config.os == 'ubuntu-latest'
+        run: |
+          rm -rf SS330
+          rm -rf ss3_osx.tar
+          mkdir SS330
+          chmod 777 SS330
+          /bin/bash ./Make_SS_330_new.sh -b SS330 -p
+          /bin/bash ./Make_SS_330_new.sh -b SS330 -o -p   
+
+      - name: Verify binary on linux
+        if: matrix.config.os == 'ubuntu-latest'
+        run: |
+          sha256sum SS330/ss3
+          sha256sum SS330/ss3_opt
+    
+      - name: Delete unneeded files and change exe names on linux
+        if: matrix.config.os == 'ubuntu-latest'
+        run: |
+          cd SS330
+          rm *.obj *.htp *.cpp ss3_opt.tpl ss3.tpl
+          mv ss3 ss3_linux
+          mv ss3_opt ss3_opt_linux
+
+    # Archive Binaries
+      - name: Archive binaries
+        if: success()
+        uses: actions/upload-artifact@main
+        with:
+          name: ss3-${{ matrix.config.os }}
+          path: SS330/

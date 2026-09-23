@@ -1,0 +1,184 @@
+# Build SS3 and run test models without estimation (from .par) and no hessian
+# Runs on every push and PR (even draft PRs) ONLY if tpl files have changed.
+name: run-ss3-no-est
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.tpl'
+    # branches: 
+    #   - main
+  pull_request:
+    paths:
+      - '**.tpl'
+    branches: 
+      - main
+
+concurrency:
+    group: ${{ github.workflow}}-${{ github.ref }}
+    cancel-in-progress: true
+
+# Run models without estimation, then try to run again with .ss_new
+jobs:
+  run-ss3-no-est:
+    runs-on: ubuntu-latest
+    env:
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      RSPM: "https://packagemanager.rstudio.com/cran/__linux__/focal/latest"
+
+    steps:
+      - name: Checkout ss3 repo
+        uses: actions/checkout@v6
+
+ #     - name: Get last compiled version of SS; alternative to compiling in same wkflow
+ #       uses: dawidd6/action-download-artifact@v2
+ #       with:
+ #         workflow: build-centos.yml
+ #         workflow_conclusion: success
+ #         name: ss_linux
+ #         path: ss_linux
+
+      - name: Checkout models repo
+        uses: actions/checkout@v6
+        with:
+          repository: 'nmfs-ost/ss3-test-models'
+          path: test-models-repo
+
+      - name: Update Ubuntu packages
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install --only-upgrade libstdc++6
+        
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+
+      # - name: Get admb and put in path, linux
+      #   run: |
+      #     wget https://github.com/admb-project/admb/releases/download/admb-13.1/admb-13.1-linux.zip
+      #     sudo unzip admb-13.1-linux.zip -d /usr/local/bin
+      #     sudo chmod 755 /usr/local/bin/admb-13.1/bin/admb
+      #     echo "/usr/local/bin/admb-13.1/bin" >> $GITHUB_PATH
+
+      # - name: Build ss3
+      #   run: |
+      #     rm -rf SS330
+      #     mkdir SS330
+      #     /bin/bash ./Make_SS_330_new.sh -b SS330
+
+      - name: Build stock synthesis with admb docker image
+        run: |
+          rm -rf SS330
+          rm -rf ss3_osx.tar
+          mkdir SS330
+          chmod 777 SS330
+          /bin/bash ./Make_SS_330_new.sh --admb docker -b SS330
+
+      - name: Move exes and R scripts to needed locations
+        run: |
+          mv test-models-repo/models test-models-repo/model_runs
+          mv SS330/ss3 test-models-repo/model_runs/ss3
+          mv test-models-repo/.github/r_scripts/run_from_par.R test-models-repo/run_from_par.R
+          mv test-models-repo/.github/r_scripts/run_compare_noest.R test-models-repo/run_compare_noest.R
+
+      - name: Change permissions on ss3 exes
+        run: sudo chmod a+x test-models-repo/model_runs/ss3
+
+      - name: Run test models without estimation
+        run: |
+         cd test-models-repo && Rscript run_from_par.R
+
+      - name: Download R packages to run models in parallel
+        run: Rscript -e 'install.packages(c("parallely", "furrr", "future"))'
+
+      - name: Run comparison using run_compare_noest.R file in test models repo
+        run: |
+          mkdir test-models-repo/run_R
+          cd test-models-repo && Rscript run_compare_noest.R
+
+      - name: Determine results of test using check_failed.R file in test models repo
+        run: cd test-models-repo && Rscript .github/r_scripts/check_failed.R
+
+      - name: Run models using the .ss_new files
+        run: |
+          # Get model names and file paths
+          mod_names <- list.dirs("test-models-repo/model_runs",
+            full.names = FALSE, recursive = FALSE)
+          mod_paths <- list.dirs("test-models-repo/model_runs",
+            full.names = TRUE, recursive = FALSE)
+          print(mod_names)
+
+          # Create function to run models using .ss_new files
+          run_ssnew <- function(dir) {
+            wd <- getwd()
+            print(wd)
+            on.exit(system(paste0("cd ", wd)))
+            # delete old starter files, rename forecast.ss_new and starter.ss_new files
+            file.remove(file.path(dir, "starter.ss"))
+            file.remove(file.path(dir, "forecast.ss"))
+            file.rename(file.path(dir, "starter.ss_new"), file.path(dir,"starter.ss"))
+            file.rename(file.path(dir, "forecast.ss_new"), file.path(dir,"forecast.ss"))
+            # rename control and data files to standardized names (from the starter files)
+            start <- readLines(file.path(dir, "starter.ss"))
+            datname <- start[grep("#_datfile", start, fixed = TRUE)]
+            datname <- gsub(" #_datfile", "", datname)
+            ctlname <- start[grep("#_ctlfile", start, fixed = TRUE)]
+            ctlname <- gsub(" #_ctlfile", "", ctlname)
+            print(datname)
+            print(ctlname)
+            file.remove(file.path(dir, datname))
+            file.remove(file.path(dir, ctlname))
+            file.rename(file.path(dir,"data_echo.ss_new"), file.path(dir, datname))
+            file.rename(file.path(dir, "control.ss_new"), file.path(dir, ctlname))
+            # run the models without estimation
+            file.remove(file.path(dir, "Report.sso"))
+            # see if model finishes without error
+            system(paste0("cd ", dir, " && ../ss3 -stopph 0 -nohess"))
+            model_ran <- file.exists(file.path(dir, "control.ss_new"))
+            return(model_ran)
+          }
+
+          # Setup parallel
+          ncores <- parallelly::availableCores(omit = 1)
+          future::plan(future::multisession, workers = ncores)
+
+          # Run models in parallel using .ss_new files and print out error messages
+          mod_ran <- furrr::future_map(mod_paths, function(x) {tryCatch(run_ssnew(x),
+                                                 error = function(e) print(e)
+                                                 )}
+                     )
+          mod_errors <- mod_names[unlist(lapply(mod_ran, function(x) "simpleError" %in% class(x)))]
+          success <- TRUE
+
+          # Print list of models with errors if there are any
+          if(length(mod_errors) > 0) {
+            message("Model code with errors were: ", paste0(mod_errors, collapse = ", "),
+                    ". See error list above for more details.")
+            success <- FALSE
+          } else {
+            message("All code ran without error, but model runs may still have failed.")
+          }
+          
+          # Print list of models that didn't run if there are any
+          mod_no_run <- mod_names[unlist(lapply(mod_ran, function(x) isFALSE(x)))] # false means model didn't run
+          if(length(mod_no_run) > 0) {
+            message("Models that didn't run are ", paste0(mod_no_run, collapse = ", "))
+            success <- FALSE
+          } else {
+            message("All models ran without error.")
+          }
+
+          # Determine if job fails or passes
+          if(success == FALSE) {
+            stop("Job failed due to code with errors or models that didn't run.")
+          } else {
+            message("Job passed! All models successfully ran.")
+          }
+        shell: Rscript {0}
+
+      - name: Archive results
+        uses: actions/upload-artifact@main
+        if: always()
+        with:
+          name: 'result_textfiles'
+          path: test-models-repo/run_R/
