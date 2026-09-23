@@ -111,18 +111,128 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   rows[[length(rows) + 1]] <- .gate_row("SSB",         q$ssb[1, seq_along(yrs)], ts$SpawnBio,  tol)
   rows[[length(rows) + 1]] <- .gate_row("recruitment", q$R[1, seq_along(yrs)],   ts$Recruit_0, tol)
 
+  # The state above can match while the composition PREDICTIONS do not: the
+  # predicted CAAL is a further function of the age-length key, so it needs its
+  # own check. For AI cod every row above passed while the predicted CAAL was
+  # out by 0.118 in probability, which is where the growth gradient lives.
+  rows <- c(rows, .g1_caal(fp, ss3_rep, tol), .g1_lencomp(fp, ss3_rep, tol))
+
   do.call(rbind, rows)
 }
 
+# SS3 reports composition expectations AFTER adding `addtocomp` to every bin and
+# renormalising. Undo that so the raw prediction is what gets compared.
+.strip_addtocomp <- function(p, offset, nbins) {
+  if (!is.finite(offset) || offset <= 0) return(p)
+  pmax(p * (1 + nbins * offset) - offset, 0)
+}
+
+#' Predicted conditional age-at-length against SS3's `condbase` expectations.
+#' Compared on cells SS3 expects above 1e-3, where the add-to-comp floor and
+#' Report.sso's print precision are both negligible.
+.g1_caal <- function(fp, ss3_rep, tol) {
+  dl <- fp$data_list
+  cd <- dl$caal_data
+  cb <- ss3_rep$condbase
+  if (is.null(cb) || !nrow(cb) || is.null(cd) || !nrow(cd)) return(list())
+  nages  <- dl$nages[1]
+  minage <- dl$minage[1]
+  offset <- if (is.null(dl$comp_offset)) 0 else dl$comp_offset[1]
+  real   <- which(cd$Year > 0)
+  cb$key <- paste(cb$Yr, cb$Lbin_lo)
+  sp     <- split(seq_len(nrow(cb)), cb$key)
+  a <- b <- numeric(0)
+  for (i in real) {
+    idx <- sp[[paste(cd$Year[i], cd$Length[i])]]
+    if (is.null(idx)) next
+    s <- cb[idx, ]
+    s <- s[!duplicated(s$Bin), ]
+    s <- s[order(s$Bin), ]
+    e <- .strip_addtocomp(s$Exp, offset, nrow(s))
+    r <- as.numeric(fp$quantities$caal_hat[i, s$Bin - minage + 1])
+    keep <- which(e > 1e-3)
+    a <- c(a, r[keep]); b <- c(b, e[keep])
+  }
+  if (!length(b)) return(list())
+  list(.gate_row("predicted CAAL", a, b, tol, "abs"))
+}
+
+#' Predicted length composition against SS3's `lendbase` expectations.
+.g1_lencomp <- function(fp, ss3_rep, tol) {
+  dl <- fp$data_list
+  cm <- dl$comp_data
+  lb <- ss3_rep$lendbase
+  if (is.null(lb) || !nrow(lb) || is.null(cm) || !nrow(cm)) return(list())
+  offset <- if (is.null(dl$comp_offset)) 0 else dl$comp_offset[1]
+  lens   <- as.numeric(dl$lengths[1, ])
+  lens   <- lens[is.finite(lens)]
+  lb$key <- paste(lb$Fleet, lb$Yr)
+  sp     <- split(seq_len(nrow(lb)), lb$key)
+  out <- list()
+  for (fi in seq_len(nrow(dl$fleet_control))) {
+    fl <- dl$fleet_control$Fleet_code[fi]
+    a <- b <- numeric(0)
+    for (i in which(cm$Year > 0 & cm$Fleet_code == fl)) {
+      idx <- sp[[paste(fl, cm$Year[i])]]
+      if (is.null(idx)) next
+      s <- lb[idx, ]
+      s <- s[!duplicated(s$Bin), ]
+      s <- s[order(s$Bin), ]
+      col <- match(s$Bin, lens)
+      ok  <- !is.na(col)
+      e <- .strip_addtocomp(s$Exp[ok], offset, nrow(s))
+      r <- as.numeric(fp$quantities$comp_hat[i, col[ok]])
+      keep <- which(e > 1e-3)
+      a <- c(a, r[keep]); b <- c(b, e[keep])
+    }
+    if (!length(b)) next
+    out[[length(out) + 1]] <- .gate_row(
+      sprintf("predicted length comp, %s", dl$fleet_control$Fleet_name[fi]),
+      a, b, tol, "abs")
+  }
+  out
+}
+
 # Rceattle jnll_comp rows beside the SS3 likelihood component they answer to.
+# The initial-abundance deviates are deliberately absent: SS3 carries the
+# initial age structure in InitF and its early recruitment deviates, so that
+# block has no SS3 counterpart and is reported on its own rather than charged
+# against SS3's Recruitment.
 .JNLL_TO_SS3 <- c(
   "Index data"                 = "Survey",
   "Catch data"                 = "Catch",
   "Composition data"           = "Length_comp",
   "CAAL data"                  = "Age_comp",
-  "Recruitment deviates"       = "Recruitment",
-  "Initial abundance deviates" = "Recruitment"
+  "Recruitment deviates"       = "Recruitment"
 )
+
+# Likelihood constants SS3 drops and Rceattle keeps, by SS3 component name.
+# Rceattle evaluates full densities; SS3 writes the kernel only, so at the same
+# parameters the two differ by a known number of nats and nothing else. What is
+# left after subtracting these is a real difference in fit.
+#   Catch   SS3 keeps 0.5 z^2 alone            -> log(sigma) + 0.5 log(2 pi) per row
+#   Survey  SS3 keeps log(sigma) + 0.5 z^2     -> 0.5 log(2 pi) per row
+#   Recruit SS3 keeps log(sigmaR) + the kernel -> 0.5 log(2 pi) per recruitment deviate
+# The initial-abundance deviates are NOT in here: SS3 has no counterpart for
+# them, so that block is a structural difference (initial age structure), not a
+# constant, and it stays in the residual on purpose.
+.ss3_constants <- function(fp) {
+  dl   <- fp$data_list
+  l2pi <- 0.5 * log(2 * pi)
+  k <- c(Catch = NA_real_, Survey = NA_real_, Recruitment = NA_real_)
+  # Only the hindcast is fitted; catch_data also carries the projection years.
+  hind <- function(d) d[d$Year >= dl$styr & d$Year <= dl$endyr, ]
+  cat_d <- dl$catch_data
+  if (!is.null(cat_d)) {
+    cat_d <- hind(cat_d)
+    k["Catch"] <- sum(log(cat_d$Log_sd) + l2pi)
+  }
+  idx <- dl$index_data
+  if (!is.null(idx)) k["Survey"] <- nrow(hind(idx)) * l2pi
+  n_rec <- sum(names(fp$obj$par) == "rec_dev")
+  if (n_rec > 0) k["Recruitment"] <- n_rec * l2pi
+  k
+}
 
 #' G2: likelihood and gradient at SS3's MLE.
 parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10) {
@@ -142,6 +252,9 @@ parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10) {
   comp <- aggregate(rce_nll ~ ss3, data = transform(comp, ss3 = ifelse(is.na(ss3), paste0("[Rce only] ", rceattle), ss3)), sum)
   comp$ss3_nll <- round(ss[comp$ss3], 4)
   comp$diff    <- round(comp$rce_nll - comp$ss3_nll, 4)
+  k <- .ss3_constants(fp)
+  comp$constant <- round(unname(k[comp$ss3]), 4)
+  comp$residual <- round(comp$diff - ifelse(is.na(comp$constant), 0, comp$constant), 4)
 
   list(max_abs_grad = max(abs(g)), pass = max(abs(g)) <= grad_tol,
        gradient = grad, components = comp,
@@ -173,7 +286,9 @@ parity_report <- function(fp, ss3_rep, tol = 1e-5, grad_tol = 1e-3) {
   cat(sprintf("\n=== G2: max |gradient| at SS3 MLE = %.3g  (%s) ===\n",
               g2$max_abs_grad, if (g2$pass) "PASS" else "FAIL"))
   print(g2$gradient, row.names = FALSE)
-  cat("\nNLL components (Rceattle vs SS3):\n"); print(g2$components, row.names = FALSE)
+  cat("\nNLL components (Rceattle vs SS3). `residual` is the gap after the\n")
+  cat("densities' constants; only that column is a difference in fit.\n")
+  print(g2$components, row.names = FALSE)
   cat(sprintf("Total: Rceattle %.4f, SS3 %.4f\n", g2$total[1], g2$total[2]))
   invisible(list(g1 = g1, g2 = g2))
 }

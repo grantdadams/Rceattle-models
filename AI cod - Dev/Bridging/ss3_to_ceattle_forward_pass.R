@@ -22,10 +22,13 @@
 library(r4ss); library(dplyr); library(tidyr)
 # Run from this stock's folder; every path below is relative to it.
 # Loads the Rceattle checkout beside this repo, which carries the bridge features.
+# Set RCEATTLE_PKG to load a different checkout (e.g. a git worktree of the
+# bridge branch) so a second session's build is left alone.
 # Windows: a debug build (-g -O0, what load_all() compiles by default) overflows
 # the object file, so compile optimised first and load without recompiling.
-pkgbuild::compile_dll("../../Rceattle", debug = FALSE, quiet = TRUE)
-pkgload::load_all("../../Rceattle", compile = FALSE, quiet = TRUE)
+RCEATTLE_PKG <- Sys.getenv("RCEATTLE_PKG", unset = "../../Rceattle")
+pkgbuild::compile_dll(RCEATTLE_PKG, debug = FALSE, quiet = TRUE)
+pkgload::load_all(RCEATTLE_PKG, compile = FALSE, quiet = TRUE)
 source("../SS3-bridge/ss3_to_rceattle.R")
 
 `%||%` <- function(x, y) if (!is.null(x) && !(length(x) == 1 && is.na(x))) x else y
