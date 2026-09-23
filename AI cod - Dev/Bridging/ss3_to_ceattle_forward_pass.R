@@ -19,9 +19,14 @@
 #     SS3 (see Section 9b). Any residual length-comp/CAAL gap traces to growth.
 # =============================================================================
 
-library(Rceattle); library(r4ss); library(dplyr); library(tidyr)
-setwd("/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle-models/AI cod")
-source("R/ss3_to_rceattle.R")
+library(r4ss); library(dplyr); library(tidyr)
+# Run from this stock's folder; every path below is relative to it.
+# Loads the Rceattle checkout beside this repo, which carries the bridge features.
+# Windows: a debug build (-g -O0, what load_all() compiles by default) overflows
+# the object file, so compile optimised first and load without recompiling.
+pkgbuild::compile_dll("../../Rceattle", debug = FALSE, quiet = TRUE)
+pkgload::load_all("../../Rceattle", compile = FALSE, quiet = TRUE)
+source("../SS3-bridge/ss3_to_rceattle.R")
 
 `%||%` <- function(x, y) if (!is.null(x) && !(length(x) == 1 && is.na(x))) x else y
 
@@ -54,8 +59,8 @@ suppressMessages(library(r4ss))
 # =============================================================================
 # 1. Read SS3 outputs and build the converter data list
 # =============================================================================
-SS3_DIR  <- "SS3/run"
-PAR_FILE <- "ss.par"
+SS3_DIR  <- "Data/M24_1_adjusted"
+PAR_FILE <- "ss3.par"
 DAT_FILE <- "data_echo.ss_new"
 CTL_FILE <- "control.ss_new"
 
@@ -123,35 +128,9 @@ if (length(caal_missing) > 0) {
               length(caal_missing), length(unique(cod$caal_data$Length)), cod$nlengths[1]))
 }
 
-# --- Ageing-error matrix from SS3 -------------------------------------------
-# The converter installs an IDENTITY (no-error) ageing matrix, but SS3 has real
-# ageing error (age_error_sd grows from ~0.03 at age 0 to >0.6 by age 5), which
-# smears the predicted age-at-length. Without it Rceattle's predicted CAAL is
-# too sharp -> inflated CAAL NLL. Build P[obs | true] by integrating
-# N(mean_a, sd_a) over the integer observed-age bins [j, j+1), with the minus
-# and plus groups accumulating the lower/upper tails. SS3's age_error_mean is
-# in the "+0.5" convention (mean obs age = true age + 0.5 = unbiased given the
-# [j, j+1) bins).
-build_ss3_age_error <- function(ss3_rep, nages, minage = 0L) {
-  m <- as.numeric(ss3_rep$age_error_mean$type1)[seq_len(nages)]
-  s <- as.numeric(ss3_rep$age_error_sd$type1)[seq_len(nages)]
-  ages_true <- seq.int(minage, minage + nages - 1L)
-  P <- matrix(0, nages, nages)
-  for (i in seq_len(nages)) {
-    for (j in seq_len(nages)) {
-      obs <- minage + j - 1L
-      lo <- if (j == 1L)     -Inf else obs
-      hi <- if (j == nages)   Inf else obs + 1
-      P[i, j] <- stats::pnorm(hi, m[i], s[i]) - stats::pnorm(lo, m[i], s[i])
-    }
-  }
-  P <- P / rowSums(P)
-  Pdf <- as.data.frame(P); colnames(Pdf) <- paste0("Obs_age", seq_len(nages))
-  cbind(Species = 1L, True_age = ages_true, Pdf)
-}
-cod$age_error <- build_ss3_age_error(ss3_rep, nages, minage)
-cat(sprintf("Injected SS3 ageing-error matrix; P[obs|true=2] = %s\n",
-            paste(signif(as.numeric(cod$age_error[3, 3:6]), 3), collapse = " ")))
+# Ageing error and the SS3 composition likelihood (min_comp folded into
+# Sample_size, comp_offset) come from the converter.
+
 
 
 # =============================================================================
@@ -210,6 +189,13 @@ cat(sprintf("\nGrowth (Richards): K=%.4f L1=%.4f Linf=%.4f shape=%.4f CVy=%.4f C
 growthFun_spec <- tryCatch(
   build_growth(
     fun = "Richards",
+    # SS3 growth options this model uses: CV_Growth_Pattern 0 (CVs, SD = CV x L),
+    # Linf_decay -998 (no plus-group adjustment), Growth_Age_for_L2 999 (plus
+    # group pinned to CV_old = "WHAM"), and SS3's population length bins.
+    sd_form           = "CV",
+    plus_group_length = "none",
+    sd_plus_group     = "WHAM",
+    pop_lengths       = ss3_rep$lbinspop,
     linkages = list(
       # Prior SDs are deliberately TIGHTER than SS3's ctl PR_SD (K 0.021,
       # Linf 2): SS3 identifies growth from fully-weighted comps, but here the
@@ -249,6 +235,15 @@ if (is.null(growthFun_spec)) {
 # =============================================================================
 cod$sex_ratio[, grep("^Age", colnames(cod$sex_ratio))] <- 1.0
 
+# Maturity-at-length (SS3 maturity option 1, length logistic). SS3 writes
+# 1 / (1 + exp(slope * (L - L50))) with a negative slope; Rceattle's slope is
+# positive, so the sign flips. Spawning output then integrates maturity x
+# weight over the length distribution, as SS3 does, closing the Jensen gap.
+cod$L50_mat_len   <- gp(parlist$MG_parms, "Mat50%_Fem")
+cod$slope_mat_len <- -gp(parlist$MG_parms, "Mat_slope_Fem")
+cat(sprintf("Maturity-at-length: L50 = %.3f cm, slope = %.4f per cm\n",
+            cod$L50_mat_len, cod$slope_mat_len))
+
 
 # =============================================================================
 # 3a-ii. SS3 data-weighting (variance adjustment) on comp sample sizes.
@@ -278,79 +273,30 @@ if (!is.null(va) && nrow(va) > 0) {
 
 
 # =============================================================================
-# 3b. Switch both fleets to parametric Length DoubleNormal selectivity.
-#   Empirical selectivity (converter default) is age-based only: it populates
-#   sel_at_age but leaves sel_at_length = 0, which collapses every length-comp
-#   and CAAL prediction to 0 (NLL -> 1e5+). To predict length comps we need a
-#   parametric LENGTH selectivity so sel_at_length is populated. Both AI cod
-#   fleets are asymptotic (SS3 realized Lsel rises monotonically to 1.0), so
-#   Rceattle's 4-param DoubleNormal (case 8) with the right-tail floor pinned
-#   near 1 is an ascending-Gaussian-to-flat-top -- exactly the SS3 pattern-24
-#   shape when the plateau is wide. We FIT (peak, sigma_asc) to SS3's realized
-#   Lsel per fleet rather than translating SS3's 6 params, so the realized
-#   sel-at-length matches regardless of parameterization differences.
+# 3b. Both fleets: SS3 size selectivity pattern 24, as Rceattle's
+#   DoubleNormalSS3 with SS3's six parameters taken straight from the par file
+#   (P1 peak, P2 logit top, P3/P4 log widths, P5/P6 logit ends). No
+#   normalization, as in SS3. Age pattern 0 in SS3 means every age is available,
+#   so the age selectivity is the length curve through the fleet's age-length key.
 # =============================================================================
-# SS3's catch equation uses mid-season body weight (endgrowth SelWt ~ Wt_Mid),
-# which is ~15-20% heavier than begin-year weight at mid ages. fleet_control$
-# Month sets the timing Rceattle uses to compute the fleet's weight-at-age from
-# growth, so put the fishery at mid-year (month 6) to match SS3's catch weight.
-cod$fleet_control$Month[cod$fleet_control$Fleet_type == "Fishery"] <- 6L
+# Fleet timing (fishery at month 6, survey at SS3 month - 1) comes from the converter.
 
 for (fi in seq_len(n_flt)) {
-  cod$fleet_control$Selectivity[fi]           <- "DoubleNormal"
+  cod$fleet_control$Selectivity[fi]           <- "DoubleNormalSS3"
   cod$fleet_control$Selectivity_dimension[fi] <- "Length"
-  # SS3 reports the multinomial DEVIANCE kernel (= 0 at a perfect fit). Use
-  # "MultinomialAFSC" (= -1, Martin's form: -N*(obs+e)*log((hat+e)/(obs+e)))
-  # rather than "Multinomial" (= 0), whose dmultinom() carries the large
-  # lgamma normalizing constant that SS3 omits -- so absolute NLL is
-  # comparable to SS3's Length_comp / Age_comp values.
-  cod$fleet_control$Comp_distribution[fi] <- "MultinomialAFSC"
-  # CAAL only supports Multinomial (0) / DirichletMultinomial (1) in this
-  # Rceattle build (no deviance form), so its absolute NLL carries the
-  # dmultinom lgamma constant that SS3's Age_comp omits -- a documented offset.
-  cod$fleet_control$CAAL_distribution[fi] <- "Multinomial"
+  cod$fleet_control$Time_varying_sel[fi]      <- "Off"
 }
 
-# Extract SS3 realized sel-at-length (terminal year) per fleet
-ss3_lsel <- ss3_rep$sizeselex[ss3_rep$sizeselex$Factor == "Lsel" &
-                              ss3_rep$sizeselex$Yr == cod$endyr, , drop = FALSE]
-lsel_len_cols <- grep("^[0-9]+(\\.[0-9]+)?$", colnames(ss3_lsel), value = TRUE)
-lsel_lengths  <- as.numeric(lsel_len_cols)
-
-# Fit Rceattle case-8 DoubleNormal to a target sel-at-length vector.
-# Returns list(peak, log_sig_asc, log_sig_desc, logit_floor).
-fit_dn <- function(lengths, target) {
-  binw <- if (length(lengths) > 1) lengths[2] - lengths[1] else 1
-  rce_dn <- function(p) {
-    peak <- p[1]; sa <- exp(p[2]); sd <- exp(p[3]); rf <- 1 / (1 + exp(-p[4]))
-    x <- lengths + 0.5 * binw
-    w <- 1 / (1 + exp(-20 * (x - peak)))
-    asc <- exp(-0.5 * ((x - peak) / sa)^2)
-    vdesc <- rf + (1 - rf) * exp(-0.5 * ((x - peak) / sd)^2)
-    (1 - w) * asc + w * vdesc
-  }
-  obj <- function(p) sum((rce_dn(p) - target)^2)
-  peak0 <- lengths[which.max(target >= 0.999)[1]]
-  if (is.na(peak0)) peak0 <- lengths[which.max(target)]
-  fit <- optim(c(peak0, log(15), log(50), 8), obj,
-               method = "L-BFGS-B",
-               lower = c(min(lengths), log(1), log(5), 2),
-               upper = c(max(lengths), log(60), log(200), 12))
-  list(peak = fit$par[1], log_sig_asc = fit$par[2],
-       log_sig_desc = fit$par[3], logit_floor = fit$par[4],
-       sse = fit$value, pred = rce_dn(fit$par))
-}
-
-dn_fits <- list()
-for (fi in seq_len(n_flt)) {
-  fnum <- fleet_meta$ss3_num[fi]
-  tgt  <- as.numeric(ss3_lsel[ss3_lsel$Fleet == fnum, lsel_len_cols])
-  if (length(tgt) == 0 || all(is.na(tgt))) next
-  dn_fits[[fi]] <- fit_dn(lsel_lengths, tgt)
-  cat(sprintf("DoubleNormal fit %s: peak=%.2f sig_asc=%.3f floor=%.4f SSE=%.4g\n",
-              fleet_meta$name[fi], dn_fits[[fi]]$peak, exp(dn_fits[[fi]]$log_sig_asc),
-              1 / (1 + exp(-dn_fits[[fi]]$logit_floor)), dn_fits[[fi]]$sse))
-}
+# SS3 pattern-24 parameters per fleet, P1..P6, from the par file's selectivity rows
+ss3_dn6 <- lapply(seq_len(n_flt), function(fi) {
+  rows <- grep(sprintf("^SizeSel_P_[1-6]_%s\\(", fleet_meta$name[fi]), rownames(parlist$S_parms))
+  if (length(rows) != 6) rows <- grep(sprintf("^SizeSel_P_[1-6]_.*\\(%d\\)$", fleet_meta$ss3_num[fi]),
+                                      rownames(parlist$S_parms))
+  stopifnot(length(rows) == 6)
+  v <- parlist$S_parms[rows, "ESTIM"]
+  cat(sprintf("SS3 pattern 24 %s: %s\n", fleet_meta$name[fi], paste(signif(v, 6), collapse = " ")))
+  v
+})
 
 
 # =============================================================================
@@ -464,16 +410,14 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
     cat(sprintf("Growth injected: K=%.4f L1=%.4f Linf=%.4f shape=%.4f\n",
                 K_vb, L_min, L_max, Rich %||% NA))
   }
-  # Rceattle growth_log_sd = log(absolute SD in cm) at L1 and Linf (growth.hpp
-  # interpolates linearly by length). SS3 CV_Growth_Pattern = 0 stores CVs, so
-  # convert to SD: SD(L1) = CV_young * L1, SD(Linf) = CV_old * Linf.
-  if (!is.null(SD_y) && !is.null(L_min) && "growth_log_sd" %in% names(inits))
-    inits$growth_log_sd[1, 1, 1] <- log(SD_y * L_min)
-  if (!is.null(SD_o) && !is.null(L_max) && "growth_log_sd" %in% names(inits))
-    inits$growth_log_sd[1, 1, 2] <- log(SD_o * L_max)
+  # With sd_form = "CV", growth_log_sd holds log CV at L1 and at Linf, SS3's
+  # CV_young and CV_old (CV_Growth_Pattern 0).
+  if (!is.null(SD_y) && "growth_log_sd" %in% names(inits))
+    inits$growth_log_sd[1, 1, 1] <- log(SD_y)
+  if (!is.null(SD_o) && "growth_log_sd" %in% names(inits))
+    inits$growth_log_sd[1, 1, 2] <- log(SD_o)
   if (!is.null(SD_y) && !is.null(SD_o))
-    cat(sprintf("Growth SD: SD(L1)=%.3f cm, SD(Linf)=%.3f cm (CV %.3f/%.3f)\n",
-                SD_y * L_min, SD_o * L_max, SD_y, SD_o))
+    cat(sprintf("Growth CV: CV_young = %.4f, CV_old = %.4f\n", SD_y, SD_o))
 
   # --- Weight-length ---
   W1 <- get_par(parlist$MG_parms, "Wtlen_1_Fem_GP_1")
@@ -568,21 +512,9 @@ init_log_F_from_ss3 <- function(inits, ss3_rep, fleet_meta, years_hind) {
 inits <- init_from_ss3(parlist, ctllist, mod0$estimated_params, cod,
                        fleet_meta, years_hind, mod0)
 
-# Inject fitted Length-DoubleNormal selectivity params (case 8):
-#   sel_inf[1, flt]     = peak
-#   sel_inf[2, flt]     = logit(right_floor)
-#   log_sel_slp[1, flt] = log(sigma_ascending)
-#   log_sel_slp[2, flt] = log(sigma_descending)
-if ("sel_inf" %in% names(inits) && "log_sel_slp" %in% names(inits)) {
-  for (fi in seq_len(n_flt)) {
-    f <- dn_fits[[fi]]; if (is.null(f)) next
-    inits$sel_inf[1, fi, 1]     <- f$peak
-    inits$sel_inf[2, fi, 1]     <- f$logit_floor
-    inits$log_sel_slp[1, fi, 1] <- f$log_sig_asc
-    inits$log_sel_slp[2, fi, 1] <- f$log_sig_desc
-  }
-  cat("Injected fitted DoubleNormal sel params into inits\n")
-}
+# Inject SS3's pattern-24 parameters (DoubleNormalSS3 holds them on SS3's scales)
+for (fi in seq_len(n_flt)) inits$sel_dn6[, fi, 1] <- ss3_dn6[[fi]]
+cat("Injected SS3 pattern-24 selectivity parameters into inits\n")
 
 # Initial F: SS3 InitF (= 0.0595) -> Rceattle log_Finit. init_dev (below)
 # pins styr N regardless, but set Finit consistently for the equilibrium base.

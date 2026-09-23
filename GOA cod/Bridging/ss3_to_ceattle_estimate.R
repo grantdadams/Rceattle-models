@@ -14,7 +14,7 @@
 # under the N(0, sigma=1.0) regularizing prior.
 # =============================================================================
 
-source("ss3_to_ceattle_forward_pass.R")
+source("Bridging/ss3_to_ceattle_forward_pass.R")
 
 # CAAL kernel + bin alignment now match SS3 exactly; the historical 1/45
 # downweight is no longer needed.

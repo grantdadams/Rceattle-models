@@ -9,9 +9,14 @@
 # the bridge is sound.
 # =============================================================================
 
-library(Rceattle); library(r4ss); library(dplyr); library(tidyr)
-setwd("/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA cod")
-source("R/ss3_to_rceattle.R")
+library(r4ss); library(dplyr); library(tidyr)
+# Run from this stock's folder; every path below is relative to it.
+# Loads the Rceattle checkout beside this repo, which carries the bridge features.
+# Windows: a debug build (-g -O0, what load_all() compiles by default) overflows
+# the object file, so compile optimised first and load without recompiling.
+pkgbuild::compile_dll("../../Rceattle", debug = FALSE, quiet = TRUE)
+pkgload::load_all("../../Rceattle", compile = FALSE, quiet = TRUE)
+source("../SS3-bridge/ss3_to_rceattle.R")
 
 # Null-coalescing operator (defined here in case sourcing order matters)
 `%||%` <- function(x, y) if (!is.null(x) && !(length(x) == 1 && is.na(x))) x else y

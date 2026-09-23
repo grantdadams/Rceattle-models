@@ -39,6 +39,11 @@
 #   mod <- Rceattle::fit_mod(data_list = ss3_data, ...)
 # =============================================================================
 
+# SS3 calendar month (1 = 1 January, fractional allowed) -> months elapsed in the
+# year, Rceattle's Month.
+ss3_month_to_rce <- function(m) pmax(0, as.numeric(m) - 1)
+
+
 #' Convert SS3 outputs to an Rceattle data list
 #'
 #' @param ss3_dir Path to the SS3 model directory.
@@ -229,6 +234,39 @@ ss3_to_rceattle <- function(ss3_dir,
                                   nlengths_rce, ss3_lbins)
 
   # ---------------------------------------------------------------------------
+  # 4b. SS3's composition likelihood, as MultinomialAFSC
+  # ---------------------------------------------------------------------------
+  # SS3 adds min_comp ("addtocomp") to every bin of the observed and expected
+  # proportions, renormalizes both, and scores N * sum(o * log(o / e)). That is
+  # Rceattle's "MultinomialAFSC" with comp_offset = min_comp, divided by
+  # 1 + n * min_comp for n SS3 data bins; the divisor goes into the sample size.
+  # n counts SS3's bins, not Rceattle's: SS3's age bins can start above age 0,
+  # and the ageing-error matrix below then leaves Rceattle's extra age columns
+  # empty, where the AFSC term is exactly zero.
+  min_comp <- unique(c(datlist$len_info$addtocomp, datlist$age_info$addtocomp))
+  if (length(min_comp) != 1) {
+    stop("SS3 addtocomp differs across fleets or data types (", paste(min_comp, collapse = ", "),
+         "); Rceattle's comp_offset is a single value.", call. = FALSE)
+  }
+  tails <- c(datlist$len_info$mintailcomp, datlist$age_info$mintailcomp)
+  if (any(tails >= 0)) {
+    stop("SS3 tail compression (mintailcomp >= 0) is not translated: SS3 compresses ",
+         "each observation's tails separately, and Rceattle's Comp_accum_young/old is per fleet.",
+         call. = FALSE)
+    # Where it would go: for each comp row, fold the observed bins at or below
+    # mintailcomp (and the matching expected bins) into the first bin above it,
+    # and the same at the upper tail, before min_comp is added. That needs a
+    # per-row fold in the template's composition slot.
+  }
+  d$comp_offset <- min_comp
+  n_lbin_ss3 <- length(datlist$lbin_vector)
+  n_abin_ss3 <- length(datlist$agebin_vector)
+  is_len <- d$comp_data$Age0_Length1 == 1
+  d$comp_data$Sample_size <- d$comp_data$Sample_size /
+    (1 + ifelse(is_len, n_lbin_ss3, n_abin_ss3) * min_comp)
+  d$caal_data$Sample_size <- d$caal_data$Sample_size / (1 + n_abin_ss3 * min_comp)
+
+  # ---------------------------------------------------------------------------
   # 5. Empirical selectivity from SS3 ageselex Factor = "Asel2" (realized sel)
   # ---------------------------------------------------------------------------
   d$emp_sel <- build_emp_sel(ss3_rep, d$fleet_control, styr, endyr,
@@ -254,8 +292,8 @@ ss3_to_rceattle <- function(ss3_dir,
                                                nlengths_rce, nsex_rce, nspp)
   d$pop_age_transition_index <- 1L
 
-  # No-error ageing key (identity); replace if SS3 has ageing error
-  d$age_error <- build_age_error(nages_rce, nspp, minage = minage)
+  # Ageing error as SS3 builds it, from the definition the age data use
+  d$age_error <- build_ss3_age_error(ss3_rep, datlist, nages_rce, minage)
 
   # ---------------------------------------------------------------------------
   # 9. Environmental covariates -- includes M-block indicators
@@ -390,25 +428,29 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
   # data rows"). Most reliable: take the modal month from the per-observation
   # CPUE / catch tables. Surveys read from CPUE; fisheries read from catch.
   # If a fleet has no positive-year observations, fall back to month 0.
+  #
+  # SS3 months are calendar months: month 1 is 1 January, so month m is m - 1
+  # months into the year, which is what Rceattle's Month counts. A survey's
+  # abundance is taken at that point. A fishery's catch is taken over the whole
+  # year, and SS3 reads its body size from the mid-season age-length key, so a
+  # fishery sits at month 6 of an annual season.
   modal_month <- function(months) {
     months <- months[!is.na(months)]
-    if (length(months) == 0) return(0L)
-    as.integer(names(sort(table(months), decreasing = TRUE))[1])
+    if (length(months) == 0) return(0)
+    as.numeric(names(sort(table(months), decreasing = TRUE))[1])
   }
   st_month <- vapply(seq_len(n_flt), function(i) {
     if (rce_type[i] == "Survey") {
       m <- datlist$CPUE$month[datlist$CPUE$index == i &
                                   datlist$CPUE$year > 0]
-      modal_month(m)
+      ss3_month_to_rce(modal_month(m))
     } else if (rce_type[i] == "Fishery") {
-      m <- datlist$catch$seas[datlist$catch$fleet == i &
-                                  datlist$catch$year > 0]
-      modal_month(m)
+      6
     } else {
-      0L
+      0
     }
-  }, integer(1))
-  st_month <- pmax(0L, pmin(12L, st_month))
+  }, numeric(1))
+  st_month <- pmax(0, pmin(12, st_month))
 
   data.frame(
     Fleet_name              = fi$fleetname,
@@ -425,11 +467,11 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
     Time_varying_sel        = 0,                 # blocks captured by per-year emp_sel rows
     Time_varying_sel_sd = 1,
     Bin_first_selected      = 1L,
-    Sel_norm_bin           = NA,                # NA -> skip normalization in C++
-    Sel_norm_bin_upper           = NA,
-    Comp_distribution            = "Multinomial",
+    Sel_norm_bin            = NA,                # NA -> skip normalization in C++
+    Sel_norm_bin_upper      = NA,
+    Comp_distribution       = "MultinomialAFSC",   # SS3's multinomial; see section 4b
     Comp_weights            = 1,
-    CAAL_distribution            = "Multinomial",
+    CAAL_distribution       = "MultinomialAFSC",
     CAAL_weights            = 1,
     Observation_units        = units_w1n2,
     Weight_index            = seq_len(n_flt) + 2L,  # slots 1=pop,2=ssb,3..=fleets
@@ -485,7 +527,8 @@ build_catch_data <- function(datlist, fleet_control) {
     Fleet_code        = as.integer(cat_raw$fleet),
     Species           = 1L,
     Year              = as.integer(cat_raw$year),
-    Month             = as.integer(cat_raw$seas %||% rep(0, nrow(cat_raw))),
+    # Catch is annual: SS3 stores a season index here, not a month.
+    Month             = rep(0, nrow(cat_raw)),
     Selectivity_block = 1L,
     Catch             = as.numeric(cat_raw$catch),
     Log_sd            = as.numeric(cat_raw$catch_se),
@@ -507,7 +550,7 @@ build_index_data <- function(datlist, fleet_control) {
     Fleet_code        = as.integer(cpue$index),
     Species           = 1L,
     Year              = as.integer(cpue$year),
-    Month             = as.integer(cpue$month %||% cpue$seas %||% rep(0, nrow(cpue))),
+    Month             = ss3_month_to_rce(cpue$month %||% rep(1, nrow(cpue))),
     Selectivity_block = 1L,
     Observation       = as.numeric(cpue$obs),
     Log_sd            = as.numeric(cpue$se_log),
@@ -599,7 +642,7 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
           Sex          = as.integer(ac$sex),
           Age0_Length1 = 0L,
           Year         = as.integer(ac$year),
-          Month        = as.integer(ac$month %||% ac$seas %||% rep(0, nrow(ac))),
+          Month        = ss3_month_to_rce(ac$month %||% rep(1, nrow(ac))),
           Sample_size  = as.numeric(ac$Nsamp),
           stringsAsFactors = FALSE
         ),
@@ -625,7 +668,7 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
           Sex          = as.integer(lc$sex),
           Age0_Length1 = 1L,
           Year         = as.integer(lc$year),
-          Month        = as.integer(lc$month %||% lc$seas %||% rep(0, nrow(lc))),
+          Month        = ss3_month_to_rce(lc$month %||% rep(1, nrow(lc))),
           Sample_size  = as.numeric(lc$Nsamp),
           stringsAsFactors = FALSE
         ),
@@ -871,6 +914,42 @@ build_age_trans_matrix <- function(ss3_rep, nages, minage, nlengths, nsex, nspp)
                Age = ages_vec),
     tmp
   )
+}
+
+#' Ageing-error matrix as SS3 builds it
+#'
+#' SS3 reads an observed age into its data age bins: P(bin b | true age a) is
+#' the normal probability between that bin's lower edge and the next, with mean
+#' and SD the definition's values at a (Report.sso; a mean of a + 0.5 is
+#' unbiased). The first bin takes the lower tail and the last the upper tail.
+#' Each SS3 bin is written to the Rceattle observed-age column of its lower edge;
+#' Rceattle ages below the first SS3 bin (age 0 when SS3's bins start at 1)
+#' receive nothing, as in SS3.
+#' @keywords internal
+build_ss3_age_error <- function(ss3_rep, datlist, nages, minage = 0L) {
+  used <- c(datlist$agecomp$ageerr[datlist$agecomp$year > 0 & datlist$agecomp$fleet > 0])
+  used <- sort(unique(abs(used)))
+  if (length(used) == 0) return(build_age_error(nages, 1L, minage))
+  def <- used[which.max(tabulate(match(abs(datlist$agecomp$ageerr), used)))]
+  if (length(used) > 1) {
+    warning("SS3 age data use ageing-error definitions ", paste(used, collapse = ", "),
+            "; Rceattle takes one matrix per species, so definition ", def,
+            " (the most rows) is used for all.", call. = FALSE)
+  }
+  mu  <- as.numeric(ss3_rep$age_error_mean[[paste0("type", def)]])
+  sdv <- as.numeric(ss3_rep$age_error_sd[[paste0("type", def)]])
+  ages_true <- seq.int(minage, minage + nages - 1L)
+  edges <- as.numeric(datlist$agebin_vector)
+  P <- matrix(0, nages, nages)
+  for (i in seq_len(nages)) {
+    a <- ages_true[i] + 1L                   # SS3 true ages start at 0
+    cdf <- stats::pnorm(edges, mu[a], sdv[a])
+    p <- c(cdf[-1], 1) - c(0, cdf[-1])       # bin b = [edge_b, edge_b+1); tails in the ends
+    col <- edges - minage + 1
+    P[i, col] <- p
+  }
+  Pdf <- as.data.frame(P); colnames(Pdf) <- paste0("Obs_age", seq_len(nages))
+  cbind(Species = 1L, True_age = ages_true, Pdf)
 }
 
 #' Identity ageing-error matrix (no error)
