@@ -284,13 +284,30 @@ stopifnot(length(llsrv_idx) == 1)
 # Set Catchability = "EnvExp" + Time_varying_q = "<env_col_idx>" so the env_1
 # column of index_q_beta becomes estimable (same convention as "Environmental").
 # The MLE values come from the SS3-injection helper below.
-cod_pcod$fleet_control$Catchability[llsrv_idx]   <- "EnvExp"
+# "EnvExp" (SS3's case-1 nested exponential) does not exist in Rceattle. It was
+# prototyped on origin/dev-cod-bridge, which is 811 commits behind this branch
+# and still on the pre-renumbering layout, so it needs reimplementing rather
+# than merging. Until then LLSrv keeps the converter's ordinary catchability
+# and its index will not track SS3 -- the one fleet expected to fail G1.
+# Rceattle's "Environmental" is NOT a substitute: it is SS3's link type 2
+# (additive, log q = LnQ + beta*env), while type 1 multiplies.
+.have_envexp <- "EnvExp" %in% names(Rceattle:::q_map)
+if (.have_envexp) {
+  cod_pcod$fleet_control$Catchability[llsrv_idx] <- "EnvExp"
+} else {
+  message("NOTE: Catchability 'EnvExp' unavailable; LLSrv env-q left off, ",
+          "so its predicted index will not match SS3.")
+}
 # env_data columns after build_env_data: 1=block_1, 2=block_2, ..., then env_1.
 # Look up the env_1 column index dynamically so this stays correct if more
 # blocks get added upstream.
 .env_1_col <- match("env_1", colnames(cod_pcod$env_data)) - 1L  # -1 to skip Year
 stopifnot(!is.na(.env_1_col))
-cod_pcod$fleet_control$Time_varying_q[llsrv_idx] <- as.character(.env_1_col)
+# Only meaningful alongside EnvExp; an env column index is not a Time_varying_q
+# code in current Rceattle (see tv_q_map: Off, IID, AR1, Block, RandomWalk).
+if (.have_envexp) {
+  cod_pcod$fleet_control$Time_varying_q[llsrv_idx] <- as.character(.env_1_col)
+}
 
 # Extract SS3 prior on NatM (PR_type, PRIOR, PR_SD from ctllist).
 # SS3 PR_type 3 = lognormal: log(M) ~ N(PRIOR - 0.5*PR_SD^2, PR_SD); PRIOR is
@@ -459,12 +476,30 @@ for (fname in active_sel_fleets) {
   # This degrades FP NLL relative to the prior IID-with-sentinel path
   # (which mapped every year independently), in exchange for unified
   # Time_varying_sel between FP and estimation paths.
-  cod_pcod$fleet_control$Time_varying_sel[fi]          <- "BlockDev"
-  cod_pcod$fleet_control$Time_varying_sel_sd[fi] <- -1
-  # SS3 robust multinomial kernel: NLL = N * sum_j obs_s * log(obs_s/hat_s)
-  # with obs/hat smoothed by addtocomp. Matches SS3 Method-5 likelihood.
-  cod_pcod$fleet_control$Comp_distribution[fi]          <- "SS3Robust"
-  cod_pcod$fleet_control$CAAL_distribution[fi]          <- "SS3Robust"
+  # "BlockDev" does not exist in Rceattle -- it was prototyped on the stale
+  # origin/dev-cod-bridge. Fall back to "IID", which is what this script used
+  # before and which the note above says fits BETTER: BlockDev collapses
+  # per-year SS3 dev variation inside a sub-block to the sub-block's first
+  # year, and was adopted only to unify the forward-pass and estimation paths.
+  # IID maps every hindcast year, so injected per-year SS3 values pass through.
+  cod_pcod$fleet_control$Time_varying_sel[fi] <-
+    if ("BlockDev" %in% names(Rceattle:::tv_sel_map)) "BlockDev" else "IID"
+  # Under BlockDev a non-positive sd skipped the dev prior entirely. IID
+  # requires a positive one, so use a wide sd: the devs are injected and held
+  # fixed in the forward pass, so the quadratic term is negligible and what is
+  # left is the constant n*log(sd) + n/2*log(2*pi), which shifts the
+  # "Selectivity deviates" jnll row without touching any gradient. SS3 has no
+  # counterpart row, so parity must subtract it.
+  cod_pcod$fleet_control$Time_varying_sel_sd[fi] <-
+    if ("BlockDev" %in% names(Rceattle:::tv_sel_map)) -1 else 1e3
+  # SS3 kernel: NLL = N * sum_j obs_s * log(obs_s/hat_s), obs/hat smoothed by
+  # addtocomp. That IS what Rceattle's multinomial computes once comp_offset
+  # carries addtocomp, so the "SS3Robust" code prototyped on the stale branch
+  # is not needed: GOA cod sets CompError = 0 (plain multinomial) on every
+  # fleet for both length and age, and AI cod fits this form to a Length_comp
+  # residual of -0.0003 on MultinomialAFSC.
+  cod_pcod$fleet_control$Comp_distribution[fi] <- "MultinomialAFSC"
+  cod_pcod$fleet_control$CAAL_distribution[fi] <- "MultinomialAFSC"
   # Verified via SS3 source (SS_global.tpl:338) + empirical test: SS3 uses
   # data_timing_seas = 0.5 for both INDEX and CAAL with Pcod obs month=7.
   # Setting Month=7 instead breaks the INDEX (machine precision -> 5% off)
