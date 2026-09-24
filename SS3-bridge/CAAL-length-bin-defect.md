@@ -16,8 +16,11 @@ that are misplaced.
 | AI cod | one 1 cm bin, e.g. 24.5 | **two** bins, 23.5 and 24.5 — and neighbouring rows overlap |
 | GOA cod | one 5 cm data bin, e.g. 34.5 | **one 1 cm** population bin, at 33.5 |
 
-Correcting the AI model moves mean length-at-age up by 0.2–0.5 cm, the survey catchability up
-1.3%, and the 2025 OFL down 1.25%. Details and the corrected run are below.
+Correcting the AI model moves mean length-at-age up 0.2–0.5 cm and the 2025 OFL down 1.25%.
+Correcting GOA moves mean length at age 1 up 16.5% and the 2025 OFL up 9.7%. Corrected copies of
+both models are `AI cod - Dev/Data/M24_1_caal_bins_fixed` and
+`GOA cod/Data/goa_pcod_caal_bins_fixed`; in each, only the two CAAL length columns differ from
+the original, and rerunning each original reproduces its archived likelihood exactly.
 
 ## Why it happens
 
@@ -115,8 +118,50 @@ Growth is the quantity the CAAL data mainly inform, and it is the one that moves
 rises 0.2–0.5 cm across ages 1–13. Stock status is nearly unchanged (depletion −0.30%), so the
 tier and the status determination do not turn on this. The catch advice moves about 1.3%.
 
-The GOA effect has not been quantified; its cells are misplaced by more, so it should be checked
-before assuming the effect is similarly small.
+### A note on the one month-1 row, which is *not* an error
+
+One of the 1160 AI CAAL rows (2002, `Lbin_lo` 100.5) is recorded at month 1 while the other 1159
+and the survey index are at month 7. It is **not** a transcription error: 2002 has exactly 100
+rows at month 7 and SS3 refuses more than 100 age-composition observations per fleet × time
+(`SS_readdata_330.tpl:2514`). Setting that row to month 7 makes the model fail to start. It is a
+workaround for that limit and should be left alone. The only side effect is that SS3 evaluates
+those 4 fish against the January age-length key rather than the July one.
+
+## Effect on the GOA assessment
+
+`Data/goa_pcod_caal_bins_fixed` is `goa_pcod-no init and ramp` with only the CAAL `Lbin_lo` /
+`Lbin_hi` columns changed, to the population bin **numbers** each 5 cm data bin covers. The
+partition is SS3's own: `make_len_bin` (`SS_readdata_330.tpl:1700-1746`) puts population bins
+1–9 in the first data bin (it is a minus group, so it collects everything below 4.5 cm), bins
+10–14 in the second, and so on, with the last data bin taking the plus bin. Masking those two
+columns makes the two data files byte-identical. Rerunning the unmodified model reproduces the
+archived total likelihood of 2048.07 exactly.
+
+`Report.sso` confirms both the defect and the fix. As written, the CAAL cells are single 1 cm
+bins at 3.5, 8.5 ... 103.5 — one bin below every data label (4.5, 9.5 ... 104.5). Corrected, they
+span 0.5–8.5, 9.5–13.5, ... 104.5–104.5. All 827 observations are fitted in both runs. (In the
+corrected run `r4ss` files the single observation in the lowest bin under `agedbase` rather than
+`condbase`, because it starts at the first population bin; SS3 still fits it as a conditional
+cell, with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contribution.)
+
+| quantity | as written | corrected | change |
+|---|---|---|---|
+| total likelihood | 2048.07 | 2051.98 | +3.91 |
+| age composition (CAAL) | 721.20 | 732.79 | +11.59 |
+| length composition | 1336.33 | 1331.85 | −4.48 |
+| survey | −1.785 | −4.604 | −2.82 |
+| mean length at age 1 (cm) | 9.28 | 10.82 | **+1.53 (+16.5%)** |
+| mean length at age 4 (cm) | 48.62 | 51.38 | +2.76 (+5.7%) |
+| von Bertalanffy K | 0.1910 | 0.2039 | +6.75% |
+| natural mortality M | 0.4309 | 0.4678 | +8.57% |
+| terminal SSB (2024, mt) | 89 958 | 92 522 | +2.85% |
+| B2024 / B0 | 0.2330 | 0.2425 | +4.08% |
+| **2025 OFL (t)** | **35 141** | **38 536** | **+9.66%** |
+| 2025 ABC / forecast catch (t) | 24 124 | 27 308 | +13.2% |
+
+The GOA effect is much the larger of the two, as expected from the larger misplacement: each
+row's observation comes from a 5 cm bin but was being compared with the predicted ages of a
+single 1 cm bin, one bin low. Length at age 1 moves 16.5% and the 2025 OFL moves +9.7%.
 
 ## How to fix it
 
@@ -143,10 +188,11 @@ data file. If they differ, the bins being fitted are not the bins that were writ
 From `Rceattle-models`, with an SS3 v3.30.22.1 executable (`r4ss::get_ss3_exe(version =
 "v3.30.22.1")`):
 
-- `Data/M24_1_adjusted` rerun as-is gives total likelihood 531.003, matching the archived
+- `AI cod - Dev/Data/M24_1_adjusted` rerun as-is gives 531.003 and
+  `GOA cod/Data/goa_pcod-no init and ramp` gives 2048.07, both matching their archived
   `Report.sso`, so the platform makes no difference.
-- `Data/M24_1_caal_bins_fixed` gives 532.903.
-- `SS3-bridge/compare_caal_bin_fix.R` produces the table above from the two run directories.
+- `M24_1_caal_bins_fixed` gives 532.903; `goa_pcod_caal_bins_fixed` gives 2051.98.
+- `SS3-bridge/compare_caal_bin_fix.R <as-written dir> <corrected dir>` produces the tables above.
 
 The defect was found while building an exact SS3 to Rceattle bridge for these two stocks: Rceattle
 reproduced SS3's age-length key, N-at-age, selectivity, SSB and predicted length compositions to
