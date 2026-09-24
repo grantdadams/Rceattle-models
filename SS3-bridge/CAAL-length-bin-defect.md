@@ -150,7 +150,7 @@ cell, with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contribution.)
 | age composition (CAAL) | 721.20 | 732.79 | +11.59 |
 | length composition | 1336.33 | 1331.85 | −4.48 |
 | survey | −1.785 | −4.604 | −2.82 |
-| mean length at age 1 (cm) | 9.28 | 10.82 | **+1.53 (+16.5%)** |
+| mean length at age 1 (cm) | 9.28 | 10.81 | **+1.53 (+16.5%)** |
 | mean length at age 4 (cm) | 48.62 | 51.38 | +2.76 (+5.7%) |
 | von Bertalanffy K | 0.1910 | 0.2039 | +6.75% |
 | natural mortality M | 0.4309 | 0.4678 | +8.57% |
