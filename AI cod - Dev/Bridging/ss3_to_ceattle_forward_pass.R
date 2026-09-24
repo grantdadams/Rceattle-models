@@ -66,7 +66,9 @@ suppressMessages(library(r4ss))
 # CAAL Lbin_lo/Lbin_hi columns under Lbin_method = 1, where SS3 wants bin
 # numbers, so every cell it fits is one bin low and two bins wide. The
 # converter refuses that file. See SS3-bridge/CAAL-length-bin-defect.md.
-SS3_DIR  <- "Data/M24_1_caal_bins_fixed"
+# RCE_SS3_DIR points the bridge at a variant SS3 run (e.g. one with the
+# equilibrium catch and InitF removed, to compare like with like).
+SS3_DIR  <- Sys.getenv("RCE_SS3_DIR", unset = "Data/M24_1_caal_bins_fixed")
 PAR_FILE <- "ss3.par"
 DAT_FILE <- "data_echo.ss_new"
 CTL_FILE <- "control.ss_new"
