@@ -180,8 +180,28 @@ Any of the following, in decreasing order of how little has to change:
    trying it.) The containers were widened to `matrix` in commit `416bf89`, "convert lbin_lo to
    real for compare to len_bins", released in v3.30.25.
 
-A useful guard for any model: compare the `Lbin_lo` column in `Report.sso` against the one in the
-data file. If they differ, the bins being fitted are not the bins that were written.
+A useful guard **while a file writes lengths in those columns**: compare `Report.sso`'s CAAL
+`Lbin_lo` against the data file's. `Report.sso` prints the length of the bin SS3 used, so the two
+should agree, and any difference is the truncation. Once the columns hold bin *numbers*, as they
+should, the two legitimately differ and the test becomes whether `Report.sso`'s `Lbin_lo` and
+`Lbin_hi` bracket the intended data bin.
+
+## Every run in both folders has it
+
+It is in the data files, not in any one configuration. Checked by that comparison:
+
+| run | CAAL rows | data file `Lbin_lo` | `Report.sso` `Lbin_lo` |
+|---|---|---|---|
+| `AI cod - Dev/SS3/run` | 1160 | 12.5–115.5 | 11.5–114.5 |
+| `AI cod - Dev/Data/M24_1` | 1160 | 12.5–115.5 | 11.5–114.5 |
+| `AI cod - Dev/Data/M24_1_baseline` | 1160 | 12.5–115.5 | 11.5–114.5 |
+| `AI cod - Dev/Data/M24_1_adjusted` | 1160 | 12.5–115.5 | 11.5–114.5 |
+| `GOA cod/Data/goa_pcod` | 827 | 4.5–104.5 | 3.5–103.5 |
+| `GOA cod/Data/goa_pcod-no init and ramp` | 827 | 4.5–104.5 | 3.5–103.5 |
+
+`SS3/run` is a different configuration from `M24_1_adjusted` (total likelihood 474.879 against
+531.003) and carries the same CAAL rows and the same shift, so the corrected copies here are not
+the origin of it.
 
 ## Reproducing this
 

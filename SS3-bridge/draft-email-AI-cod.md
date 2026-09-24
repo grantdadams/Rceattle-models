@@ -32,10 +32,19 @@ bin it was meant to be, and shifted a bin down. And because consecutive rows ste
 next row (`19.5 20.5`, so bins 19 and 20) flags bin 19 as well — neighbouring cells overlap.
 
 There's a quick way to check this in your own output without taking my word for it. `Report.sso`
-writes the CAAL `Lbin_lo` column back out as the length of the bin SS3 actually used. In M24_1 the
-data file's `Lbin_lo` runs 12.5–115.5 but `Report.sso` reports 11.5–114.5, with `Lbin_hi` one bin
-above — one bin low, two bins wide. If the two ever disagree, the bins being fitted aren't the
-bins that were written.
+writes the CAAL `Lbin_lo` column back out as the *length* of the bin SS3 actually used. So when a
+data file writes lengths in those columns — as these do — the two should read the same, and any
+difference is the truncation. In M24_1 the data file's `Lbin_lo` runs 12.5–115.5 while
+`Report.sso` reports 11.5–114.5, with `Lbin_hi` one bin above: one bin low, two bins wide.
+
+(The check only reads that way while the file writes lengths. Once the columns hold bin *numbers*,
+as they should, the two columns legitimately differ — `Report.sso` still prints lengths. Then the
+test is that `Report.sso`'s `Lbin_lo` matches the length you meant, and `Lbin_hi` equals it for a
+single bin.)
+
+I see the same thing in every AI run in the folder I have — `SS3/run`, `M24_1`,
+`M24_1_baseline` and `M24_1_adjusted` all carry the same 1160 CAAL rows and all report 11.5–114.5
+— so this looks like it is in the data file rather than in any one configuration.
 
 **What it does to the assessment.** I made a copy of `M24_1_adjusted` with only those two columns
 changed — `Lbin_lo` and `Lbin_hi` both set to the population bin number holding that length

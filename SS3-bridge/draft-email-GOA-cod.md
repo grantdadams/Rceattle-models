@@ -33,10 +33,18 @@ So the row is compared against the predicted ages of a single 1 cm bin at 33.5 c
 fish were measured over 34.5–39.5 cm.
 
 You can check this in your own output. `Report.sso` writes the CAAL `Lbin_lo` back out as the
-length of the bin SS3 actually used. In the current run the data file's values are 4.5–104.5 but
-`Report.sso` reports 3.5–103.5, with `Lbin_hi` equal to `Lbin_lo` — every cell one bin low and
-1 cm wide instead of 5. If the two disagree, the bins being fitted aren't the bins that were
-written.
+*length* of the bin SS3 actually used. So when a data file writes lengths in those columns — as
+this one does — the two should read the same, and any difference is the truncation. Here the data
+file's values are 4.5–104.5 while `Report.sso` reports 3.5–103.5, with `Lbin_hi` equal to
+`Lbin_lo`: every cell one bin low and 1 cm wide instead of 5.
+
+(The check only reads that way while the file writes lengths. Once the columns hold bin *numbers*,
+as they should, the two legitimately differ — `Report.sso` still prints lengths. Then the test is
+that `Report.sso`'s `Lbin_lo` and `Lbin_hi` bracket the data bin you meant.)
+
+Both GOA runs I have — `goa_pcod` and `goa_pcod-no init and ramp` — carry the same 827 CAAL rows
+and both report 3.5–103.5, so this looks like it is in the data file rather than in any one
+configuration.
 
 **What it does to the assessment.** I made a copy of `goa_pcod-no init and ramp` with only those
 two columns changed, to the population bin numbers each 5 cm data bin covers. I used SS3's own
