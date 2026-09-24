@@ -39,23 +39,35 @@ whole age likelihood (733.2 of a total 2109.0), data file 4.5–104.5 against Re
 So if it is worth fixing, it's worth fixing before the next assessment rather than
 retrospectively.
 
-**The part I can't work out from the files is how wide each row is meant to be**, and it changes
-the answer a lot, so I'd rather ask than guess. The Lbin_lo values are exactly your 21 5 cm data
-length bin edges and nothing else, which made me wonder whether each row holds the ages of fish
-from a whole 5 cm bin. But it could equally be a single 1 cm bin that just happens to sit on each
-data bin edge. Those need different fixes:
+I couldn't tell from the data file alone how wide each row is meant to be — one 1 cm bin sitting
+on the label, or the whole 5 cm bin — and it changes the size of the fix by 5x. Your prep code
+answers it: **each row is a whole 5 cm bin.** In `1_get_data.r` the 5 cm grid is what's passed to
+the conditional age-at-length builder (`len_bins = len_bins5` in 2024, and in 2025 `len_bins` is
+that grid outright), and `cond_length_age_cor()` then assigns every aged fish to the largest grid
+value below its length:
 
-- **one 1 cm bin at the label** — set Lbin_lo = Lbin_hi to the population bin number holding that
-  length (bin = length + 0.5), so the 34.5 row becomes `35 35`;
-- **the whole 5 cm data bin** — set them to the population bins it spans, so `35 39` (34.5 through
-  38.5 cm). Note SS3 needs the range written out; Lbin_hi = Lbin_lo gives one bin whatever
-  Lbin_method says.
+```r
+length$BIN[length$LENGTH < len_bins[((n-i)+1)]] <- len_bins[n-i]
+```
 
-I fitted both. The observations are identical in all three runs — only the predicted cell
-definition changes — so the likelihoods are comparable:
+With lengths taken as integer cm, BIN 34.5 collects the 35, 36, 37, 38 and 39 cm fish, and all of
+them are summed into that one row. The label is then written into both columns:
 
-| Metric                   | As Written | 1 cm at label | whole 5 cm bin |
-| :----------------------- | :--------- | :------------ | :------------- |
+```r
+Agecomp_obs[,8] <- Agecomp_obs[,7] <- as.numeric(substr(Agecomp_lengths,5,10))
+```
+
+So Lbin_hi = Lbin_lo isn't saying "one 1 cm bin" — it's the bin's label written twice. The row
+holds the ages of fish from 34.5 to 39.5 cm, and the fix is to give SS3 the population bins it
+spans: `35 39`. SS3 needs the range written out; Lbin_hi = Lbin_lo gives a single bin whatever
+Lbin_method says.
+
+I fitted the 1 cm reading too, before I found the prep code. The observations are identical in all
+three runs — only the predicted cell definition changes — so the likelihoods are comparable, and
+I'm leaving it in the table in case I've misread your pipeline:
+
+| Metric                   | As Written | 1 cm at label | **whole 5 cm bin** |
+| :----------------------- | :--------- | :------------ | :----------------- |
 | **Total Likelihood**     | 2048.07    | **2045.71**   | 2051.98        |
 | **Age comp**             | 721.20     | 723.68        | 732.79         |
 | **Length comp**          | 1336.33    | 1332.92       | 1331.85        |
@@ -67,13 +79,17 @@ definition changes — so the likelihoods are comparable:
 | **2025 OFL**             | 35 141 t   | 35 833 t      | 38 536 t       |
 | **2025 ABC**             | 24 124 t   | 24 724 t      | 27 308 t       |
 
-So the one-bin fix moves the OFL about 2% and the 5 cm fix about 10%. The 1 cm reading gives the
-lowest total likelihood of the three, which is mild evidence for it, but that's a fit comparison
-and not proof of what the data mean — you'd know from how the ages were tabulated.
+So the 5 cm fix — the one the prep code points to — moves the 2025 OFL up about **10%**, from
+35 141 t to 38 536 t, and the ABC from 24 124 t to 27 308 t. Worth saying that the 1 cm reading
+happens to give the lowest total likelihood of the three. I took that as mild evidence for it
+until I read the prep code, but a fit comparison can't tell you what a datum means, and a
+too-narrow cell can fit better by bending growth to suit it — which is roughly what seems to
+happen here.
 
-Either way growth is what the CAAL informs and what moves, and M rises with it. Status is close
-in all three (B/B0 0.233 to 0.242), so I don't think this is a tier or status question. Happy to
-send you either corrected data file to compare.
+Growth is what the CAAL informs and what moves: mean length at age 1 goes 9.28 to 10.81 cm, K
+from 0.191 to 0.204, and M rises with it, 0.431 to 0.468. Status is close in all three
+(B/B0 0.233 to 0.242), so I don't think this is a tier or status question — it's a catch-advice
+one. Happy to send you the corrected data file to compare.
 
 You can also use a newer SS3 (v3.30.25 and above) and set Lbin_method = 3, where the columns are
 the actual lengths. Note Lbin_hi is the lower edge of the last bin included rather than the top of

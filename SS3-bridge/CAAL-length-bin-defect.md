@@ -18,14 +18,13 @@ that are misplaced.
 | AI cod | one 1 cm bin, e.g. 24.5 | **two** bins, 23.5 and 24.5 — and neighbouring rows overlap |
 | GOA cod | 34.5, on a 5 cm data bin grid | **one 1 cm** population bin, at 33.5 |
 
-**The off-by-one is certain in both. How wide a GOA row is meant to be is NOT**, and it changes
-the size of the fix by 5x. See "What a GOA row is meant to span" below before quoting any GOA
-number. The AI case has no such ambiguity: its data bins are already 1 cm, and the Rceattle
-bridge confirms the corrected reading independently.
+**The off-by-one is certain in both.** How wide a GOA row is meant to be was open for a while and
+is worth 5x; it is now settled at the whole 5 cm bin by the assessment's own prep code — see
+"What a GOA row spans" below. The AI case never had that ambiguity: its data bins are already
+1 cm, and the Rceattle bridge confirms the corrected reading independently.
 
 Correcting the AI model moves mean length-at-age up 0.2–0.5 cm and the 2025 OFL down 1.25%.
-Correcting GOA moves the 2025 OFL up **1.97%** under the one-bin reading or **9.66%** under the
-5 cm reading. Corrected copies are `AI cod - Dev/Data/M24_1_caal_bins_fixed`,
+Correcting GOA moves the 2025 OFL up **9.66%**. Corrected copies are `AI cod - Dev/Data/M24_1_caal_bins_fixed`,
 `GOA cod/Data/goa_pcod_caal_bins_1cm` and `GOA cod/Data/goa_pcod_caal_bins_fixed`; in each, only
 the two CAAL length columns differ from the original, and rerunning each original reproduces its
 archived likelihood exactly.
@@ -135,13 +134,36 @@ rows at month 7 and SS3 refuses more than 100 age-composition observations per f
 workaround for that limit and should be left alone. The only side effect is that SS3 evaluates
 those 4 fish against the January age-length key rather than the July one.
 
-## What a GOA row is meant to span, and why the data cannot say
+## What a GOA row spans: resolved, it is the whole 5 cm bin
 
-The off-by-one is certain. The width is not, and it is worth 5x.
+**Settled by the assessment's own data-prep code** (`pete-hulson/goa_pcod`), after a long detour
+through fit comparisons that could not settle it. Each CAAL row is the age composition of every
+aged fish in a 5 cm length bin.
+
+`dev/assessment/1_get_data.r` passes the 5 cm grid to the conditional age-at-length builder —
+`len_bins = len_bins5` in the 2024 pipeline, under the comment `## new len comps at 5 cm bins`,
+and in 2025 `len_bins` is that grid outright, the 1 cm alternative having been dropped.
+`R/get_data/conditional_Length_AGE_cor.r` then assigns each fish to the largest grid value below
+its length and sums every fish in the bin into one row:
+
+```r
+length$BIN[length$LENGTH < len_bins[((n-i)+1)]] <- len_bins[n-i]
+...
+Agecomp_obs[,8] <- Agecomp_obs[,7] <- as.numeric(substr(Agecomp_lengths,5,10))
+```
+
+Lengths are taken as integer cm (`as.integer(LENGTH / 10)`), so BIN 34.5 collects the 35, 36, 37,
+38 and 39 cm fish — a 5 cm stratum. The last line writes the bin's label into **both** columns, so
+`Lbin_hi = Lbin_lo` is the label written twice, not a 1 cm cell.
+
+**So the fix for the 34.5 row is `35 39`, and the 2025 OFL effect is +9.66%, not +1.97%.**
+
+The rest of this section records how the file alone could not decide it, which is worth keeping:
+it is why the fit comparison below must not be read as evidence.
 
 GOA's `Lbin_lo` values are exactly its 21 5 cm data length bin edges and nothing else, which is
-what first suggested each row holds a whole 5 cm bin. But a single 1 cm bin sitting on each data
-bin edge fits the file equally well, and the two need different corrections:
+what first suggested each row holds a whole 5 cm bin. A single 1 cm bin sitting on each data bin
+edge fits the file equally well, and the two need different corrections:
 
 | reading | fix for the 34.5 row | population bins used |
 |---|---|---|
@@ -171,13 +193,17 @@ only the predicted cell definition changes — and it mildly favours the one-bin
 | natural mortality M | 0.4309 | 0.4412 | 0.4678 |
 | terminal SSB (2024, mt) | 89 958 | 89 908 | 92 522 |
 | B2024 / B0 | 0.233 | 0.235 | 0.242 |
-| **2025 OFL (t)** | 35 141 | **35 833 (+1.97%)** | 38 536 (+9.66%) |
+| **2025 OFL (t)** | 35 141 | 35 833 (+1.97%) | **38 536 (+9.66%)** |
 | 2025 ABC (t) | 24 124 | 24 724 | 27 308 |
 
-The 1 cm reading gives the lowest total likelihood of the three, but that is a fit comparison and
-not evidence of what the rows mean. Only the person who tabulated the ages can say. The
-assessment's own prep script reads SS3 output rather than building the CAAL, so it does not
-record the intent either.
+The 1 cm reading gives the lowest total likelihood of the three, and for a while that was read as
+mild evidence for it. **It is not evidence at all.** A fit comparison cannot say what a datum
+means: the cell definition is a fact about how the fish were tabulated, not a parameter, and a
+cell that is too narrow can fit better by bending growth to suit it — which is what the mean
+length-at-age row shows happening. The prep code settles it, and it says 5 cm.
+
+The lesson worth carrying: when two readings of a datum are confounded in the likelihood, the
+answer is in the code or the person who wrote the file, never in the objective function.
 
 Both corrected models are kept: `goa_pcod_caal_bins_1cm` (`35 35`, total 2045.71) and
 `goa_pcod_caal_bins_fixed` (`35 39`, total 2051.98). In each, masking the two CAAL columns makes
