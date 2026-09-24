@@ -14,8 +14,12 @@ library(r4ss); library(dplyr); library(tidyr)
 # Loads the Rceattle checkout beside this repo, which carries the bridge features.
 # Windows: a debug build (-g -O0, what load_all() compiles by default) overflows
 # the object file, so compile optimised first and load without recompiling.
-pkgbuild::compile_dll("../../Rceattle", debug = FALSE, quiet = TRUE)
-pkgload::load_all("../../Rceattle", compile = FALSE, quiet = TRUE)
+# RCEATTLE_PKG selects the checkout, so a worktree carrying in-flight bridge
+# features can be used without touching the main one -- which matters because
+# recompiling a checkout another session is using breaks that session's runs.
+# The DLL is assumed already built there; build it in that checkout, not here.
+RCEATTLE_PKG <- Sys.getenv("RCEATTLE_PKG", unset = "../../Rceattle")
+pkgload::load_all(RCEATTLE_PKG, compile = FALSE, quiet = TRUE)
 source("../SS3-bridge/ss3_to_rceattle.R")
 
 # Null-coalescing operator (defined here in case sourcing order matters)
@@ -73,7 +77,12 @@ suppressMessages(library(r4ss))
 # =============================================================================
 # 1. Read SS3 outputs and build the converter data list
 # =============================================================================
-SS3_DIR <- "Data/goa_pcod-no init and ramp"
+# The CAAL-corrected copy of "no init and ramp" (same control file), with the
+# Lbin columns written as the population bin numbers each 5 cm data bin spans.
+# The as-written copy is refused by the converter, and rightly: SS3 truncates
+# its non-integer Lbin values and fits bins the file does not name. Pete
+# Hulson's prep code settles the 5 cm reading -- see CAAL-length-bin-defect.md.
+SS3_DIR <- Sys.getenv("RCE_SS3_DIR", unset = "Data/goa_pcod_caal_bins_fixed")
 PAR_FILE <- file.path(SS3_DIR, "ss3.par")
 DAT_FILE <- file.path(SS3_DIR, "GOAPcod2024Oct17_1e_5cm.dat")
 CTL_FILE <- file.path(SS3_DIR, "Model19_1e.ctl")
