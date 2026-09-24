@@ -86,12 +86,31 @@ not a dramatic one for AI.
 
 1. Write population bin numbers, as `Lbin_method = 1` specifies, with `Lbin_hi = Lbin_lo` for a
    single bin. This is what I did and it runs on the SS3 version you're already using.
-2. Use `Lbin_method = 2` and write data length bin numbers.
-3. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths. Worth
-   knowing that `Lbin_method = 3` *cannot* work before v3.30.25 — the same integer truncation
-   makes the length compare unequal to every half-integer bin edge and SS3 stops with
-   `L_bin_lo no match to poplenbins`. It was fixed upstream in commit 416bf89, released in
-   v3.30.25.
+2. Use `Lbin_method = 2` and write data length bin numbers, again with `Lbin_hi = Lbin_lo`. That
+   works cleanly here only because M24_1's data and population length bins are the same 143 1 cm
+   bins. Where a model's data bins are coarser than its population bins, method 2 can't express a
+   whole data bin — it converts each endpoint to the population bin at that data bin's lower
+   edge — so option 1 is the more portable habit.
+3. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths —
+   **and still set `Lbin_hi = Lbin_lo`**. Two cautions here, both of which I checked by running
+   it rather than reasoning about it:
+
+   - `Lbin_method = 3` *cannot* work before v3.30.25. The same integer truncation makes the
+     length compare unequal to every half-integer bin edge, and SS3 stops with
+     `L_bin_lo no match to poplenbins`. Fixed upstream in commit 416bf89, released in v3.30.25.
+   - On v3.30.25, simply switching the method and leaving the values as they are does **not**
+     fix the model. `Lbin_hi` is the lower edge of the *last bin included*, not the upper edge of
+     the interval, so `18.5 19.5` still selects two bins — it just stops being shifted:
+
+     ```
+     data file        SS3         bins actually fitted
+     18.5 19.5  m1    3.30.22.1   17.5 and 18.5   (shifted low, two bins)
+     18.5 19.5  m3    3.30.25     18.5 and 19.5   (right place, still two bins)
+     18.5 18.5  m3    3.30.25     18.5            (correct)
+     ```
+
+     I mention it because that middle case is the one to watch: the obvious symptom disappears
+     while the cell is still twice as wide as intended.
 
 **One thing that is not a problem.** The 2002 row at month 1, where every other CAAL row is at
 month 7, looked like a typo to me at first. It isn't: 2002 has exactly 100 rows at month 7 and SS3

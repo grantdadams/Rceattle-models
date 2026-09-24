@@ -93,12 +93,26 @@ in `CompReport.sso` with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contr
 1. Write population bin numbers spanning each data bin, as `Lbin_method = 1` specifies — e.g.
    `Lbin_lo 10, Lbin_hi 14` for the 9.5 cm data bin. This is what I did and it runs on the SS3
    version you're already using.
-2. Use `Lbin_method = 2` and write data length bin numbers, again as a range.
-3. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths (e.g.
-   `9.5 13.5`). Worth knowing that `Lbin_method = 3` *cannot* work before v3.30.25 — the same
-   integer truncation makes the length compare unequal to every half-integer bin edge and SS3
-   stops with `L_bin_lo no match to poplenbins`. Fixed upstream in commit 416bf89, released in
-   v3.30.25.
+2. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths, again
+   as a range — `9.5 13.5` for that same bin. Note that `Lbin_hi` is the lower edge of the *last
+   population bin included*, not the upper edge of the length interval, so it is `13.5` and not
+   `14.5`. Two cautions:
+
+   - `Lbin_method = 3` *cannot* work before v3.30.25: the same integer truncation makes the
+     length compare unequal to every half-integer bin edge and SS3 stops with
+     `L_bin_lo no match to poplenbins`. Fixed upstream in commit 416bf89, released in v3.30.25.
+   - Switching the method without also fixing the values does nothing useful. I checked this on
+     AI cod, which has the same defect in a milder form: on v3.30.25 a row written `18.5 19.5`
+     under method 3 fits bins 18.5 *and* 19.5 — correctly positioned but still two bins wide.
+     For GOA, where `Lbin_hi = Lbin_lo` today, switching to method 3 alone would leave every cell
+     a single 1 cm bin; it would only stop being shifted.
+
+`Lbin_method = 2` is not an option here, which surprised me. It looks like the natural fit —
+write the data bin number and let SS3 expand it — but it converts *each endpoint* to the
+population bin at that data bin's lower edge (`SS_readdata_330.tpl:2604-2628`). So `7 7` gives a
+single 1 cm bin at 34.5, and `7 8` gives six bins, 34.5 through 39.5. Neither is the five bins
+the data bin covers. Method 2 only lands exactly when the data and population grids are the same,
+which is not the case for this model.
 
 The AI Pacific cod model has a version of the same problem, from the same cause — I've written to
 Ingrid about that one separately. Its effect is much smaller (OFL −1.25%) because its CAAL is

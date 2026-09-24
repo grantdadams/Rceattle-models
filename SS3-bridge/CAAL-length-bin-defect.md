@@ -171,14 +171,47 @@ Any of the following, in decreasing order of how little has to change:
    0.5 cm that is `bin = length + 0.5`. For a single bin set `Lbin_hi = Lbin_lo`. This is what
    `M24_1_caal_bins_fixed` does, and it works on the SS3 version already in use. GOA needs the
    **range** of population bins covered by each 5 cm data bin, e.g. `Lbin_lo` 5, `Lbin_hi` 9.
-2. **Use `Lbin_method = 2`** (data length bin numbers) and write the data bin number, with the
-   `Lbin_lo`/`Lbin_hi` range spanning the population bins the data bin covers.
-3. **Move to SS3 v3.30.25 or later and use `Lbin_method = 3`**, where the values are lengths. Note
-   that `Lbin_method = 3` **cannot work** before v3.30.25: because `Lbin_lo` is an integer, the
-   length is truncated and then compared for exact equality against half-integer bin edges, which
-   never matches, and SS3 stops with `L_bin_lo no match to poplenbins in age comp`. (Confirmed by
-   trying it.) The containers were widened to `matrix` in commit `416bf89`, "convert lbin_lo to
-   real for compare to len_bins", released in v3.30.25.
+2. **Use `Lbin_method = 2`** (data length bin numbers), with `Lbin_hi = Lbin_lo`. This is exact
+   **only when the data and population length grids are the same**, as they are for AI. It does
+   not work for GOA: method 2 converts each endpoint to the population bin sitting at that data
+   bin's *lower* edge (`SS_readdata_330.tpl:2604-2628`), so for a 5 cm data bin over a 1 cm
+   population grid, `7 7` gives one population bin and `7 8` gives six. Neither is the five the
+   data bin covers, and there is no pair that is.
+3. **Move to SS3 v3.30.25 or later and use `Lbin_method = 3`**, where the values are lengths —
+   **and still fix `Lbin_hi`**. Under every method, `Lbin_hi` names the *last bin included*, not
+   the upper edge of the length interval: a single 1 cm bin at 18.5 is `18.5 18.5`, and GOA's
+   5 cm data bin at 9.5 is `9.5 13.5`, not `14.5`. Two things to know, both checked by running
+   the v3.30.25 binary rather than reasoning about the source:
+
+   - `Lbin_method = 3` **cannot work** before v3.30.25: `Lbin_lo` is an integer, so the length is
+     truncated and then compared for exact equality against half-integer bin edges, which never
+     matches, and SS3 stops with `L_bin_lo no match to poplenbins in age comp`. The containers
+     were widened to `matrix` in commit `416bf89`, "convert lbin_lo to real for compare to
+     len_bins", released in v3.30.25.
+   - On v3.30.25, switching the method alone does **not** fix the AI file. Measured on the first
+     CAAL row:
+
+     | data file | SS3 | bins fitted (`Report.sso`) |
+     |---|---|---|
+     | `18.5 19.5`, method 1 | 3.30.22.1 | 17.5 and 18.5 — shifted low, two bins |
+     | `18.5 19.5`, method 3 | 3.30.25 | 18.5 and 19.5 — right place, still two bins |
+     | `18.5 18.5`, method 3 | 3.30.25 | 18.5 — correct |
+
+     The middle row is the trap: the visible symptom (the shift) disappears while the cell stays
+     twice as wide. Absolute likelihoods are not comparable across SS3 versions, so only the bins
+     are read from those runs.
+
+## The corrected files verified row by row
+
+Read straight out of `FIT_AGE_COMPS` in each corrected run's `Report.sso` and compared against
+the **original** file's labels, not through `r4ss`:
+
+- **AI**: all **1160** CAAL rows have `Lbin_lo` = `Lbin_hi` = the single bin the original file
+  labelled. 0 mismatches.
+- **GOA**: all **827** rows span exactly the population bins of their 5 cm data bin — 0.5–8.5 for
+  the minus group, 9.5–13.5, … , 104.5–104.5 for the plus bin. 0 mismatches.
+
+`SS3-bridge/verify_caal_bins.R` does this; re-run it after any change to the corrected files.
 
 A useful guard **while a file writes lengths in those columns**: compare `Report.sso`'s CAAL
 `Lbin_lo` against the data file's. `Report.sso` prints the length of the bin SS3 used, so the two
