@@ -18,12 +18,19 @@ wrong. It applies to all 827 CAAL rows.
 
 **Why it happens.** The age composition section sets `Lbin_method = 1`, which tells SS3 that
 `Lbin_lo` and `Lbin_hi` hold population length *bin numbers*. The file writes lengths there
-instead (4.5, 9.5, 14.5 ... the data bin edges), with `Lbin_hi = Lbin_lo`. Two things follow:
+instead — 4.5, 9.5, 14.5 ... the data bin edges — with `Lbin_hi = Lbin_lo`. Two things follow.
+Taking the `34.5 34.5` row as the example:
 
-- SS3 reads those columns into integer containers (`SS_readdata_330.tpl:2448`), so `34.5` becomes
-  `34` on assignment. With population bins at 0.5, 1.5, ... bin 34 is 33.5 cm — one bin low.
-- Because `Lbin_hi = Lbin_lo`, the cell is a single population bin. To cover a 5 cm data bin the
-  two columns have to span the range of population bins it contains.
+1. SS3 stores both columns as integers (`SS_readdata_330.tpl:2448`), so `34.5 34.5` becomes
+   `34 34`. Nothing warns about it. Population bins run 0.5, 1.5, 2.5 ... so bin 34 is 33.5 cm
+   — one bin below the label.
+2. SS3 reads the pair as a *range* of bins and sums the row's expected age composition over
+   every bin in it (`SS_expval.tpl:631`). With `Lbin_hi = Lbin_lo` that range is a single 1 cm
+   bin. To cover a 5 cm data bin, the two columns have to span all five population bins inside
+   it — here `35 39`, which is 34.5 through 38.5 cm.
+
+So the row is compared against the predicted ages of a single 1 cm bin at 33.5 cm, when its
+fish were measured over 34.5–39.5 cm.
 
 You can check this in your own output. `Report.sso` writes the CAAL `Lbin_lo` back out as the
 length of the bin SS3 actually used. In the current run the data file's values are 4.5–104.5 but

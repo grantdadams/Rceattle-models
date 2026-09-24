@@ -16,11 +16,20 @@ with that are misplaced.
 
 **Why it happens.** The age composition section sets `Lbin_method = 1`, which tells SS3 that the
 `Lbin_lo` and `Lbin_hi` columns hold population length *bin numbers*. The file writes lengths
-there instead (`18.5 19.5`, `19.5 20.5`, and so on). SS3 reads those two columns into integer
-containers (`SS_readdata_330.tpl:2448`), so `18.5` becomes `18` on assignment, and then marks
-every bin in the inclusive range 18–19. With population bins at 0.5, 1.5, ... bin 18 is 17.5 cm
-and bin 19 is 18.5 cm, so a row labelled 18.5 is fitted over 17.5 and 18.5. Because consecutive
-rows step by 1 cm, neighbouring cells also overlap by a bin.
+there instead — `18.5 19.5`, `19.5 20.5`, and so on. Three things then happen to each row.
+Taking the first one as the example:
+
+1. SS3 stores both columns as integers (`SS_readdata_330.tpl:2448`), so `18.5 19.5` becomes
+   `18 19`. Nothing warns about it.
+2. It reads that pair as a *range* of bins and flags every bin from 18 through 19 — so two
+   bins, not one.
+3. The row's expected age composition is then summed over every flagged bin
+   (`SS_expval.tpl:631`).
+
+Population bins run 0.5, 1.5, 2.5 ... so bin 18 is 17.5 cm and bin 19 is 18.5 cm. The row is
+therefore compared against the predicted ages of fish 17.5–19.5 cm: twice as wide as the 18.5 cm
+bin it was meant to be, and shifted a bin down. And because consecutive rows step by 1 cm, the
+next row (`19.5 20.5`, so bins 19 and 20) flags bin 19 as well — neighbouring cells overlap.
 
 There's a quick way to check this in your own output without taking my word for it. `Report.sso`
 writes the CAAL `Lbin_lo` column back out as the length of the bin SS3 actually used. In M24_1 the
