@@ -1,73 +1,111 @@
-**Draft — EBS Pacific cod (November 2024 models). Grant's register, matching the AI and GOA
-emails. Not sent.**
+**Draft — EBS Pacific cod (November 2024 models). Written for the case where Steve wants to turn
+the CAAL rows back on and test them. Grant's register, matching the AI and GOA emails. Not sent.**
 
-Subject: EBS Pacific cod — are the conditional age-at-length rows meant to be switched off?
+Subject: EBS Pacific cod — the CAAL rows need converting before they're switched on
 
 Hi Steve,
 
 Claude and I have been bridging the AI and GOA Pacific cod models over to Rceattle, and along the
-way we found a problem in how SS3 reads the CAAL length-bin columns in those two. I checked the
-EBS models to see whether it affected them too. **It doesn't** — but the reason it doesn't is
-something I wanted to ask you about, in case it's not intentional.
+way we found a problem in how SS3 reads the CAAL length-bin columns. It bites in both of those.
+I checked EBS too — it doesn't bite there, but only because the CAAL rows aren't currently being
+fitted. Since you're thinking about turning them on, here's what I'd change first, because as
+written I think they'd come in wrong.
 
-Short version: none of the November 2024 EBS models fits conditional age-at-length data at all.
+**Where things stand now.** In 24.0 through 24.3 there are 960 single-bin CAAL rows, all on
+negative fleet numbers, so SS3 skips them and `condbase` comes out empty. 23.1.0.d has none at
+all, reading the 1 cm data file. In all five models the only age data in the likelihood are the
+same 23 marginal rows — fleet 2, 2000–2023, written `1.5 119.5` for the whole length range — and
+those carry the entire `Age_comp` likelihood.
 
-In 24.0 through 24.3 there are 960 single-bin CAAL rows, and every one of them is on a negative
-fleet number, so SS3 skips them — `condbase` comes out empty. 23.1.0.d has no single-bin rows
-at all, since it reads the 1 cm data file. In all five models the only age data in the likelihood
-are the same 23 marginal rows: fleet 2, 2000–2023, written `1.5 119.5`, i.e. the whole length
-range. Those 23 rows carry the entire `Age_comp` likelihood.
+**What would happen if you flipped the fleet signs as-is.** The age composition section sets
+`Lbin_method = 1`, which tells SS3 that `Lbin_lo` and `Lbin_hi` hold population bin *numbers*.
+The columns contain lengths instead — 4.5, 9.5, 14.5 … your 5 cm data bin edges. SS3 stores both
+columns as integers (`SS_readdata_330.tpl:2448`, assigned at `:2586`), so 34.5 becomes 34, and
+then uses that as a bin index with no conversion.
 
-| model | data file | single-bin CAAL rows | of which active | full-range rows | active |
-|---|---|---|---|---|---|
-| 23.1.0.d | `BSPcod24_OCT_1cm.dat` | 0 | 0 | 30 | 23 |
-| 24.0 | `BSPcod24_OCT_5cm.dat` | 960 | **0** | 30 | 23 |
-| 24.1 | `BSPcod24_OCT_5cm_NB.dat` | 960 | **0** | 30 | 23 |
-| 24.2 | `BSPcod24_OCT_5cm_NB.dat` | 960 | **0** | 30 | 23 |
-| 24.3 | `BSPcod24_OCT_5cm_NB.dat` | 960 | **0** | 30 | 23 |
+EBS is worse off here than GOA, and it's worth knowing why. Your population bins come from an
+explicit vector that starts `0.001, 0.5, 1.5, …` — an extra bin at the bottom compared with the
+other two stocks. That makes bin *k* equal to *k* − 1.5 cm rather than *k* − 0.5, so the
+truncation lands **two bins low** instead of one:
 
-If that's deliberate — you moved to marginal ages and left the CAAL rows in the file as a record —
-then there's nothing to do and you can stop reading here. I mostly wanted to check, because it's
-the kind of thing that can happen by accident when a data file gets rebuilt, and from the file
-alone I can't tell which it is.
+| row labelled | SS3 would use | correct bin number |
+| :----------- | :------------ | :----------------- |
+| 4.5 cm  | bin 4 = 2.5 cm   | bin 6 |
+| 9.5 cm  | bin 9 = 7.5 cm   | bin 11 |
+| 14.5 cm | bin 14 = 12.5 cm | bin 16 |
+| 34.5 cm | bin 34 = 32.5 cm | bin 36 |
+| 114.5 cm | bin 114 = 112.5 cm | bin 116 |
 
-**The one thing worth knowing before you ever switch them back on.** Those 960 rows are written in
-the same style that causes the problem in the AI and GOA models: `Lbin_method = 1`, which tells
-SS3 the `Lbin_lo`/`Lbin_hi` columns hold population bin *numbers*, but the columns contain lengths
-(4.5, 9.5, 14.5 …). SS3 stores those columns as integers, so 34.5 becomes 34 and the row is fitted
-against the predicted ages of population bin 34 rather than the length it's labelled with.
+The rule on your grid is **bin = length + 1.5**.
 
-EBS is worse than GOA here, because your population bins come from an explicit vector that starts
-`0.001, 0.5, 1.5, …` — one extra bin at the bottom. That makes bin *k* equal to *k* − 1.5 cm
-rather than *k* − 0.5, so a row labelled 34.5 would land on **32.5 cm, two bins low** instead of
-GOA's one. So if those rows are ever enabled, they'd want converting to bin numbers at the same
-time rather than just flipping the fleet sign.
+**The other half of it is how wide each row is meant to be**, and it changes the fix. Your
+`Lbin_lo` values are exactly 23 of your 24 5 cm data bin edges and nothing else, with
+`Lbin_hi = Lbin_lo`. I think each row holds every aged fish in a whole 5 cm bin, for two reasons,
+though you're much better placed to say than I am.
 
-**The 23 active rows do hit the same truncation, but it doesn't matter.** Written `1.5 119.5`,
-they truncate to bins 1 and 119, which on your vector are 0.001 cm and 117.5 cm — so the top two
-bins (118.5 and 119.5 cm) are dropped from the predicted composition. Writing `1 121` instead
-puts them back:
+The first is `cond_length_age_cor.r` in the assessment functions. It bins every aged fish to
+whatever grid it's handed and sums all the fish in a bin into one row:
+
+```r
+length$BIN[length$LENGTH < len_bins1[((n-i)+1)]] <- len_bins1[n-i]
+...
+Agecomp_obs[,8] <- Agecomp_obs[,7] <- as.numeric(substr(Agecomp_lengths,5,10))
+```
+
+That last line writes the bin's label into *both* columns, so `Lbin_hi = Lbin_lo` is the label
+written twice rather than a statement that the cell is 1 cm wide. Since the rows in the 5 cm
+files carry the 5 cm grid's values, the grid it was handed was the 5 cm one, and each row is a
+5 cm aggregate. (The caveat is that `MAIN_BS_PCOD.r` sets `len_bins` to 1 cm, and that's the
+pipeline behind `BSPcod24_OCT_1cm.dat` — which has no CAAL rows at all. I couldn't find the
+script that built the 5 cm files, so I'm inferring from the function rather than reading the
+call.) The second reason is just magnitude: the CAAL rows total 860–1470 fish a year, which
+looks like a full annual ageing sample; if each row were a 1 cm slice, the real aged sample would
+have to be five times that.
+
+If it is the 5 cm reading, each row needs the *range* of population bins it spans, not one bin:
+
+- the 34.5 row covers 34.5 to 39.5 cm, which is population bins 36 through 40, so `36 40`;
+- `Lbin_hi = Lbin_lo` gives a single 1 cm bin whatever `Lbin_method` says, so the range has to be
+  written out explicitly.
+
+If each row really is a single 1 cm bin sitting on a data bin edge, it's just `36 36`.
+
+This is exactly the question that came up for GOA, where it changes the OFL effect by about 5x,
+so it's worth being sure before reading anything into the fitted result.
+
+**One thing that is already in the likelihood, and doesn't matter.** The 23 active marginal rows
+hit the same truncation: written `1.5 119.5`, they truncate to bins 1 and 119, which on your
+vector are 0.001 cm and 117.5 cm, so the top two bins get left out of the predicted composition.
+Writing `1 121` instead puts them back and changes essentially nothing, because EBS cod don't
+reach 118 cm:
 
 | quantity | as written | corrected |
-|---|---|---|
+| :------- | :--------- | :-------- |
 | age composition | 55.6440 | 55.6452 |
 | total likelihood | 243.416 | 243.417 |
 | SSB 2024, B/B0, 2025 OFL, 2025 ABC | — | **0.000% change** |
 
-Nothing moves, because EBS cod don't reach 118 cm. I'd leave it alone; I'm only mentioning it so
-you know I checked rather than assumed.
+I'd leave that alone; I'm only mentioning it so you know I checked rather than assumed.
+
+Happy to send you a converted data file with the CAAL columns as bin numbers — either reading —
+so you can switch the rows on and see what they do without doing the conversion yourself. Say
+which and I'll put it together.
 
 Two caveats on my end. The v3.30.21 macOS binary wouldn't read the data file for me
-(`Incompatible array bounds in dmatrix`), so both runs above are v3.30.22.1 — the truncation
-behaviour is the same in every release through 3.30.24, so which bins get used is unaffected, but
-those likelihood numbers are from my runs, not from the assessment's own. And I only looked at the
-November 2024 models from the `EBS_PCOD` repo (`APPENDIX_2.3_2024_MODELS.zip`) — I haven't checked
-this year's.
+(`Incompatible array bounds in dmatrix`), so my runs are v3.30.22.1; the truncation behaviour is
+identical across every release through 3.30.24, so which bins get used is unaffected, but those
+likelihood numbers are from my runs rather than the assessment's own. And I only looked at the
+November 2024 models from the `EBS_PCOD` repo (`APPENDIX_2.3_2024_MODELS.zip`) — I haven't
+checked this year's.
 
-For what it's worth, the underlying bin issue does bite in AI and GOA, where the CAAL rows are
+Worth saying the fix is only needed on 3.30.24 and earlier. From v3.30.25 you can set
+`Lbin_method = 3` and write actual lengths, though `Lbin_hi` is then the lower edge of the last
+bin included rather than the top of the interval, so a 5 cm bin at 34.5 is `34.5 38.5`.
+
+For what it's worth, the same underlying issue does bite in AI and GOA, where the CAAL rows are
 active — I've written to Ingrid and Pete about those separately.
 
-Sorry that was a lot, and if the switched-off rows are intentional, sorry to rehash!
+Sorry that was a lot!
 
 Cheers,
 Grant
