@@ -62,7 +62,11 @@ suppressMessages(library(r4ss))
 # =============================================================================
 # 1. Read SS3 outputs and build the converter data list
 # =============================================================================
-SS3_DIR  <- "Data/M24_1_adjusted"
+# M24_1_caal_bins_fixed, not M24_1_adjusted: the latter writes lengths in the
+# CAAL Lbin_lo/Lbin_hi columns under Lbin_method = 1, where SS3 wants bin
+# numbers, so every cell it fits is one bin low and two bins wide. The
+# converter refuses that file. See SS3-bridge/CAAL-length-bin-defect.md.
+SS3_DIR  <- "Data/M24_1_caal_bins_fixed"
 PAR_FILE <- "ss3.par"
 DAT_FILE <- "data_echo.ss_new"
 CTL_FILE <- "control.ss_new"
@@ -630,6 +634,15 @@ if (!is.null(gm)) {
   cat("row sums (age 0..):", paste(round(head(rs, nages), 3), collapse = " "), "\n")
 }
 
-saveRDS(list(fp = fp, cmp = cmp, cod = cod, inits = inits, ss3_rep = ss3_rep),
+# Rceattle parameter blocks whose SS3 counterparts have a negative phase, i.e.
+# SS3 holds them at their input value. Its solution says nothing about their
+# gradient, so G2 reports them but does not test them. For M24_1 these are
+# CV_young / CV_old (phase -2), which are Rceattle's growth_log_sd, and
+# LnQ_base_Srv (phase -2), which is index_log_q. sel_dn6 is deliberately NOT
+# here: SS3 fixes only some of its six slots per fleet, so the block is mixed.
+fixed_in_ss3 <- c("growth_log_sd", "index_log_q")
+
+saveRDS(list(fp = fp, cmp = cmp, cod = cod, inits = inits, ss3_rep = ss3_rep,
+             fixed_in_ss3 = fixed_in_ss3),
         "Bridging/_fp_result.rds")
 cat("\nForward pass complete. Saved Bridging/_fp_result.rds\n")

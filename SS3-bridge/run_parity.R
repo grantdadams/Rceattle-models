@@ -13,5 +13,9 @@ stock <- if (length(args)) args[1] else stop("give the stock folder, e.g. \"AI c
 setwd(stock)
 source("Bridging/ss3_to_ceattle_forward_pass.R")
 source("../SS3-bridge/parity_check.R")
-res <- parity_report(fp, ss3_rep)
+# The stock's forward pass may define `fixed_in_ss3`: Rceattle parameter blocks
+# whose SS3 counterparts have a negative phase. SS3 never moved those, so its
+# solution says nothing about their gradient.
+res <- parity_report(fp, ss3_rep,
+                     fixed_in_ss3 = if (exists("fixed_in_ss3")) fixed_in_ss3 else character())
 saveRDS(res, "Bridging/_parity_latest.rds")

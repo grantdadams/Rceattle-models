@@ -235,12 +235,20 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 }
 
 #' G2: likelihood and gradient at SS3's MLE.
-parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10) {
+#'
+#' `fixed_in_ss3` names the Rceattle parameter blocks whose SS3 counterparts are
+#' fixed (a negative phase). SS3 never moved those, so its solution says nothing
+#' about their gradient and they cannot be part of the test. They are still
+#' printed, marked `fixed`.
+parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10,
+                      fixed_in_ss3 = character()) {
   obj  <- fp$obj
   par  <- obj$par
   g    <- as.numeric(obj$gr(par))
   names(g) <- names(par)
-  grad <- data.frame(parameter = names(g), gradient = signif(g, 3))
+  est  <- !(names(g) %in% fixed_in_ss3)
+  grad <- data.frame(parameter = names(g), gradient = signif(g, 3),
+                     ss3 = ifelse(est, "estimated", "fixed"))
   grad <- grad[order(-abs(grad$gradient)), ][seq_len(min(top, length(g))), ]
 
   rce <- rowSums(fp$quantities$jnll_comp)
@@ -256,7 +264,9 @@ parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10) {
   comp$constant <- round(unname(k[comp$ss3]), 4)
   comp$residual <- round(comp$diff - ifelse(is.na(comp$constant), 0, comp$constant), 4)
 
-  list(max_abs_grad = max(abs(g)), pass = max(abs(g)) <= grad_tol,
+  gmax <- if (any(est)) max(abs(g[est])) else NA_real_
+  list(max_abs_grad = gmax, pass = isTRUE(gmax <= grad_tol),
+       max_abs_grad_all = max(abs(g)), n_fixed = sum(!est),
        gradient = grad, components = comp,
        total = c(rceattle = sum(fp$quantities$jnll_comp), ss3 = unname(ss["TOTAL"])))
 }
@@ -279,12 +289,16 @@ parity_g3 <- function(cold, fp, ss3_rep, obj_tol = 1e-3, tol = 1e-4) {
 }
 
 #' Print G1 and G2 together.
-parity_report <- function(fp, ss3_rep, tol = 1e-5, grad_tol = 1e-3) {
+parity_report <- function(fp, ss3_rep, tol = 1e-5, grad_tol = 1e-3,
+                          fixed_in_ss3 = character()) {
   g1 <- parity_g1(fp, ss3_rep, tol)
-  g2 <- parity_g2(fp, ss3_rep, grad_tol)
+  g2 <- parity_g2(fp, ss3_rep, grad_tol, fixed_in_ss3 = fixed_in_ss3)
   cat("\n=== G1: forward state at SS3 MLE ===\n"); print(g1, row.names = FALSE)
   cat(sprintf("\n=== G2: max |gradient| at SS3 MLE = %.3g  (%s) ===\n",
               g2$max_abs_grad, if (g2$pass) "PASS" else "FAIL"))
+  if (g2$n_fixed > 0)
+    cat(sprintf("     over the %d parameters SS3 estimated; %d that SS3 fixes are excluded (max |gradient| there %.3g)\n",
+                length(fp$obj$par) - g2$n_fixed, g2$n_fixed, g2$max_abs_grad_all))
   print(g2$gradient, row.names = FALSE)
   cat("\nNLL components (Rceattle vs SS3). `residual` is the gap after the\n")
   cat("densities' constants; only that column is a difference in fit.\n")

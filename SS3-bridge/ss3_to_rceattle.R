@@ -231,7 +231,7 @@ ss3_to_rceattle <- function(ss3_dir,
   d$comp_data  <- build_comp_data(datlist, d$fleet_control, nages_rce, minage,
                                    nlengths_rce)
   d$caal_data  <- build_caal_data(datlist, d$fleet_control, nages_rce, minage,
-                                  nlengths_rce, ss3_lbins)
+                                  nlengths_rce, ss3_lbins, ss3_pop_lbins)
 
   # ---------------------------------------------------------------------------
   # 4b. SS3's composition likelihood, as MultinomialAFSC
@@ -682,8 +682,70 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
 }
 
 #' @keywords internal
+#' Lower edge (cm) of the data length bin each CAAL row addresses
+#'
+#' A CAAL row names a RANGE of population length bins, `Lbin_lo` to `Lbin_hi`
+#' inclusive, and SS3 sums the joint age x length expectation over all of them
+#' (`SS_expval.tpl:631`). `Lbin_method` says how to read the two columns, and
+#' before SS3 v3.30.25 both are integers, so a non-integer value is truncated
+#' (`SS_readdata_330.tpl:2448, 2586`) -- silently shifting, and sometimes
+#' widening, every cell. See `CAAL-length-bin-defect.md`.
+#'
+#' Rceattle holds one `Length` per CAAL row and integrates the population bins
+#' inside that data bin itself, through `pop_lengths` / `pop_to_data_bin`. So a
+#' row is translatable only when its population-bin range is exactly one data
+#' bin. Anything else is refused rather than approximated.
+#' @keywords internal
+ss3_caal_length <- function(caal, datlist, ss3_lbins, ss3_pop_lbins) {
+  method <- datlist$Lbin_method %||% 1L
+  pop    <- ss3_pop_lbins %||% ss3_lbins
+  lo <- as.numeric(caal$Lbin_lo)
+  hi <- as.numeric(caal$Lbin_hi %||% caal$Lbin_lo)
+
+  if (method %in% c(1L, 2L)) {
+    bad <- which(abs(lo - round(lo)) > 1e-8 | abs(hi - round(hi)) > 1e-8)
+    if (length(bad)) {
+      stop("Lbin_method = ", method, " means Lbin_lo/Lbin_hi are bin NUMBERS, but ",
+           length(bad), " CAAL row(s) hold non-integer values (e.g. ",
+           paste(sprintf("%s/%s", lo[bad[1]], hi[bad[1]]), collapse = ", "),
+           " in year ", caal$year[bad[1]], "). SS3 truncates these to integers, so the ",
+           "model as written fits bins that are not the ones the file names. ",
+           "See SS3-bridge/CAAL-length-bin-defect.md.", call. = FALSE)
+    }
+  }
+  # Resolve both columns to population-bin indices.
+  idx <- switch(as.character(method),
+    "1" = list(lo = as.integer(lo), hi = as.integer(hi)),
+    "2" = list(lo = match(ss3_lbins[as.integer(lo)], pop),
+               hi = match(ss3_lbins[pmin(as.integer(hi) + 1L, length(ss3_lbins))], pop) - 1L),
+    "3" = list(lo = match(lo, pop), hi = match(hi, pop)),
+    stop("Unknown Lbin_method: ", method, call. = FALSE))
+  if (anyNA(idx$lo) || anyNA(idx$hi))
+    stop("A CAAL Lbin_lo/Lbin_hi does not resolve to a population length bin.", call. = FALSE)
+
+  # Each row's range must be exactly one data bin, using SS3's own partition:
+  # data bin 1 is a minus group taking every population bin below the second
+  # data edge, and the last is a plus group (`make_len_bin`,
+  # SS_readdata_330.tpl:1700-1746).
+  dat_of_pop <- pmax(findInterval(pop + 1e-8, ss3_lbins), 1L)
+  want_lo <- vapply(seq_along(ss3_lbins), function(b) min(which(dat_of_pop == b)), integer(1))
+  want_hi <- vapply(seq_along(ss3_lbins), function(b) max(which(dat_of_pop == b)), integer(1))
+  bin <- dat_of_pop[idx$lo]
+  bad <- which(idx$lo != want_lo[bin] | idx$hi != want_hi[bin])
+  if (length(bad)) {
+    i <- bad[1]
+    stop(length(bad), " CAAL row(s) span population bins that are not exactly one data ",
+         "length bin -- e.g. year ", caal$year[i], ", bins ", idx$lo[i], "-", idx$hi[i],
+         " (", pop[idx$lo[i]], "-", pop[idx$hi[i]], " cm), where data bin ", bin[i],
+         " is bins ", want_lo[bin[i]], "-", want_hi[bin[i]], ". Rceattle holds one Length ",
+         "per CAAL row, so such a row cannot be represented. ",
+         "See SS3-bridge/CAAL-length-bin-defect.md.", call. = FALSE)
+  }
+  ss3_lbins[bin]
+}
+
 build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
-                            ss3_lbins) {
+                            ss3_lbins, ss3_pop_lbins = NULL) {
   # SS3 CAAL rides in datlist$agecomp on rows with Lbin_lo > 0; some SS3
   # versions also have a separate $ageerr_caal table.
   caal <- split_agecomp(datlist)$caal
@@ -727,10 +789,7 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
   # `lengths` array of 1..nlengths instead of cm values, and the C++ weight
   # calc `alpha * lengths^beta` gives wrong WAA scale. Pass the cm value so
   # the lengths array gets actual cm.
-  length_idx <- vapply(caal$Lbin_lo, function(x) {
-    which.min(abs(ss3_lbins - x))[1]
-  }, integer(1))
-  length_cm <- ss3_lbins[length_idx]
+  length_cm <- ss3_caal_length(caal, datlist, ss3_lbins, ss3_pop_lbins)
 
   base <- data.frame(
     Fleet_name  = fleet_control$Fleet_name[match(caal$fleet, fleet_control$Fleet_code)],
