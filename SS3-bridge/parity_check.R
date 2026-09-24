@@ -239,7 +239,8 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   "Composition data"           = "Length_comp",
   "CAAL data"                  = "Age_comp",
   "Recruitment deviates"       = "Recruitment",
-  "Initial abundance deviates" = "Recruitment"
+  "Initial abundance deviates" = "Recruitment",
+  "Initial equilibrium catch"  = "Equil_catch"
 )
 
 # Likelihood constants SS3 drops and Rceattle keeps, by SS3 component name.
@@ -287,7 +288,7 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 .ss3_constants <- function(fp, ss3_rep) {
   dl   <- fp$data_list
   l2pi <- 0.5 * log(2 * pi)
-  k <- c(Catch = NA_real_, Survey = NA_real_, Recruitment = NA_real_)
+  k <- c(Catch = NA_real_, Survey = NA_real_, Recruitment = NA_real_, Equil_catch = NA_real_)
   # Only the hindcast is fitted; catch_data also carries the projection years.
   hind <- function(d) d[d$Year >= dl$styr & d$Year <= dl$endyr, ]
   cat_d <- dl$catch_data
@@ -295,6 +296,12 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
     cat_d <- hind(cat_d)
     k["Catch"] <- sum(log(cat_d$Log_sd) + l2pi)
   }
+  # The initial equilibrium catch sits at styr - 1, outside hind(); SS3 fits it
+  # only where the observation is non-zero, as Rceattle does.
+  eq <- if (is.null(cat_d0 <- dl$catch_data)) NULL else
+    cat_d0[!is.na(cat_d0$Year) & cat_d0$Year == (dl$styr - 1L) & cat_d0$Catch > 0, , drop = FALSE]
+  k["Equil_catch"] <- if (is.null(eq) || !nrow(eq)) NA_real_ else sum(log(eq$Log_sd) + l2pi)
+
   idx <- dl$index_data
   if (!is.null(idx)) k["Survey"] <- nrow(hind(idx)) * l2pi
   # Count the deviates the OBJECTIVE penalises, not the ones the map leaves

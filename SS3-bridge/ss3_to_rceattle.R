@@ -566,9 +566,20 @@ build_catch_data <- function(datlist, fleet_control, catch_sd_offset = TRUE) {
   }
   cat_raw <- datlist$catch
   cat_raw <- normalize_ss3_ghosts(cat_raw, "fleet", "year")
-  # Equilibrium catch (SS3 year = -999, etc) is below styr after negation.
+
+  # SS3 writes the initial equilibrium catch at year -999: the catch the stock
+  # yielded under the initial F, before the hindcast. Rceattle carries it as a
+  # catch_data row at styr - 1, which rearrange_data() splits out. A zero is not
+  # an observation -- SS3 skips `obs_equ_catch == 0`, and with no non-zero
+  # equilibrium catch it creates no InitF parameter at all (GOA cod is this
+  # case), so a zero row must be dropped rather than fitted.
+  eq <- cat_raw[abs(cat_raw$year) < datlist$styr &
+                  as.numeric(cat_raw$catch) > 0, , drop = FALSE]
+  if (nrow(eq)) eq$year <- datlist$styr - 1L
+
   # Keep only hindcast-window rows; SS3 catch is treated as known per fleet/year.
   cat_raw <- cat_raw[abs(cat_raw$year) >= datlist$styr & abs(cat_raw$year) <= datlist$endyr, ]
+  cat_raw <- rbind(eq, cat_raw)
   data.frame(
     Fleet_name        = fleet_control$Fleet_name[match(cat_raw$fleet, fleet_control$Fleet_code)],
     Fleet_code        = as.integer(cat_raw$fleet),
