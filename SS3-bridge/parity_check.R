@@ -194,16 +194,16 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 }
 
 # Rceattle jnll_comp rows beside the SS3 likelihood component they answer to.
-# The initial-abundance deviates are deliberately absent: SS3 carries the
-# initial age structure in InitF and its early recruitment deviates, so that
-# block has no SS3 counterpart and is reported on its own rather than charged
-# against SS3's Recruitment.
+# The initial-abundance deviates DO have an SS3 counterpart: `Early_InitAge_*`,
+# which SS3 penalises inside `Recruitment` along with the main deviates. For AI
+# cod there are 13 of each, one for one.
 .JNLL_TO_SS3 <- c(
   "Index data"                 = "Survey",
   "Catch data"                 = "Catch",
   "Composition data"           = "Length_comp",
   "CAAL data"                  = "Age_comp",
-  "Recruitment deviates"       = "Recruitment"
+  "Recruitment deviates"       = "Recruitment",
+  "Initial abundance deviates" = "Recruitment"
 )
 
 # Likelihood constants SS3 drops and Rceattle keeps, by SS3 component name.
@@ -212,10 +212,9 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 # left after subtracting these is a real difference in fit.
 #   Catch   SS3 keeps 0.5 z^2 alone            -> log(sigma) + 0.5 log(2 pi) per row
 #   Survey  SS3 keeps log(sigma) + 0.5 z^2     -> 0.5 log(2 pi) per row
-#   Recruit SS3 keeps log(sigmaR) + the kernel -> 0.5 log(2 pi) per recruitment deviate
-# The initial-abundance deviates are NOT in here: SS3 has no counterpart for
-# them, so that block is a structural difference (initial age structure), not a
-# constant, and it stays in the residual on purpose.
+#   Recruit SS3 keeps log(sigmaR) + the kernel -> 0.5 log(2 pi) per deviate,
+#           counting the initial-abundance deviates, whose SS3 counterparts
+#           (`Early_InitAge_*`) are penalised in the same component.
 .ss3_constants <- function(fp) {
   dl   <- fp$data_list
   l2pi <- 0.5 * log(2 * pi)
@@ -229,7 +228,7 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   }
   idx <- dl$index_data
   if (!is.null(idx)) k["Survey"] <- nrow(hind(idx)) * l2pi
-  n_rec <- sum(names(fp$obj$par) == "rec_dev")
+  n_rec <- sum(names(fp$obj$par) %in% c("rec_dev", "init_dev"))
   if (n_rec > 0) k["Recruitment"] <- n_rec * l2pi
   k
 }

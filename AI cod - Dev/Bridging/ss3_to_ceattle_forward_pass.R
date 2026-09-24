@@ -545,9 +545,16 @@ inits <- init_log_F_from_ss3(inits, ss3_rep, fleet_meta, years_hind)
 # 9. Forward-pass fit (estimateMode = 3) and comparison to SS3
 # =============================================================================
 cat("\n--- Forward-pass fit (estimateMode = 3) ---\n")
+# Estimate what SS3 estimates and nothing else: CV_young/CV_old, LnQ_base and
+# eight of the twelve double-normal slots are phase < 0 in M24_1, and Rceattle
+# has no switch for them, so they are mapped out at their injected values.
+ss3_map <- ss3_fix_map(mod0$map, ss3_rep, mod0$estimated_params,
+                       cod$fleet_control, years_hind = years_hind)
+
 fp <- Rceattle::fit_mod(
   data_list    = cod,
   inits        = inits,
+  map          = ss3_map,
   estimateMode = 3,
   initMode     = "FishedNonEquilibriumScaled",   # = 4
   growthFun    = growthFun_spec,
@@ -556,6 +563,9 @@ fp <- Rceattle::fit_mod(
   msmMode      = 0,
   fit_control  = fit_control(phase = FALSE, verbose = 1)
 )
+cat(sprintf("Free parameters: %d (SS3 active: %d)\n", length(fp$obj$par),
+            sum(!is.na(ss3_rep$parameters$Phase) & ss3_rep$parameters$Phase > 0 &
+                !is.na(ss3_rep$parameters$Value))))
 
 # --- R / Bio / SSB / F vs SS3 -----------------------------------------------
 ts_ss3 <- ss3_rep$timeseries[match(years_hind, ss3_rep$timeseries$Yr), ]

@@ -682,6 +682,92 @@ build_comp_data <- function(datlist, fleet_control, nages, minage, nlengths) {
 }
 
 #' @keywords internal
+#' Map out the parameters SS3 holds fixed
+#'
+#' A bridge only means something if the two models estimate the same things.
+#' SS3 fixes a parameter by giving it a negative phase; Rceattle has no switch
+#' for several of these, so they are mapped out by hand here. Values stay at
+#' whatever was injected, i.e. SS3's own.
+#'
+#' Handles the blocks whose SS3 counterparts map one-to-one: `growth_log_sd`
+#' (`CV_young` / `CV_old`), `index_log_q` (`LnQ_base`) and `sel_dn6`
+#' (`Size_DblN_*`).
+#' @param map `mod$map` from a shape-only `fit_mod()` -- the whole object, with
+#'   both `mapFactor` and `mapList`, which is what `fit_mod(map = )` expects.
+#' @keywords internal
+ss3_fix_map <- function(map, ss3_rep, params, fleet_control, years_hind = NULL,
+                        verbose = TRUE) {
+  stopifnot(is.list(map), all(c("mapFactor", "mapList") %in% names(map)))
+  all_p <- ss3_rep$parameters
+  p <- all_p[!is.na(all_p$Phase) & all_p$Phase < 0 & !is.na(all_p$Value), , drop = FALSE]
+
+  # SS3 estimates recruitment deviates only over its main (and late) recdev
+  # years; anything after that is fixed at zero. Rceattle estimates one per
+  # hindcast year, so pin the years SS3 does not estimate.
+  rec_fixed <- integer(0)
+  if (!is.null(years_hind)) {
+    act <- all_p[!is.na(all_p$Phase) & all_p$Phase > 0 & !is.na(all_p$Value), , drop = FALSE]
+    yr_lab <- act$Label[grepl("Main_RecrDev|Late_RecrDev|Early_RecrDev", act$Label)]
+    est_yr <- suppressWarnings(as.integer(sub(".*_", "", yr_lab)))
+    est_yr <- est_yr[!is.na(est_yr)]
+    if (length(est_yr)) rec_fixed <- which(!(years_hind %in% est_yr))
+  }
+  if (!nrow(p) && !length(rec_fixed)) return(map)
+  dn6 <- c("peak", "top_logit", "ascend_se", "descend_se", "start_logit", "end_logit")
+
+  # SS3 writes the fleet number in trailing parentheses, e.g. LnQ_base_Srv(2).
+  ss3_fleet_row <- function(lab) {
+    n <- suppressWarnings(as.integer(sub(".*\\(([0-9]+)\\)$", "\\1", lab)))
+    if (is.na(n)) NA_integer_ else match(n, fleet_control$Fleet_code)
+  }
+  # Linear (column-major) position of one cell of a parameter array.
+  cell <- function(nm, idx) {
+    d <- dim(params[[nm]])
+    if (is.null(d)) return(idx[[1]])
+    sum((vapply(idx, as.integer, integer(1)) - 1L) * c(1L, cumprod(d)[-length(d)])) + 1L
+  }
+
+  hit <- list()
+  for (lab in p$Label) {
+    if (grepl("^CV_young", lab)) {
+      hit[[length(hit) + 1]] <- list("growth_log_sd", cell("growth_log_sd", list(1, 1, 1)), lab)
+    } else if (grepl("^CV_old", lab)) {
+      hit[[length(hit) + 1]] <- list("growth_log_sd", cell("growth_log_sd", list(1, 1, 2)), lab)
+    } else if (grepl("^LnQ_base", lab)) {
+      f <- ss3_fleet_row(lab)
+      if (!is.na(f)) hit[[length(hit) + 1]] <- list("index_log_q", f, lab)
+    } else if (grepl("^Size_DblN_", lab)) {
+      k <- which(vapply(dn6, function(s) grepl(paste0("^Size_DblN_", s, "_"), lab), logical(1)))
+      f <- ss3_fleet_row(lab)
+      if (length(k) == 1 && !is.na(f))
+        hit[[length(hit) + 1]] <- list("sel_dn6", cell("sel_dn6", list(k, f, 1)), lab)
+    }
+  }
+  for (i in rec_fixed)
+    hit[[length(hit) + 1]] <- list("rec_dev", cell("rec_dev", list(1, i)),
+                                   sprintf("rec_dev %d not estimated by SS3", years_hind[i]))
+  if (!length(hit)) return(map)
+
+  for (nm in unique(vapply(hit, `[[`, character(1), 1))) {
+    idx <- unlist(lapply(hit[vapply(hit, `[[`, character(1), 1) == nm], `[[`, 2))
+    v <- map$mapFactor[[nm]]
+    if (is.null(v)) v <- factor(seq_along(params[[nm]]))
+    v <- as.integer(as.character(v))
+    idx <- idx[idx >= 1 & idx <= length(v)]
+    v[idx] <- NA_integer_
+    # Bounds take one entry per map factor LEVEL, so drop the levels the
+    # remaining cells no longer carry.
+    map$mapFactor[[nm]] <- droplevels(factor(v))
+    ml <- map$mapList[[nm]]
+    if (!is.null(ml)) { ml[idx] <- NA; map$mapList[[nm]] <- ml }
+  }
+  if (verbose) {
+    cat("Mapped out (SS3 phase < 0):\n")
+    for (h in hit) cat(sprintf("  %-15s [%d]  <- %s\n", h[[1]], h[[2]], h[[3]]))
+  }
+  map
+}
+
 #' Lower edge (cm) of the data length bin each CAAL row addresses
 #'
 #' A CAAL row names a RANGE of population length bins, `Lbin_lo` to `Lbin_hi`
