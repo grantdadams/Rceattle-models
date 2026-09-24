@@ -248,10 +248,43 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 # left after subtracting these is a real difference in fit.
 #   Catch   SS3 keeps 0.5 z^2 alone            -> log(sigma) + 0.5 log(2 pi) per row
 #   Survey  SS3 keeps log(sigma) + 0.5 z^2     -> 0.5 log(2 pi) per row
-#   Recruit SS3 keeps log(sigmaR) + the kernel -> 0.5 log(2 pi) per deviate,
-#           counting the initial-abundance deviates, whose SS3 counterparts
-#           (`Early_InitAge_*`) are penalised in the same component.
-.ss3_constants <- function(fp) {
+#   Recruit three pieces, because SS3 does not simply drop a constant here:
+#           * 0.5 log(2 pi) per deviate Rceattle penalises, counting the
+#             initial-abundance deviates, whose SS3 counterparts
+#             (`Early_InitAge_*`) sit in the same component;
+#           * SS3 scales its log(sigmaR) term by the BIAS-ADJUSTED count
+#             `sd_offset_rec` (`SS_objfunc.tpl:758`), which is the sum of the
+#             Methot-Taylor bias adjustment over its deviates, while Rceattle
+#             charges one per deviate. The difference is (n - sd_offset) log sigmaR;
+#           * deviates Rceattle penalises that SS3 does not estimate -- the late
+#             recruitment deviates, fixed at zero -- still cost a full density
+#             each, at 0.5 (bias_adjust_proc sigmaR^2 / 2)^2 / sigmaR^2.
+# SS3's log(sigmaR) term is scaled by the bias-adjusted deviate count, and it
+# does not carry the deviates it leaves unestimated. Both are fixed given
+# sigmaR and the pinned values, so both belong in the constant.
+.ss3_recdev_offset <- function(fp, ss3_rep) {
+  p <- ss3_rep$parameters
+  sigR <- p$Value[p$Label == "SR_sigmaR"]
+  if (!length(sigR) || !is.finite(sigR)) return(0)
+  rec <- ss3_rep$recruit
+  if (is.null(rec) || !"biasadjuster" %in% names(rec)) return(0)
+  dl <- fp$data_list
+  n_rec <- length(dl$styr:dl$endyr) + sum(dl$nages - 1L)
+  sd_offset <- sum(rec$biasadjuster[!is.na(rec$dev)], na.rm = TRUE)
+
+  # Deviates SS3 does not estimate but Rceattle still penalises, at their
+  # pinned values. SS3's estimated set is the rows carrying a bias adjustment.
+  est_yr <- rec$Yr[!is.na(rec$dev) & rec$biasadjuster > 0]
+  yrs    <- dl$styr:dl$endyr
+  rd     <- as.numeric(fp$estimated_params$rec_dev[1, seq_along(yrs)])
+  ba     <- if (is.null(dl$bias_adjust_proc)) 1 else dl$bias_adjust_proc
+  extra  <- rd[!(yrs %in% est_yr)]
+  quad   <- if (length(extra)) sum(0.5 * (extra + ba * sigR^2 / 2)^2 / sigR^2) else 0
+
+  (n_rec - sd_offset) * log(sigR) + quad
+}
+
+.ss3_constants <- function(fp, ss3_rep) {
   dl   <- fp$data_list
   l2pi <- 0.5 * log(2 * pi)
   k <- c(Catch = NA_real_, Survey = NA_real_, Recruitment = NA_real_)
@@ -270,7 +303,7 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   # full density. Counting free parameters here understated the constant by
   # 3 devs on AI cod and inflated the residual from +0.73 to +3.49.
   n_rec <- length(dl$styr:dl$endyr) + sum(dl$nages - 1L)
-  if (n_rec > 0) k["Recruitment"] <- n_rec * l2pi
+  if (n_rec > 0) k["Recruitment"] <- n_rec * l2pi + .ss3_recdev_offset(fp, ss3_rep)
   k
 }
 
@@ -300,7 +333,7 @@ parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10,
   comp <- aggregate(rce_nll ~ ss3, data = transform(comp, ss3 = ifelse(is.na(ss3), paste0("[Rce only] ", rceattle), ss3)), sum)
   comp$ss3_nll <- round(ss[comp$ss3], 4)
   comp$diff    <- round(comp$rce_nll - comp$ss3_nll, 4)
-  k <- .ss3_constants(fp)
+  k <- .ss3_constants(fp, ss3_rep)
   comp$constant <- round(unname(k[comp$ss3]), 4)
   comp$residual <- round(comp$diff - ifelse(is.na(comp$constant), 0, comp$constant), 4)
 
