@@ -405,6 +405,27 @@ empty_df <- function(text_cols, num_cols) {
 # ---------------------------------------------------------------------------
 
 #' @keywords internal
+#' Rceattle catchability form implied by SS3's Q_setup
+#'
+#' SS3's `float` column decides whether q is solved analytically from the index
+#' each iteration (1) or carried as a parameter (0). It is independent of the
+#' LnQ_base phase: a q can be phase -2 and still float, which is how M24_1 is
+#' set up. Rceattle's "Analytical" is the same geometric-mean solution
+#' (Ludwig and Walters 1994), so float = 1 maps to it and float = 0 to
+#' "Estimated". Fleets with no index get NA.
+#' @keywords internal
+ss3_q_form <- function(ctllist, fleet_codes, rce_type) {
+  q <- ctllist$Q_options
+  out <- ifelse(rce_type == "Survey", "Estimated", NA_character_)
+  if (is.null(q) || !nrow(q) || !"float" %in% names(q)) return(out)
+  for (i in seq_along(fleet_codes)) {
+    row <- which(q$fleet == fleet_codes[i])
+    if (length(row) == 1 && !is.na(rce_type[i]) && rce_type[i] == "Survey")
+      out[i] <- if (isTRUE(q$float[row] == 1)) "Analytical" else "Estimated"
+  }
+  out
+}
+
 build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
   # SS3 fleet info lives in datlist$fleetinfo with columns
   # type/surveytimimg/area/units/need_catch_mult/fleetname
@@ -477,7 +498,13 @@ build_fleet_control <- function(datlist, ctllist, parlist, ss3_rep, nspp) {
     Weight_index            = seq_len(n_flt) + 2L,  # slots 1=pop,2=ssb,3..=fleets
     Age_transition_index    = 1L,
     Catchability_index                 = seq_len(n_flt),
-    Catchability            = ifelse(rce_type == "Survey", "Estimated", NA),
+    # SS3's Q_setup `float` column: 1 means q is solved ANALYTICALLY from the
+    # index each iteration, not estimated, whatever phase the LnQ_base
+    # parameter carries. Rceattle's "Analytical" is the same geometric-mean
+    # solution (Ludwig and Walters 1994). Getting this wrong leaves q fixed
+    # while SS3 lets it absorb any rescaling of predicted biomass, which shows
+    # up as a large spurious gradient on the growth parameters.
+    Catchability            = ss3_q_form(ctllist, seq_len(n_flt), rce_type),
     Catchability_init                 = ifelse(rce_type == "Survey", 1, NA),
     Catchability_prior_sd              = ifelse(rce_type == "Survey", 0.2, NA),
     Time_varying_q          = ifelse(rce_type == "Survey", 0, NA),

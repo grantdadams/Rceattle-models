@@ -228,7 +228,12 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   }
   idx <- dl$index_data
   if (!is.null(idx)) k["Survey"] <- nrow(hind(idx)) * l2pi
-  n_rec <- sum(names(fp$obj$par) %in% c("rec_dev", "init_dev"))
+  # Count the deviates the OBJECTIVE penalises, not the ones the map leaves
+  # free: `ceattle.cpp` loops rec_dev over every hindcast year and init_dev over
+  # ages 1..nages-1 regardless of the map, so a deviate fixed at 0 still costs a
+  # full density. Counting free parameters here understated the constant by
+  # 3 devs on AI cod and inflated the residual from +0.73 to +3.49.
+  n_rec <- length(dl$styr:dl$endyr) + sum(dl$nages - 1L)
   if (n_rec > 0) k["Recruitment"] <- n_rec * l2pi
   k
 }
