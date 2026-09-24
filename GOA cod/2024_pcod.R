@@ -14,7 +14,9 @@ cod_caal$maturity[,-1] <- 1
 
 
 # - Fit empirical waa model
-cod_base <- Rceattle::fit_mod(data_list = cod_caal,
+cod_no_caal <- cod_caal
+cod_no_caal$caal_data <- NULL
+cod_base <- Rceattle::fit_mod(data_list = cod_no_caal,
                               inits = NULL, # Initial parameters = 0
                               file = NULL, # Don't save
                               estimateMode = 0, # Estimate

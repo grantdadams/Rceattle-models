@@ -54,6 +54,9 @@ ss3_month_to_rce <- function(m) pmax(0, as.numeric(m) - 1)
 #' @param minage Integer minimum age in the Rceattle output. Default 0 so the
 #'   age convention matches SS3 directly.
 #' @param projyr_offset Number of projection years beyond endyr. Default 5.
+#' @param catch_sd_offset Whether to widen the catch SDs by 1 + SS3's 10% catch
+#'   offset (see [build_catch_data()]). Default TRUE, which reproduces SS3's
+#'   catch weighting; FALSE keeps the nominal SEs from the data file.
 #' @param sel_factor Which ageselex factor to use: "Asel2" (realized) or
 #'   "Asel" (input). For length-based sel, use "Asel2". Default "Asel2".
 #' @param verbose Whether to print progress messages.
@@ -67,6 +70,7 @@ ss3_to_rceattle <- function(ss3_dir,
                             minage   = 0,
                             projyr_offset = 5,
                             sel_factor = "Asel2",
+                            catch_sd_offset = TRUE,
                             verbose  = TRUE) {
 
   msg <- function(...) if (verbose) cat(...)
@@ -227,7 +231,7 @@ ss3_to_rceattle <- function(ss3_dir,
   # 4. Index, catch, comp, CAAL data tables (from datlist + ss3_rep)
   # ---------------------------------------------------------------------------
   d$index_data <- build_index_data(datlist, d$fleet_control)
-  d$catch_data <- build_catch_data(datlist, d$fleet_control)
+  d$catch_data <- build_catch_data(datlist, d$fleet_control, catch_sd_offset)
   d$comp_data  <- build_comp_data(datlist, d$fleet_control, nages_rce, minage,
                                    nlengths_rce)
   d$caal_data  <- build_caal_data(datlist, d$fleet_control, nages_rce, minage,
@@ -538,8 +542,24 @@ normalize_ss3_ghosts <- function(df, fleet_col, year_col = "year") {
   df
 }
 
+#' SS3's catch offset, and why it becomes a wider SD here
+#'
+#' SS3 does not score catch as `log(obs) - log(pred)`. It adds a tenth of the
+#' observed catch to both sides -- `log(1.1 * obs) - log(pred + 0.1 * obs)`
+#' (SS_objfunc.tpl, the catch loop) -- a numerical guard that keeps the log
+#' finite as the predicted catch approaches zero. The deviate still vanishes at
+#' a perfect fit, but a relative error `r` enters as `log(1 + r/1.1)` instead of
+#' `log(1 + r)`, so SS3 penalises a catch miss by a factor 1.1^2 = 1.21 less
+#' than a plain lognormal does.
+#'
+#' Rceattle has no such offset, so the same SDs would weight catch 21% harder.
+#' Multiplying the SDs by 1.1 reproduces SS3's weighting exactly to first order
+#' in `r`; on the 2024 AI Pacific cod fit (max |r| = 2%) the two forms differ by
+#' 1e-05 nats in total, against a catch likelihood of 0.317.
+#'
+#' @param catch_sd_offset Whether to apply it. FALSE keeps the nominal SEs.
 #' @keywords internal
-build_catch_data <- function(datlist, fleet_control) {
+build_catch_data <- function(datlist, fleet_control, catch_sd_offset = TRUE) {
   if (is.null(datlist$catch) || nrow(datlist$catch) == 0) {
     return(empty_df(c("Fleet_name","Fleet_code","Species","Year","Month","Selectivity_block"),
                     c("Catch","Log_sd")))
@@ -558,7 +578,7 @@ build_catch_data <- function(datlist, fleet_control) {
     Month             = rep(0, nrow(cat_raw)),
     Selectivity_block = 1L,
     Catch             = as.numeric(cat_raw$catch),
-    Log_sd            = as.numeric(cat_raw$catch_se),
+    Log_sd            = as.numeric(cat_raw$catch_se) * if (catch_sd_offset) 1.1 else 1,
     stringsAsFactors  = FALSE
   )
 }

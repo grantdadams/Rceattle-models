@@ -88,6 +88,10 @@ cod <- ss3_to_rceattle(
   spnames       = "AIcod",
   minage        = 0,
   projyr_offset = 5,
+  # SS3 scores catch with a 10% offset that weights it 1.21x lighter than a
+  # plain lognormal; the converter carries that into the SDs. Set
+  # RCE_CATCH_SD_OFFSET=false to score catch on the nominal SEs instead.
+  catch_sd_offset = !identical(tolower(Sys.getenv("RCE_CATCH_SD_OFFSET", "true")), "false"),
   verbose       = FALSE
 )
 
@@ -308,12 +312,17 @@ ss3_dn6 <- lapply(seq_len(n_flt), function(fi) {
 # =============================================================================
 # 4. Build mod0 (parameter shape only) to get the inits skeleton
 # =============================================================================
+# SS3's InitF weights the initial F by the fishery's selectivity before it
+# accumulates, which is initMode 6. Mode 4 applies Finit once and carries no
+# selectivity, so its Finit is not SS3's InitF at all.
+INIT_MODE <- Sys.getenv("RCE_INITMODE", unset = "FishedNonEquilibriumSelected")
+cat("initMode:", INIT_MODE, "\n")
 cat("\n--- Building mod0 (parameter shape) ---\n")
 mod0 <- Rceattle::fit_mod(
   data_list    = cod,
   inits        = NULL,
   estimateMode = 3,
-  initMode     = 3,
+  initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   random_rec   = FALSE,
@@ -465,7 +474,12 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
 #    pinning N at styr exactly. At minage = 0, slot k = SS3 int_Age (k-1).
 # =============================================================================
 init_state_from_ss3_natage_mode4 <- function(inits, ss3_rep, styr, nages,
-                                              R_init, Finit, M1_at_age) {
+                                              R_init, Finit, M1_at_age,
+                                              sel_init = NULL) {
+  # `sel_init` is the fishery selectivity at age that initMode 6 weights Finit
+  # by. NULL reproduces mode 4 (Finit applied once). The derived init_dev has
+  # to invert whichever mort_sum the chosen mode builds, or the pinned N is
+  # wrong by exactly the difference between them.
   ss3_age_cols <- as.character(0:(nages - 1))
   row <- ss3_rep$natage %>%
     dplyr::filter(Yr == styr, `Beg/Mid` == "B", Sex == 1) %>% dplyr::slice(1)
@@ -478,12 +492,18 @@ init_state_from_ss3_natage_mode4 <- function(inits, ss3_rep, styr, nages,
   }
   cat(sprintf("\n[mode 4] SS3 natage[%d]: %s\n", styr,
               paste(sprintf("%.4g", ss3_N), collapse = ", ")))
+  sel6 <- !is.null(sel_init)
   for (k in seq_len(nages - 1)) {
     age <- k
-    mort_sum <- sum(as.numeric(M1_at_age[1:age])) + Finit
+    mort_sum <- if (sel6) {
+      sum(as.numeric(M1_at_age[1:age]) + Finit * as.numeric(sel_init[1:age]))
+    } else {
+      sum(as.numeric(M1_at_age[1:age])) + Finit
+    }
     target_N <- ss3_N[k + 1]
     if (age == (nages - 1)) {
-      geom <- 1 - exp(-as.numeric(M1_at_age[nages]) - Finit)
+      f_plus <- if (sel6) Finit * as.numeric(sel_init[nages]) else Finit
+      geom <- 1 - exp(-as.numeric(M1_at_age[nages]) - f_plus)
       target_N <- target_N * geom
     }
     inits$init_dev[1, k] <- log(max(target_N, 1e-10)) - log(R_init) + mort_sum
@@ -541,15 +561,36 @@ if ("log_Finit" %in% names(inits) && Finit_ss3 > 0) {
 
 R_init    <- exp(parlist$SR_parms["SR_LN(R0)", "ESTIM"])
 M1_at_age <- rep(M_base, nages)
+# initMode 6 spreads Finit over ages by the fishery's selectivity in year 1,
+# which is what SS3's InitF does, so the inversion needs the same weights.
+# Take it from SS3, not from mod0: mod0 is built on DEFAULT parameters, so its
+# selectivity is not the one this forward pass is about to inject. SS3's Asel2
+# for the fishery in the first hindcast year is what the C++ will hold once the
+# sel_dn6 values are in, and it matches Rceattle's sel_at_age to 4.5e-7.
+sel_init_vec <- if (identical(INIT_MODE, "FishedNonEquilibriumSelected") ||
+                    identical(INIT_MODE, 6)) {
+  fsh <- fleet_meta$ss3_num[fleet_meta$fleet_type == "Fishery"]
+  as3 <- ss3_rep$ageselex
+  as3 <- as3[as3$Factor == "Asel2" & as3$Fleet %in% fsh, ]
+  as3 <- as3[as3$Yr == min(as3$Yr[as3$Yr >= cod$styr]), ]
+  v <- colMeans(as3[, as.character(seq_len(nages) - 1 + minage), drop = FALSE])
+  cat(sprintf("[initMode 6] fishery sel at age 0-5: %s\n",
+              paste(signif(as.numeric(v)[1:6], 4), collapse = " ")))
+  as.numeric(v)
+} else NULL
 inits <- init_state_from_ss3_natage_mode4(inits, ss3_rep, cod$styr, nages,
                                           R_init = R_init, Finit = Finit_ss3,
-                                          M1_at_age = M1_at_age)
+                                          M1_at_age = M1_at_age,
+                                          sel_init = sel_init_vec)
 inits <- init_log_F_from_ss3(inits, ss3_rep, fleet_meta, years_hind)
 
 
 # =============================================================================
 # 9. Forward-pass fit (estimateMode = 3) and comparison to SS3
 # =============================================================================
+# SS3's InitF weights the initial F by the fishery's selectivity before it
+# accumulates, which is initMode 6. Mode 4 applies Finit once and has no
+# selectivity, so its Finit is not SS3's InitF at all.
 cat("\n--- Forward-pass fit (estimateMode = 3) ---\n")
 # Estimate what SS3 estimates and nothing else: CV_young/CV_old, LnQ_base and
 # eight of the twelve double-normal slots are phase < 0 in M24_1, and Rceattle
@@ -562,7 +603,7 @@ fp <- Rceattle::fit_mod(
   inits        = inits,
   map          = ss3_map,
   estimateMode = 3,
-  initMode     = "FishedNonEquilibriumScaled",   # = 4
+  initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   random_rec   = FALSE,
