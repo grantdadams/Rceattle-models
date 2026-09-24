@@ -1,0 +1,4 @@
+Warning 1 : At least one block pattern ends in endyr. Check the output parameter value time series to see if the values in forecast years are as intended.
+Warning 2 : Final gradient: 1.21557e-05 is larger than final_conv: 1e-05
+Note 1 Information: A revised protocol for the Fcast_yr specification is available and recommended.
+ 2 warnings  and 1 note 

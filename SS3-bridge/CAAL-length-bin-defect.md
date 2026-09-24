@@ -16,13 +16,19 @@ that are misplaced.
 | model | length bins the row is labelled with | length bins SS3 actually uses |
 |---|---|---|
 | AI cod | one 1 cm bin, e.g. 24.5 | **two** bins, 23.5 and 24.5 — and neighbouring rows overlap |
-| GOA cod | one 5 cm data bin, e.g. 34.5 | **one 1 cm** population bin, at 33.5 |
+| GOA cod | 34.5, on a 5 cm data bin grid | **one 1 cm** population bin, at 33.5 |
+
+**The off-by-one is certain in both. How wide a GOA row is meant to be is NOT**, and it changes
+the size of the fix by 5x. See "What a GOA row is meant to span" below before quoting any GOA
+number. The AI case has no such ambiguity: its data bins are already 1 cm, and the Rceattle
+bridge confirms the corrected reading independently.
 
 Correcting the AI model moves mean length-at-age up 0.2–0.5 cm and the 2025 OFL down 1.25%.
-Correcting GOA moves mean length at age 1 up 16.5% and the 2025 OFL up 9.7%. Corrected copies of
-both models are `AI cod - Dev/Data/M24_1_caal_bins_fixed` and
-`GOA cod/Data/goa_pcod_caal_bins_fixed`; in each, only the two CAAL length columns differ from
-the original, and rerunning each original reproduces its archived likelihood exactly.
+Correcting GOA moves the 2025 OFL up **1.97%** under the one-bin reading or **9.66%** under the
+5 cm reading. Corrected copies are `AI cod - Dev/Data/M24_1_caal_bins_fixed`,
+`GOA cod/Data/goa_pcod_caal_bins_1cm` and `GOA cod/Data/goa_pcod_caal_bins_fixed`; in each, only
+the two CAAL length columns differ from the original, and rerunning each original reproduces its
+archived likelihood exactly.
 
 ## Why it happens
 
@@ -129,100 +135,60 @@ rows at month 7 and SS3 refuses more than 100 age-composition observations per f
 workaround for that limit and should be left alone. The only side effect is that SS3 evaluates
 those 4 fish against the January age-length key rather than the July one.
 
-## Effect on the GOA assessment
+## What a GOA row is meant to span, and why the data cannot say
 
-`Data/goa_pcod_caal_bins_fixed` is `goa_pcod-no init and ramp` with only the CAAL `Lbin_lo` /
-`Lbin_hi` columns changed, to the population bin **numbers** each 5 cm data bin covers. The
-partition is SS3's own: `make_len_bin` (`SS_readdata_330.tpl:1700-1746`) puts population bins
-1–9 in the first data bin (it is a minus group, so it collects everything below 4.5 cm), bins
-10–14 in the second, and so on, with the last data bin taking the plus bin. Masking those two
-columns makes the two data files byte-identical. Rerunning the unmodified model reproduces the
-archived total likelihood of 2048.07 exactly.
+The off-by-one is certain. The width is not, and it is worth 5x.
 
-`Report.sso` confirms both the defect and the fix. As written, the CAAL cells are single 1 cm
-bins at 3.5, 8.5 ... 103.5 — one bin below every data label (4.5, 9.5 ... 104.5). Corrected, they
-span 0.5–8.5, 9.5–13.5, ... 104.5–104.5. All 827 observations are fitted in both runs. (In the
-corrected run `r4ss` files the single observation in the lowest bin under `agedbase` rather than
-`condbase`, because it starts at the first population bin; SS3 still fits it as a conditional
-cell, with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contribution.)
+GOA's `Lbin_lo` values are exactly its 21 5 cm data length bin edges and nothing else, which is
+what first suggested each row holds a whole 5 cm bin. But a single 1 cm bin sitting on each data
+bin edge fits the file equally well, and the two need different corrections:
 
-| quantity | as written | corrected | change |
+| reading | fix for the 34.5 row | population bins used |
+|---|---|---|
+| one 1 cm bin at the label | `35 35` | 34.5 only |
+| the whole 5 cm data bin | `35 39` | 34.5 through 38.5 |
+
+**The likelihood cannot choose between them.** Evaluating each cell definition at a fixed
+parameter set is completely confounded, because whichever definition a run was fitted under wins
+at its own MLE:
+
+| cell definition | at the as-written MLE | at the 5 cm MLE |
+|---|---|---|
+| as written (bin 34, 33.5 cm) | **721.2** | 927.4 |
+| one bin at the label (bin 35, 34.5 cm) | 740.4 | 815.6 |
+| the 5 cm data bin (bins 35-39) | 913.4 | **732.8** |
+
+Fitting each from scratch is a fair comparison — the observations are identical in all three and
+only the predicted cell definition changes — and it mildly favours the one-bin reading:
+
+| quantity | as written | 1 cm at label | whole 5 cm bin |
 |---|---|---|---|
-| total likelihood | 2048.07 | 2051.98 | +3.91 |
-| age composition (CAAL) | 721.20 | 732.79 | +11.59 |
-| length composition | 1336.33 | 1331.85 | −4.48 |
-| survey | −1.785 | −4.604 | −2.82 |
-| mean length at age 1 (cm) | 9.28 | 10.81 | **+1.53 (+16.5%)** |
-| mean length at age 4 (cm) | 48.62 | 51.38 | +2.76 (+5.7%) |
-| von Bertalanffy K | 0.1910 | 0.2039 | +6.75% |
-| natural mortality M | 0.4309 | 0.4678 | +8.57% |
-| terminal SSB (2024, mt) | 89 958 | 92 522 | +2.85% |
-| B2024 / B0 | 0.2330 | 0.2425 | +4.08% |
-| **2025 OFL (t)** | **35 141** | **38 536** | **+9.66%** |
-| 2025 ABC / forecast catch (t) | 24 124 | 27 308 | +13.2% |
+| total likelihood | 2048.07 | **2045.71** | 2051.98 |
+| age composition | 721.20 | 723.68 | 732.79 |
+| length composition | 1336.33 | 1332.92 | 1331.85 |
+| mean length at age 1 (cm) | 9.28 | 9.85 | 10.81 |
+| von Bertalanffy K | 0.1910 | 0.1947 | 0.2039 |
+| natural mortality M | 0.4309 | 0.4412 | 0.4678 |
+| terminal SSB (2024, mt) | 89 958 | 89 908 | 92 522 |
+| B2024 / B0 | 0.233 | 0.235 | 0.242 |
+| **2025 OFL (t)** | 35 141 | **35 833 (+1.97%)** | 38 536 (+9.66%) |
+| 2025 ABC (t) | 24 124 | 24 724 | 27 308 |
 
-The GOA effect is much the larger of the two, as expected from the larger misplacement: each
-row's observation comes from a 5 cm bin but was being compared with the predicted ages of a
-single 1 cm bin, one bin low. Length at age 1 moves 16.5% and the 2025 OFL moves +9.7%.
+The 1 cm reading gives the lowest total likelihood of the three, but that is a fit comparison and
+not evidence of what the rows mean. Only the person who tabulated the ages can say. The
+assessment's own prep script reads SS3 output rather than building the CAAL, so it does not
+record the intent either.
 
-## How to fix it
+Both corrected models are kept: `goa_pcod_caal_bins_1cm` (`35 35`, total 2045.71) and
+`goa_pcod_caal_bins_fixed` (`35 39`, total 2051.98). In each, masking the two CAAL columns makes
+the data file byte-identical to the original, and rerunning the unmodified model reproduces the
+archived 2048.07 exactly. The 5 cm copy's partition is SS3's own, the one `make_len_bin` builds
+for the length compositions (`SS_readdata_330.tpl:1700-1746`), which puts population bins 1-9 in
+the first data bin as a minus group and gives the last data bin the plus bin.
 
-Any of the following, in decreasing order of how little has to change:
-
-The two numberings, since the difference is the whole point:
-
-| stock | data length bins | population length bins | 34.5 cm is … |
-|---|---|---|---|
-| AI | 143, 1 cm, 0.5–142.5 | the same 143 | data bin 35, population bin 35 |
-| GOA | **21, 5 cm**, 4.5–104.5 | 105, 1 cm, 0.5–104.5 | **data bin 7, population bin 35** |
-
-1. **Write population bin numbers**, as `Lbin_method = 1` specifies. For 1 cm bins starting at
-   0.5 cm that is `bin = length + 0.5`. For a single bin set `Lbin_hi = Lbin_lo`: AI's 18.5 cm
-   row becomes `19 19`. This is what `M24_1_caal_bins_fixed` does, and it works on the SS3
-   version already in use. GOA needs the **range** of population bins covered by each 5 cm data
-   bin: its 4.5 cm bin is `1 9` and its 34.5 cm bin is `35 39`.
-2. **Use `Lbin_method = 2`** (data length bin numbers — the position in the *data* vector, so
-   GOA's 34.5 cm bin is number 7, not 35), with `Lbin_hi = Lbin_lo`. This is exact **only when
-   the data and population length grids are the same**, as they are for AI, where 18.5 cm is
-   data bin 19 and population bin 19 alike so the row is `19 19` under either method. It does
-   not work for GOA: method 2 converts each endpoint to the population bin sitting at that data
-   bin's *lower* edge (`SS_readdata_330.tpl:2604-2628`), so `7 7` gives one population bin and
-   `7 8` gives six. Neither is the five the data bin covers, and there is no pair that is.
-3. **Move to SS3 v3.30.25 or later and use `Lbin_method = 3`**, where the values are lengths —
-   **and still fix `Lbin_hi`**. Under every method, `Lbin_hi` names the *last bin included*, not
-   the upper edge of the length interval: a single 1 cm bin at 18.5 is `18.5 18.5`, and GOA's
-   5 cm data bin at 9.5 is `9.5 13.5`, not `14.5`. Two things to know, both checked by running
-   the v3.30.25 binary rather than reasoning about the source:
-
-   - `Lbin_method = 3` **cannot work** before v3.30.25: `Lbin_lo` is an integer, so the length is
-     truncated and then compared for exact equality against half-integer bin edges, which never
-     matches, and SS3 stops with `L_bin_lo no match to poplenbins in age comp`. The containers
-     were widened to `matrix` in commit `416bf89`, "convert lbin_lo to real for compare to
-     len_bins", released in v3.30.25.
-   - On v3.30.25, switching the method alone does **not** fix the AI file. Measured on the first
-     CAAL row:
-
-     | data file | SS3 | bins fitted (`Report.sso`) |
-     |---|---|---|
-     | `18.5 19.5`, method 1 | 3.30.22.1 | 17.5 and 18.5 — shifted low, two bins |
-     | `18.5 19.5`, method 3 | 3.30.25 | 18.5 and 19.5 — right place, still two bins |
-     | `18.5 18.5`, method 3 | 3.30.25 | 18.5 — correct |
-
-     The middle row is the trap: the visible symptom (the shift) disappears while the cell stays
-     twice as wide. Absolute likelihoods are not comparable across SS3 versions, so only the bins
-     are read from those runs.
-
-## The corrected files verified row by row
-
-Read straight out of `FIT_AGE_COMPS` in each corrected run's `Report.sso` and compared against
-the **original** file's labels, not through `r4ss`:
-
-- **AI**: all **1160** CAAL rows have `Lbin_lo` = `Lbin_hi` = the single bin the original file
-  labelled. 0 mismatches.
-- **GOA**: all **827** rows span exactly the population bins of their 5 cm data bin — 0.5–8.5 for
-  the minus group, 9.5–13.5, … , 104.5–104.5 for the plus bin. 0 mismatches.
-
-`SS3-bridge/verify_caal_bins.R` does this; re-run it after any change to the corrected files.
+`Report.sso` confirms each fix took: as written the cells sit at 3.5, 8.5 ... 103.5, one bin below
+every data label; the 1 cm copy puts them on the labels (34.5-34.5) and the 5 cm copy spans
+0.5-8.5, 9.5-13.5 ... 104.5-104.5.
 
 A useful guard **while a file writes lengths in those columns**: compare `Report.sso`'s CAAL
 `Lbin_lo` against the data file's. `Report.sso` prints the length of the bin SS3 used, so the two
