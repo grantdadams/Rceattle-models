@@ -95,6 +95,20 @@ cod <- ss3_to_rceattle(
   verbose       = FALSE
 )
 
+# 2002 carries one CAAL row (length 100.5) that SS3 holds at month 1 rather
+# than the survey's month 7 -- an overflow of SS3's 100-observations-per-fleet
+# -per-time cap, not a separate survey. Rceattle has no per-observation CAAL
+# month, so it predicts that row with the July age-length key and puts its mean
+# age 0.5 y young. RCE_DROP_OFFMONTH_CAAL=true removes it, which is what
+# isolates its contribution to the likelihood and the gradient.
+if (identical(tolower(Sys.getenv("RCE_DROP_OFFMONTH_CAAL", "false")), "true")) {
+  .drop <- which(cod$caal_data$Year == 2002 & cod$caal_data$Length == 100.5)
+  if (length(.drop)) {
+    cod$caal_data <- cod$caal_data[-.drop, , drop = FALSE]
+    message("Dropped ", length(.drop), " off-month CAAL row(s)")
+  }
+}
+
 years_hind <- cod$styr:cod$endyr
 nages      <- cod$nages[1]
 minage     <- cod$minage[1]            # 0

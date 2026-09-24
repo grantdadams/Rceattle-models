@@ -893,6 +893,28 @@ build_caal_data <- function(datlist, fleet_control, nages, minage, nlengths,
                     paste0("CAAL_", 1:nages)))
   }
   caal <- normalize_ss3_ghosts(caal, "fleet", "year")
+
+  # Rceattle places every CAAL observation at its FLEET's Month and builds one
+  # annual age-length key, so a fleet whose CAAL sits at more than one month
+  # cannot be represented: the minority rows get the majority month's key. SS3
+  # evaluates each row at its own month, where six months of growth moves the
+  # age composition of a length bin appreciably. Warn rather than refuse, since
+  # the off-month rows are usually a handful of overflow observations.
+  mon_col <- intersect(c("month", "Month", "seas", "Seas"), colnames(caal))[1]
+  if (!is.na(mon_col)) {
+    for (fl in unique(caal$fleet)) {
+      m <- caal[[mon_col]][caal$fleet == fl]
+      tb <- sort(table(m), decreasing = TRUE)
+      if (length(tb) > 1)
+        warning(sprintf(paste0("SS3 CAAL for fleet %s spans months %s (%s rows); ",
+                               "Rceattle has no per-observation CAAL month, so all ",
+                               "of them are predicted at month %s."),
+                        fl, paste(names(tb), collapse = ", "),
+                        paste(as.integer(tb), collapse = ", "), names(tb)[1]),
+                call. = FALSE)
+    }
+  }
+
   age_cols <- detect_age_cols(caal)
   if (is.null(age_cols))
     stop("build_caal_data: could not find age columns in CAAL data")
