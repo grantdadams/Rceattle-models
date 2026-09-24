@@ -37,7 +37,10 @@ data.ss                      1991 7 2 0 0 1  18.5 19.5  1 ...
 Report.sso, FIT_AGE_COMPS    2 Srv 1 1991 1 2 7 1991.5 0 0 1  17.5 18.5  _ _ 1 ...
 
 I see the same in every AI run I have (SS3/run, M24_1, M24_1_baseline, M24_1_adjusted), so I don't
-think it's something I introduced.
+think it's something I introduced. **It's also in this year's model** — I pulled M24_1_2025 from
+the AI_PCOD repo and ran it, and it's unchanged: 1160 CAAL rows all active, Lbin_hi = Lbin_lo + 1,
+data file 12.5-115.5 against Report.sso 11.5-114.5. So if it is worth fixing, it's worth fixing
+before the next assessment rather than retrospectively.
 
 To fix it, you can set Lbin_lo = Lbin_hi and set both to the population bin number holding that
 length (bin = length + 0.5, so 18.5 cm is bin 19 and the first row becomes 19 19), matching what

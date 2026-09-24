@@ -196,9 +196,20 @@ should agree, and any difference is the truncation. Once the columns hold bin *n
 should, the two legitimately differ and the test becomes whether `Report.sso`'s `Lbin_lo` and
 `Lbin_hi` bracket the intended data bin.
 
-## Every run in both folders has it
+## Every run has it, including the current assessments
 
-It is in the data files, not in any one configuration. Checked by that comparison:
+It is in the data files, not in any one configuration, and **it is still there in this year's
+models** — both were pulled from the AFSC repos and rerun here, not just inspected:
+
+| current model | source | rows | data file | `Report.sso` |
+|---|---|---|---|---|
+| AI `M24_1_2025` | `afsc-assessments/AI_PCOD` | 1160, all active | 12.5–115.5 | 11.5–114.5 |
+| GOA `M24.0`, `GOAPcod2025Dec08.dat` | `afsc-assessments/goapcod`, 2025_Assessment | 857, all active | 4.5–104.5 | 3.5–103.5 |
+
+The GOA 2025 model's CAAL carries its whole age likelihood (733.2 of a total 2109.0). The AI 2025
+model still has `Lbin_hi = Lbin_lo + 1`, so its cells are still two bins wide as well as low.
+
+The earlier runs, checked the same way:
 
 | run | CAAL rows | data file `Lbin_lo` | `Report.sso` `Lbin_lo` |
 |---|---|---|---|

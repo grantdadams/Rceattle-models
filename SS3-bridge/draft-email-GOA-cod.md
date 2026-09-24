@@ -32,8 +32,12 @@ GOAPcod2024Oct17_1e_5cm.dat   2007 1 1 0 0 2  34.5 34.5  0.14 ...
 Report.sso, FIT_AGE_COMPS     1 FshTrawl 1 2007 1 2 7 2007.5 0 0 2  33.5 33.5  _ _ 0.14 ...
 
 The data's values run 4.5–104.5 while Report.sso reports 3.5–103.5, every cell one bin low. Both
-GOA runs I have (goa_pcod and goa_pcod-no init and ramp) report the same, so I don't think it's
-something I introduced.
+2024 runs I have (goa_pcod and goa_pcod-no init and ramp) report the same, so I don't think it's
+something I introduced. **It's also in this year's model** — I pulled M24.0 from the goapcod repo
+(GOAPcod2025Dec08.dat) and ran it, and it's unchanged: 857 CAAL rows, all active and carrying the
+whole age likelihood (733.2 of a total 2109.0), data file 4.5–104.5 against Report.sso 3.5–103.5.
+So if it is worth fixing, it's worth fixing before the next assessment rather than
+retrospectively.
 
 **The part I can't work out from the files is how wide each row is meant to be**, and it changes
 the answer a lot, so I'd rather ask than guess. The Lbin_lo values are exactly your 21 5 cm data
