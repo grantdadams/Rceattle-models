@@ -204,20 +204,19 @@ growthFun_spec <- tryCatch(
     sd_plus_group     = "WHAM",
     pop_lengths       = ss3_rep$lbinspop,
     linkages = list(
-      # Prior SDs are deliberately TIGHTER than SS3's ctl PR_SD (K 0.021,
-      # Linf 2): SS3 identifies growth from fully-weighted comps, but here the
-      # comps are Francis-down-weighted ~25x, so the CAAL pulls Linf ~13% low
-      # (to ~107) and destabilizes the terminal dynamics if the prior is loose.
-      # These tight priors substitute the growth information SS3 has and keep
-      # the estimated curve on the SS3 MLE while still letting it move.
+      # No priors on growth: SS3 has Pr_type = No_prior on all four growth
+      # parameters, and its Parm_priors likelihood is 0. (The PR_SD column is
+      # filled in -- K 0.021, Linf 2 -- but SS3 ignores it when Pr_type is
+      # No_prior, so those are placeholders, not priors.) Tight normal priors
+      # used to sit here as a workaround for the composition weights being far
+      # off SS3's; now that the sample sizes carry SS3's variance adjustment
+      # the comps agree to 3e-4 and the workaround is not needed. Bounds stay:
+      # SS3 has soft bounds of its own (Parm_softbounds 0.0004).
       K     = linkage_spec(formula = ~ 1, init = list("(Intercept)" = K_vb),
-                           priors = list("(Intercept)" = normal(K_vb, 0.01)),
                            bounds = list("(Intercept)" = c(0.09, 0.5))),
       L1    = linkage_spec(formula = ~ 1, init = list("(Intercept)" = L_min),
-                           priors = list("(Intercept)" = normal(L_min, 0.5)),
                            bounds = list("(Intercept)" = c(5, 30))),
       Linf  = linkage_spec(formula = ~ 1, init = list("(Intercept)" = L_max),
-                           priors = list("(Intercept)" = normal(L_max, 1.0)),
                            bounds = list("(Intercept)" = c(60, 135)))
     )
   ),

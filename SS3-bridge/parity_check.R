@@ -115,9 +115,45 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   # predicted CAAL is a further function of the age-length key, so it needs its
   # own check. For AI cod every row above passed while the predicted CAAL was
   # out by 0.118 in probability, which is where the growth gradient lives.
-  rows <- c(rows, .g1_caal(fp, ss3_rep, tol), .g1_lencomp(fp, ss3_rep, tol))
+  rows <- c(rows, .g1_caal(fp, ss3_rep, tol), .g1_lencomp(fp, ss3_rep, tol),
+            .g1_fitted_series(fp, ss3_rep, tol))
 
   do.call(rbind, rows)
+}
+
+#' Predicted survey index and predicted catch against SS3's own expectations.
+#'
+#' These are the two fitted time series, and nothing else in G1 covers them:
+#' the state checks stop at N, SSB and weight-at-age. They are the quantities
+#' the index and catch likelihoods actually see, so a difference here explains
+#' a gradient that the state checks cannot.
+.g1_fitted_series <- function(fp, ss3_rep, tol) {
+  dl <- fp$data_list
+  q  <- fp$quantities
+  out <- list()
+
+  idx <- dl$index_data
+  cp  <- ss3_rep$cpue
+  if (!is.null(idx) && !is.null(cp) && nrow(cp)) {
+    keep <- which(idx$Year > 0)
+    m <- match(paste(idx$Fleet_code[keep], idx$Year[keep]), paste(cp$Fleet, cp$Yr))
+    ok <- !is.na(m)
+    if (any(ok))
+      out[[length(out) + 1]] <- .gate_row("predicted survey index",
+        as.numeric(q$index_hat)[keep][ok], cp$Exp[m[ok]], tol)
+  }
+
+  cat_d <- dl$catch_data
+  ct    <- ss3_rep$catch
+  if (!is.null(cat_d) && !is.null(ct) && nrow(ct)) {
+    keep <- which(cat_d$Year >= dl$styr & cat_d$Year <= dl$endyr)
+    m <- match(paste(cat_d$Fleet_code[keep], cat_d$Year[keep]), paste(ct$Fleet, ct$Yr))
+    ok <- !is.na(m)
+    if (any(ok))
+      out[[length(out) + 1]] <- .gate_row("predicted catch",
+        as.numeric(q$catch_hat)[keep][ok], ct$Exp[m[ok]], tol)
+  }
+  out
 }
 
 # SS3 reports composition expectations AFTER adding `addtocomp` to every bin and
