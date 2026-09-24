@@ -167,16 +167,25 @@ single 1 cm bin, one bin low. Length at age 1 moves 16.5% and the 2025 OFL moves
 
 Any of the following, in decreasing order of how little has to change:
 
+The two numberings, since the difference is the whole point:
+
+| stock | data length bins | population length bins | 34.5 cm is … |
+|---|---|---|---|
+| AI | 143, 1 cm, 0.5–142.5 | the same 143 | data bin 35, population bin 35 |
+| GOA | **21, 5 cm**, 4.5–104.5 | 105, 1 cm, 0.5–104.5 | **data bin 7, population bin 35** |
+
 1. **Write population bin numbers**, as `Lbin_method = 1` specifies. For 1 cm bins starting at
-   0.5 cm that is `bin = length + 0.5`. For a single bin set `Lbin_hi = Lbin_lo`. This is what
-   `M24_1_caal_bins_fixed` does, and it works on the SS3 version already in use. GOA needs the
-   **range** of population bins covered by each 5 cm data bin, e.g. `Lbin_lo` 5, `Lbin_hi` 9.
-2. **Use `Lbin_method = 2`** (data length bin numbers), with `Lbin_hi = Lbin_lo`. This is exact
-   **only when the data and population length grids are the same**, as they are for AI. It does
+   0.5 cm that is `bin = length + 0.5`. For a single bin set `Lbin_hi = Lbin_lo`: AI's 18.5 cm
+   row becomes `19 19`. This is what `M24_1_caal_bins_fixed` does, and it works on the SS3
+   version already in use. GOA needs the **range** of population bins covered by each 5 cm data
+   bin: its 4.5 cm bin is `1 9` and its 34.5 cm bin is `35 39`.
+2. **Use `Lbin_method = 2`** (data length bin numbers — the position in the *data* vector, so
+   GOA's 34.5 cm bin is number 7, not 35), with `Lbin_hi = Lbin_lo`. This is exact **only when
+   the data and population length grids are the same**, as they are for AI, where 18.5 cm is
+   data bin 19 and population bin 19 alike so the row is `19 19` under either method. It does
    not work for GOA: method 2 converts each endpoint to the population bin sitting at that data
-   bin's *lower* edge (`SS_readdata_330.tpl:2604-2628`), so for a 5 cm data bin over a 1 cm
-   population grid, `7 7` gives one population bin and `7 8` gives six. Neither is the five the
-   data bin covers, and there is no pair that is.
+   bin's *lower* edge (`SS_readdata_330.tpl:2604-2628`), so `7 7` gives one population bin and
+   `7 8` gives six. Neither is the five the data bin covers, and there is no pair that is.
 3. **Move to SS3 v3.30.25 or later and use `Lbin_method = 3`**, where the values are lengths —
    **and still fix `Lbin_hi`**. Under every method, `Lbin_hi` names the *last bin included*, not
    the upper edge of the length interval: a single 1 cm bin at 18.5 is `18.5 18.5`, and GOA's

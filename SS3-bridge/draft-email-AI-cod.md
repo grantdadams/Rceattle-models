@@ -85,12 +85,17 @@ not a dramatic one for AI.
 **Fixing it.** Any of these works:
 
 1. Write population bin numbers, as `Lbin_method = 1` specifies, with `Lbin_hi = Lbin_lo` for a
-   single bin. This is what I did and it runs on the SS3 version you're already using.
-2. Use `Lbin_method = 2` and write data length bin numbers, again with `Lbin_hi = Lbin_lo`. That
-   works cleanly here only because M24_1's data and population length bins are the same 143 1 cm
-   bins. Where a model's data bins are coarser than its population bins, method 2 can't express a
-   whole data bin — it converts each endpoint to the population bin at that data bin's lower
-   edge — so option 1 is the more portable habit.
+   single bin. The population bins are 0.5, 1.5, 2.5 ... so 18.5 cm is bin number 19, and that
+   first row becomes `19 19` instead of `18.5 19.5`. This is what I did and it runs on the SS3
+   version you're already using.
+2. Use `Lbin_method = 2` and write **data** length bin numbers — the position in the data length
+   bin vector rather than the population one — again with `Lbin_hi = Lbin_lo`. M24_1's data bins
+   are also 0.5, 1.5, 2.5 ... so 18.5 cm is data bin 19 as well, and the row is `19 19` either
+   way. That equivalence is a coincidence of this model: the two grids happen to be the same 143
+   1 cm bins. Where a model's data bins are coarser — GOA Pacific cod has 21 5 cm data bins over
+   105 1 cm population bins, so its 34.5 cm data bin is number 7 but population bin 35 — method 2
+   can't express a whole data bin at all, because it converts each endpoint to the population bin
+   at that data bin's lower edge. Option 1 is the more portable habit.
 3. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths —
    **and still set `Lbin_hi = Lbin_lo`**. Two cautions here, both of which I checked by running
    it rather than reasoning about it:

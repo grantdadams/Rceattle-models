@@ -90,9 +90,10 @@ in `CompReport.sso` with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contr
 
 **Fixing it.** Any of these works:
 
-1. Write population bin numbers spanning each data bin, as `Lbin_method = 1` specifies — e.g.
-   `Lbin_lo 10, Lbin_hi 14` for the 9.5 cm data bin. This is what I did and it runs on the SS3
-   version you're already using.
+1. Write population bin numbers spanning each data bin, as `Lbin_method = 1` specifies. The
+   population bins are 0.5, 1.5, 2.5 ... so the 9.5 cm data bin covers population bins 10 to 14
+   (9.5 through 13.5 cm) and its rows become `10 14`; the 34.5 cm bin becomes `35 39`. This is
+   what I did and it runs on the SS3 version you're already using.
 2. Move to SS3 v3.30.25 or later and use `Lbin_method = 3`, where the columns are lengths, again
    as a range — `9.5 13.5` for that same bin. Note that `Lbin_hi` is the lower edge of the *last
    population bin included*, not the upper edge of the length interval, so it is `13.5` and not
@@ -107,12 +108,15 @@ in `CompReport.sso` with `Lbin_lo 0.5 Lbin_hi 8.5` and a normal likelihood contr
      For GOA, where `Lbin_hi = Lbin_lo` today, switching to method 3 alone would leave every cell
      a single 1 cm bin; it would only stop being shifted.
 
-`Lbin_method = 2` is not an option here, which surprised me. It looks like the natural fit —
-write the data bin number and let SS3 expand it — but it converts *each endpoint* to the
-population bin at that data bin's lower edge (`SS_readdata_330.tpl:2604-2628`). So `7 7` gives a
-single 1 cm bin at 34.5, and `7 8` gives six bins, 34.5 through 39.5. Neither is the five bins
-the data bin covers. Method 2 only lands exactly when the data and population grids are the same,
-which is not the case for this model.
+`Lbin_method = 2` is not an option here, which surprised me. It looks like the natural fit: the
+columns would hold **data** length bin numbers — the position in the 21-bin data vector, so the
+34.5 cm bin is number 7 — and you would expect SS3 to expand that to the five population bins it
+covers. It doesn't. It converts *each endpoint* to the population bin sitting at that data bin's
+lower edge (`SS_readdata_330.tpl:2604-2628`), so `7 7` gives a single 1 cm bin at 34.5 and `7 8`
+gives six bins, 34.5 through 39.5. Neither is the five the data bin covers, and no pair is.
+Method 2 only lands exactly when the data and population grids are the same — 21 bins against
+105 here, so it can't work for this model. (It would be fine for AI Pacific cod, whose data and
+population grids are both the same 143 1 cm bins.)
 
 The AI Pacific cod model has a version of the same problem, from the same cause — I've written to
 Ingrid about that one separately. Its effect is much smaller (OFL −1.25%) because its CAAL is
