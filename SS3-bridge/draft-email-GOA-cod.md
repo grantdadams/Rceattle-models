@@ -16,6 +16,10 @@ the row's label. So a row holding fish from 34.5–39.5 cm is fitted against the
 the 1 cm bin at 33.5 cm. The observations are fine; the expected values they're compared with are
 wrong. It applies to all 827 CAAL rows.
 
+Those rows are the whole age likelihood: the `Age_comp` component is 721.195 and the CAAL rows'
+`Like` column sums to 721.1952, i.e. all of it. The marginal age comps are switched off
+(fleet `-1`), so nothing else contributes.
+
 **Why it happens.** The age composition section sets `Lbin_method = 1`, which tells SS3 that
 `Lbin_lo` and `Lbin_hi` hold population length *bin numbers*. The file writes lengths there
 instead — 4.5, 9.5, 14.5 ... the data bin edges — with `Lbin_hi = Lbin_lo`. Two things follow.
@@ -32,11 +36,19 @@ Taking the `34.5 34.5` row as the example:
 So the row is compared against the predicted ages of a single 1 cm bin at 33.5 cm, when its
 fish were measured over 34.5–39.5 cm.
 
-You can check this in your own output. `Report.sso` writes the CAAL `Lbin_lo` back out as the
-*length* of the bin SS3 actually used. So when a data file writes lengths in those columns — as
-this one does — the two should read the same, and any difference is the truncation. Here the data
-file's values are 4.5–104.5 while `Report.sso` reports 3.5–103.5, with `Lbin_hi` equal to
-`Lbin_lo`: every cell one bin low and 1 cm wide instead of 5.
+You can check this in your own output. The `FIT_AGE_COMPS` section of `Report.sso` writes each
+row's `Lbin_lo` and `Lbin_hi` back out as the *lengths* of the bins SS3 actually used. So when a
+data file writes lengths in those columns — as this one does — the two should read the same, and
+any difference is the truncation. The first CAAL row lines up like this:
+
+```
+GOAPcod2024Oct17_1e_5cm.dat   2007 1 1 0 0 2  34.5 34.5  0.14 ...
+Report.sso, FIT_AGE_COMPS     1 FshTrawl 1 2007 1 2 7 2007.5 0 0 2  33.5 33.5  _ _ 0.14 ...
+```
+
+and it holds all the way down: the data file's values run 4.5–104.5 while `Report.sso` reports
+3.5–103.5, with `Lbin_hi` equal to `Lbin_lo` throughout — every cell one bin low and 1 cm wide
+instead of 5.
 
 (The check only reads that way while the file writes lengths. Once the columns hold bin *numbers*,
 as they should, the two legitimately differ — `Report.sso` still prints lengths. Then the test is

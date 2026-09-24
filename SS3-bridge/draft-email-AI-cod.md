@@ -14,6 +14,11 @@ composition of *two* 1 cm length bins rather than one, and both of them sit 1 cm
 the row is labelled with. The observations are fine; it's the expected values they're compared
 with that are misplaced.
 
+These rows are the whole age likelihood, so it isn't a corner of the model: the `Age_comp`
+component is 402.473 and the CAAL rows' `Like` column sums to 402.4731, i.e. all of it. The
+marginal age comps are switched off (fleet `-2`), so nothing else contributes. `Age_comp` is
+about three quarters of M24_1's total likelihood of 531.
+
 **Why it happens.** The age composition section sets `Lbin_method = 1`, which tells SS3 that the
 `Lbin_lo` and `Lbin_hi` columns hold population length *bin numbers*. The file writes lengths
 there instead — `18.5 19.5`, `19.5 20.5`, and so on. Three things then happen to each row.
@@ -31,11 +36,20 @@ therefore compared against the predicted ages of fish 17.5–19.5 cm: twice as w
 bin it was meant to be, and shifted a bin down. And because consecutive rows step by 1 cm, the
 next row (`19.5 20.5`, so bins 19 and 20) flags bin 19 as well — neighbouring cells overlap.
 
-There's a quick way to check this in your own output without taking my word for it. `Report.sso`
-writes the CAAL `Lbin_lo` column back out as the *length* of the bin SS3 actually used. So when a
-data file writes lengths in those columns — as these do — the two should read the same, and any
-difference is the truncation. In M24_1 the data file's `Lbin_lo` runs 12.5–115.5 while
-`Report.sso` reports 11.5–114.5, with `Lbin_hi` one bin above: one bin low, two bins wide.
+There's a quick way to check this in your own output without taking my word for it. The
+`FIT_AGE_COMPS` section of `Report.sso` writes each row's `Lbin_lo` and `Lbin_hi` back out as the
+*lengths* of the bins SS3 actually used. So when a data file writes lengths in those columns — as
+these do — the two should read the same, and any difference is the truncation. The very first
+CAAL row lines up like this:
+
+```
+data.ss                      1991 7 2 0 0 1  18.5 19.5  1 ...
+Report.sso, FIT_AGE_COMPS    2 Srv 1 1991 1 2 7 1991.5 0 0 1  17.5 18.5  _ _ 1 ...
+```
+
+and it holds all the way down: the data file's `Lbin_lo` runs 12.5–115.5 while `Report.sso`
+reports 11.5–114.5. One bin low, and `Lbin_hi` a bin above `Lbin_lo` rather than equal to it,
+which is the two-bin width.
 
 (The check only reads that way while the file writes lengths. Once the columns hold bin *numbers*,
 as they should, the two columns legitimately differ — `Report.sso` still prints lengths. Then the
