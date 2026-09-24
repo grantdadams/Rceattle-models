@@ -1,7 +1,9 @@
 # Conditional age-at-length rows address the wrong length bins in the AI and GOA Pacific cod SS3 models
 
 **Status:** verified against the Stock Synthesis source and reproduced by rerunning each model.
-**Affects:** `AI cod - Dev/Data/M24_1*` and `GOA cod/Data/goa_pcod*`, and any other SS3 model that
+**Affects:** `AI cod - Dev/Data/M24_1*` and `GOA cod/Data/goa_pcod*`. EBS Pacific cod model 24.1
+writes its columns the same way but is **not** materially affected — see the section below, which
+is worth reading as the shape of a negative result. In general it affects any SS3 model that
 writes lengths in the `Lbin_lo` / `Lbin_hi` columns of a conditional age-at-length (CAAL) row
 under `Lbin_method = 1` or `2`, on Stock Synthesis 3.30.24 or earlier.
 
@@ -244,6 +246,43 @@ It is in the data files, not in any one configuration. Checked by that compariso
 `SS3/run` is a different configuration from `M24_1_adjusted` (total likelihood 474.879 against
 531.003) and carries the same CAAL rows and the same shift, so the corrected copies here are not
 the origin of it.
+
+## EBS Pacific cod model 24.1 is NOT materially affected
+
+Checked because it writes its CAAL columns the same way (`Lbin_method = 1` with lengths), from
+`afsc-assessments/EBS_PCOD`, `2024_ASSESSMENT/NOVEMBER_MODELS/APPENDIX_2.3_2024_MODELS.zip`.
+It comes out differently for two reasons.
+
+**Its conditional age-at-length data are not fitted at all.** Of 990 age rows, the 960 single-bin
+CAAL rows (`Lbin_lo` 4.5, 9.5, 14.5 …, `Lbin_hi = Lbin_lo`, exactly GOA's shape) are all on
+**negative fleet numbers**, so they are switched off. `condbase` is empty. The only active age
+data are 23 marginal rows on fleet 2, 2000–2023, which carry the whole `Age_comp` likelihood.
+So the AI/GOA defect cannot bite: the rows it would corrupt are not in the likelihood.
+
+**The truncation still touches those 23 rows, but negligibly.** They are written `1.5 119.5`,
+meaning the whole length range. Truncated to bins 1 and 119, which on this model's population
+vector are 0.001 cm and 117.5 cm, so the top two bins (118.5 and 119.5 cm) are left out of the
+predicted composition. Writing `1 121` instead — which also makes SS3 drop the filter entirely —
+changes essentially nothing, because EBS cod do not reach those lengths:
+
+| quantity | as written | corrected |
+|---|---|---|
+| age composition | 55.6440 | 55.6452 |
+| total likelihood | 243.416 | 243.417 |
+| SSB 2024, B/B0, 2025 OFL, 2025 ABC | — | **0.000% change** |
+
+**One thing to flag if those CAAL rows are ever switched back on.** This model reads its
+population bins from an explicit vector that starts `0.001, 0.5, 1.5, …`, an extra bin at the
+bottom compared with AI and GOA. Bin *k* is therefore *k* − 1.5 cm rather than *k* − 0.5, so a row
+labelled 34.5 would truncate to bin 34 = **32.5 cm — two bins low, not one**. The rows are already
+written in the vulnerable style, so enabling them without also converting them to bin numbers
+would reintroduce the defect at double the offset.
+
+Caveat: the v3.30.21 macOS binary (the version this model was run with) fails to read the data
+file with `Incompatible array bounds in dmatrix`, so both runs above used v3.30.22.1. The
+truncation behaviour is identical across every release to 3.30.24, so the conclusion about which
+bins are used holds; the likelihood and derived numbers are from these runs, not from the
+assessment's own.
 
 ## Reproducing this
 
