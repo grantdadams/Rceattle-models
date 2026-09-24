@@ -1,0 +1,154 @@
+# Conditional age-at-length rows address the wrong length bins in the AI and GOA Pacific cod SS3 models
+
+**Status:** verified against the Stock Synthesis source and reproduced by rerunning each model.
+**Affects:** `AI cod - Dev/Data/M24_1*` and `GOA cod/Data/goa_pcod*`, and any other SS3 model that
+writes lengths in the `Lbin_lo` / `Lbin_hi` columns of a conditional age-at-length (CAAL) row
+under `Lbin_method = 1` or `2`, on Stock Synthesis 3.30.24 or earlier.
+
+## Summary
+
+In both cod models every CAAL observation is fitted against a prediction for the **wrong length
+bins**. The observations themselves are fine; it is the expected values SS3 compares them with
+that are misplaced.
+
+| model | length bins the row is labelled with | length bins SS3 actually uses |
+|---|---|---|
+| AI cod | one 1 cm bin, e.g. 24.5 | **two** bins, 23.5 and 24.5 — and neighbouring rows overlap |
+| GOA cod | one 5 cm data bin, e.g. 34.5 | **one 1 cm** population bin, at 33.5 |
+
+Correcting the AI model moves mean length-at-age up by 0.2–0.5 cm, the survey catchability up
+1.3%, and the 2025 OFL down 1.25%. Details and the corrected run are below.
+
+## Why it happens
+
+SS3 reads the two CAAL length columns into **integer** containers, so a value written as `24.5`
+becomes `24` before anything else looks at it. All line numbers are Stock Synthesis v3.30.22.1,
+the version both models were run with.
+
+1. `SS_readdata_330.tpl:2448-2449` — the containers are integer matrices:
+
+   ```
+   imatrix  Lbin_lo(1,Nfleet,1,Nobs_a);
+   imatrix  Lbin_hi(1,Nfleet,1,Nobs_a);
+   ```
+
+2. `SS_readdata_330.tpl:2586-2587` — the data file's columns 7 and 8 are assigned into them from
+   a double vector, which truncates: `24.5` becomes `24`.
+
+   ```
+   Lbin_lo(f, j) = Age_Data[i](7);
+   Lbin_hi(f, j) = Age_Data[i](8);
+   ```
+
+3. `SS_readdata_330.tpl:2589-2600` — under `Lbin_method = 1` the values are **population length
+   bin numbers** and are used with no further conversion. (Both cod data files set
+   `Lbin_method = 1` and then write lengths, not bin numbers.)
+
+4. `SS_readdata_330.tpl:2681-2684` — the row's length filter is set over the **inclusive** bin
+   index range:
+
+   ```
+   Lbin_filter(f, j) = 0.;
+   Lbin_filter(f, j)(Lbin_lo(f, j), Lbin_hi(f, j)) = 1;
+   ```
+
+5. `SS_expval.tpl:631` — the expected age composition for the row is the joint age x length
+   expectation summed over **every bin the filter marks**:
+
+   ```
+   age_exp = exp_AL * Lbin_filter(f, i);
+   ```
+
+With population bins at 0.5, 1.5, 2.5 ... the bin at index *k* has lower edge *k* − 0.5. So a row
+written `Lbin_lo = 24.5` is truncated to index 24, which is the bin at **23.5** — one bin below
+what the file says.
+
+`Report.sso` confirms the truncation, because it writes the columns back out as
+`len_bins(Lbin_lo(f,i))` (`SS_write_report.tpl:2398` and `:4105`), i.e. the truncated bin's
+length. In the GOA run all 21 distinct CAAL `Lbin_lo` values in `Report.sso` sit exactly 1 cm
+below the values in the data file; the AI run does the same.
+
+## What each model ends up fitting
+
+**AI cod.** Every one of the 1160 CAAL rows has `Lbin_hi = Lbin_lo + 1` (e.g. `24.5 25.5`),
+apparently intended as the lower and upper edge of a single 1 cm bin. After truncation that is
+index range 24–25, so the cell spans **two** bins, 23.5 and 24.5. Because consecutive rows step
+by 1 cm, neighbouring cells also **overlap by one bin**. `Report.sso` shows it directly: the
+as-written run has `Lbin_lo` 11.5–114.5 against `Lbin_hi` 12.5–115.5, a 1 cm span, where the data
+file's own `Lbin_lo` runs 12.5–115.5.
+
+**GOA cod.** Population bins are 1 cm (105 of them) but the **data** length bins are 5 cm (21 of
+them), and the CAAL rows are on those 5 cm bins, with `Lbin_hi = Lbin_lo`. After truncation each
+row addresses a single **1 cm** bin, one bin below its label. So a row holding the ages of fish
+measured between 34.5 and 39.5 cm is compared with the predicted age composition of the 1 cm bin
+at 33.5 cm. This is the larger of the two errors, and it applies to all 827 CAAL rows.
+
+## Effect on the AI assessment
+
+`Data/M24_1_caal_bins_fixed` is `M24_1_adjusted` with only the CAAL length columns changed:
+`Lbin_lo` and `Lbin_hi` both set to the population bin **number** holding that length
+(`bin = length + 0.5`), which is what `Lbin_method = 1` asks for. 1160 lines change and nothing
+else does — the control file, the executable and every other data row are identical. The
+13 turned-off marginal age-composition rows are untouched.
+
+`Report.sso` confirms the fix took: the corrected run's CAAL cells are single bins
+(`Lbin_lo` = `Lbin_hi` = 12.5–115.5) sitting on the data file's own labels.
+
+| quantity | as written | corrected | change |
+|---|---|---|---|
+| total likelihood | 531.003 | 532.903 | +1.900 |
+| age composition (CAAL) | 402.473 | 404.423 | +1.950 |
+| length composition | 140.059 | 139.838 | −0.221 |
+| mean length at age 2 (cm) | 25.78 | 26.11 | +0.33 (+1.26%) |
+| mean length at age 4 (cm) | 50.65 | 51.16 | +0.50 (+0.99%) |
+| von Bertalanffy K | 0.2190 | 0.2154 | −1.66% |
+| Richards shape | 0.4059 | 0.4379 | +7.88% |
+| survey catchability q | 0.8801 | 0.8919 | +1.34% |
+| R0 | 84 516 | 81 977 | −3.00% |
+| terminal SSB (2024, mt) | 50 085 | 49 384 | −1.40% |
+| SSB unfished (mt) | 210 600 | 208 200 | −1.10% |
+| B2024 / B0 | 0.2379 | 0.2371 | −0.30% |
+| 2025 OFL (t) | 20 600 | 20 340 | −1.25% |
+| 2025 ABC / forecast catch (t) | 12 900 | 12 720 | −1.43% |
+
+Growth is the quantity the CAAL data mainly inform, and it is the one that moves: length at age
+rises 0.2–0.5 cm across ages 1–13. Stock status is nearly unchanged (depletion −0.30%), so the
+tier and the status determination do not turn on this. The catch advice moves about 1.3%.
+
+The GOA effect has not been quantified; its cells are misplaced by more, so it should be checked
+before assuming the effect is similarly small.
+
+## How to fix it
+
+Any of the following, in decreasing order of how little has to change:
+
+1. **Write population bin numbers**, as `Lbin_method = 1` specifies. For 1 cm bins starting at
+   0.5 cm that is `bin = length + 0.5`. For a single bin set `Lbin_hi = Lbin_lo`. This is what
+   `M24_1_caal_bins_fixed` does, and it works on the SS3 version already in use. GOA needs the
+   **range** of population bins covered by each 5 cm data bin, e.g. `Lbin_lo` 5, `Lbin_hi` 9.
+2. **Use `Lbin_method = 2`** (data length bin numbers) and write the data bin number, with the
+   `Lbin_lo`/`Lbin_hi` range spanning the population bins the data bin covers.
+3. **Move to SS3 v3.30.25 or later and use `Lbin_method = 3`**, where the values are lengths. Note
+   that `Lbin_method = 3` **cannot work** before v3.30.25: because `Lbin_lo` is an integer, the
+   length is truncated and then compared for exact equality against half-integer bin edges, which
+   never matches, and SS3 stops with `L_bin_lo no match to poplenbins in age comp`. (Confirmed by
+   trying it.) The containers were widened to `matrix` in commit `416bf89`, "convert lbin_lo to
+   real for compare to len_bins", released in v3.30.25.
+
+A useful guard for any model: compare the `Lbin_lo` column in `Report.sso` against the one in the
+data file. If they differ, the bins being fitted are not the bins that were written.
+
+## Reproducing this
+
+From `Rceattle-models`, with an SS3 v3.30.22.1 executable (`r4ss::get_ss3_exe(version =
+"v3.30.22.1")`):
+
+- `Data/M24_1_adjusted` rerun as-is gives total likelihood 531.003, matching the archived
+  `Report.sso`, so the platform makes no difference.
+- `Data/M24_1_caal_bins_fixed` gives 532.903.
+- `SS3-bridge/compare_caal_bin_fix.R` produces the table above from the two run directories.
+
+The defect was found while building an exact SS3 to Rceattle bridge for these two stocks: Rceattle
+reproduced SS3's age-length key, N-at-age, selectivity, SSB and predicted length compositions to
+within 1e-6, but its predicted CAAL differed by up to 0.118 in probability. Honouring SS3's
+multi-bin cell brought that to 1.8e-6 on 1159 of the 1160 AI rows.
