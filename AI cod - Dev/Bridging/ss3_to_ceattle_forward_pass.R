@@ -318,7 +318,14 @@ mod0 <- Rceattle::fit_mod(
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
-  fit_control  = fit_control(phase = FALSE, verbose = 1)
+  fit_control  = fit_control(phase = FALSE, verbose = 1,
+                             # SS3 bias-corrects RECRUITMENT (max_bias_adj -1), which is
+                             # bias_adjust_proc, but applies no bias correction to the
+                             # catch or index observation likelihoods. Rceattle shifts
+                             # both means by -sigma^2/2 when bias_adjust_obs is TRUE
+                             # (ceattle.cpp:3366, 3686), which is a -0.5 * sum of the
+                             # catch sensitivities on the growth gradient.
+                             bias_adjust_obs = FALSE)
 )
 cat("\nRceattle parameter names:\n",
     paste(names(mod0$estimated_params), collapse = ", "), "\n")
@@ -560,7 +567,14 @@ fp <- Rceattle::fit_mod(
   M1Fun        = M1_block,
   random_rec   = FALSE,
   msmMode      = 0,
-  fit_control  = fit_control(phase = FALSE, verbose = 1)
+  fit_control  = fit_control(phase = FALSE, verbose = 1,
+                             # SS3 bias-corrects RECRUITMENT (max_bias_adj -1), which is
+                             # bias_adjust_proc, but applies no bias correction to the
+                             # catch or index observation likelihoods. Rceattle shifts
+                             # both means by -sigma^2/2 when bias_adjust_obs is TRUE
+                             # (ceattle.cpp:3366, 3686), which is a -0.5 * sum of the
+                             # catch sensitivities on the growth gradient.
+                             bias_adjust_obs = FALSE)
 )
 cat(sprintf("Free parameters: %d (SS3 active: %d)\n", length(fp$obj$par),
             sum(!is.na(ss3_rep$parameters$Phase) & ss3_rep$parameters$Phase > 0 &
