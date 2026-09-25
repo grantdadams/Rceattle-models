@@ -127,17 +127,100 @@ gp <- function(sec, pat) {
 
 
 # =============================================================================
-# 2. Selectivity: keep the converter's per-year empirical curves
+# 2. Selectivity: SS3 pattern 24 on LENGTH, varied through selectivity linkages
 # =============================================================================
 # SS3 gives five fleets a pattern-24 double normal with block replacements and,
-# for 1977-1989, per-year DEVmult deviations -- 126 selectivity parameters in
-# all. Rceattle has no dev array for the pattern-24 block, so none of that can
-# be injected parametrically. build_emp_sel() takes SS3's REALIZED Asel2 for
-# every year instead, which already contains the blocks and the devs, and sets
-# Selectivity = "Fixed" with Time_varying_sel = "Off".
-stopifnot(all(cod$fleet_control$Time_varying_sel[cod$fleet_control$Fleet_type != "Off"] %in% c(0, "Off")))
-cat(sprintf("Selectivity: converter emp_sel, %d rows across %d years\n",
-            nrow(cod$emp_sel), length(unique(cod$emp_sel$Year))))
+# for 1977-1989, per-year DEVmult deviations -- 126 selectivity parameters.
+#
+# The converter's default is per-year emp_sel from SS3's realized Asel2, which
+# carries all of that exactly. It cannot be used here: empirical selectivity is
+# AGE-based by construction (selectivity.hpp writes sel_at_age and never
+# sel_at_length), and GOA's CAAL data are predicted from selectivity-at-LENGTH.
+# On emp_sel, Rceattle warns and scores every CAAL row against a flat
+# composition it cannot move.
+#
+# So the fleets go on DoubleNormalSS3 at Selectivity_dimension = "Length", and
+# the time variation goes in as selectivity LINKAGES, which is what the schema
+# names form 15 for. Each of the six parameters has a linkage alias matching
+# SS3's own name, and an identity-link coefficient is an offset on SS3's own
+# scale: P_k(yr) = (sel_dn6_k + off_nat_k(yr)) * exp(off_log_k(yr)).
+#
+# Rather than reproduce SS3's block and dev ALGEBRA, take its RESULT: SelSizeAdj
+# reports the effective P1..P6 for every year, so one identity-link offset per
+# (fleet, parameter, year) equal to (effective - base) reproduces blocks and
+# DEVmults uniformly, whatever mechanism SS3 used to get there.
+# =============================================================================
+active_sel <- which(as.character(cod$fleet_control$Fleet_type) != "Off")
+for (fi in active_sel) {
+  cod$fleet_control$Selectivity[fi]           <- "DoubleNormalSS3"
+  cod$fleet_control$Selectivity_dimension[fi] <- "Length"
+  cod$fleet_control$Time_varying_sel[fi]      <- "Off"
+}
+
+# SS3's effective per-year P1..P6, forward-filled: SelSizeAdj lists only the
+# years in which a parameter CHANGES.
+ssa <- ss3_rep$SelSizeAdj
+stopifnot(!is.null(ssa))
+sel_eff <- array(NA_real_, c(n_flt, 6, length(years_hind)))
+for (fi in active_sel) {
+  d <- ssa[ssa$Fleet == fleet_meta$ss3_num[fi] & ssa$Yr %in% years_hind, ]
+  if (!nrow(d)) next
+  d <- d[order(d$Yr), ]
+  for (k in 1:6) {
+    v <- rep(NA_real_, length(years_hind))
+    v[match(d$Yr, years_hind)] <- d[[paste0("Par", k)]]
+    for (i in seq_along(v)) if (is.na(v[i]) && i > 1) v[i] <- v[i - 1]
+    sel_eff[fi, k, ] <- v
+  }
+}
+
+# A -999 in P5/P6 is SS3's "this end has no floor" sentinel, and Rceattle reads
+# it as data (it switches the formula, not just a value), so it must be constant
+# through time -- an offset on a sentinel is meaningless.
+for (fi in active_sel) for (k in 1:6) {
+  v <- sel_eff[fi, k, ]
+  if (all(is.na(v))) next
+  sent <- abs(v) > 900
+  if (any(sent) && !all(sent))
+    stop(sprintf("fleet %s P%d moves on and off SS3's -999 sentinel; an offset cannot represent that",
+                 fleet_meta$name[fi], k))
+}
+
+sel_base <- sel_eff[, , 1, drop = TRUE]                      # value in styr
+sel_off  <- sweep(sel_eff, c(1, 2), sel_base, "-")           # effective - base
+sel_off[!is.finite(sel_off)] <- 0
+
+# Per-year indicator columns, only for years something actually moves.
+vary_yr <- which(apply(abs(sel_off), 3, function(z) max(z, na.rm = TRUE)) > 1e-8)
+yr_cols <- sprintf("selyr%d", years_hind[vary_yr])
+for (j in seq_along(vary_yr)) {
+  cod$env_data[[yr_cols[j]]] <-
+    as.integer(cod$env_data$Year == years_hind[vary_yr[j]])
+}
+cat(sprintf("\nSelectivity linkages: %d year columns (%d-%d)\n",
+            length(yr_cols), min(years_hind[vary_yr]), max(years_hind[vary_yr])))
+
+# One linkage per pattern-24 parameter, restricted to the fleets that move it.
+PAR_LINK <- c("dn_peak", "top_logit", "ascend_se", "descend_se",
+              "start_logit", "end_logit")
+sel_linkages <- list()
+for (k in 1:6) {
+  flts <- active_sel[sapply(active_sel, function(fi)
+    any(abs(sel_off[fi, k, ]) > 1e-8, na.rm = TRUE))]
+  if (!length(flts)) next
+  cols <- yr_cols[sapply(vary_yr, function(y)
+    any(abs(sel_off[flts, k, y]) > 1e-8, na.rm = TRUE))]
+  if (!length(cols)) next
+  sel_linkages[[PAR_LINK[k]]] <- linkage_spec(
+    formula = stats::reformulate(c("0", cols)),
+    by      = ~ fleet,
+    fleet   = fleet_meta$ss3_num[flts],
+    link    = "identity"
+  )
+  cat(sprintf("  %-12s fleets %s, %d year column(s)\n", PAR_LINK[k],
+              paste(fleet_meta$name[flts], collapse = "/"), length(cols)))
+}
+selFun_spec <- build_selectivity(linkages = sel_linkages)
 
 
 # =============================================================================
@@ -271,6 +354,7 @@ mod0 <- Rceattle::fit_mod(
   initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
+  selFun       = selFun_spec,
   random_rec   = FALSE,
   msmMode      = 0,
   # SS3 bias-corrects RECRUITMENT but applies no bias correction to the catch
@@ -468,6 +552,40 @@ init_log_F_from_ss3 <- function(inits, ss3_rep, fleet_meta, years_hind) {
 inits <- init_from_ss3(parlist, ctllist, mod0$estimated_params, cod,
                        fleet_meta, years_hind, mod0)
 
+# --- Selectivity: base P1..P6 and the per-year offsets ---
+# The base is SS3's EFFECTIVE value in the first hindcast year, not the ctl
+# base parameter: SelSizeAdj already folds in whatever block or dev applied in
+# that year, and every offset below is measured against it. -999 goes in raw,
+# because fit_mod() derives sel_dn6_ends from sel_dn6[5:6] > -999.
+for (fi in active_sel) {
+  v <- sel_base[fi, ]
+  v[!is.finite(v)] <- -999
+  inits$sel_dn6[, fi, 1] <- v
+  cat(sprintf("  sel_dn6[%s] base: %s\n", fleet_meta$name[fi],
+              paste(signif(v, 6), collapse = " ")))
+}
+
+tbl <- mod0$data_list$linkage_table
+n_set <- 0; max_off <- 0
+for (k in 1:6) {
+  if (!PAR_LINK[k] %in% names(sel_linkages)) next
+  for (fi in active_sel) for (j in seq_along(vary_yr)) {
+    off <- sel_off[fi, k, vary_yr[j]]
+    if (!is.finite(off) || abs(off) < 1e-8) next
+    row <- which(tbl$process == "sel" & tbl$param == PAR_LINK[k] &
+                 tbl$fleet == fleet_meta$ss3_num[fi] & tbl$design_col == yr_cols[j])
+    if (length(row) != 1L) {
+      warning(sprintf("linkage row for %s/%s/%s: found %d (expected 1)",
+                      PAR_LINK[k], fleet_meta$name[fi], yr_cols[j], length(row)))
+      next
+    }
+    inits$beta_linkage[row] <- off
+    n_set <- n_set + 1; max_off <- max(max_off, abs(off))
+  }
+}
+cat(sprintf("Set %d selectivity linkage coefficients (largest |offset| = %.4g)\n",
+            n_set, max_off))
+
 R_init    <- exp(inits$rec_pars[1, 1])
 M1_at_age <- rep(M_base, nages)
 inits <- init_state_from_ss3_natage(inits, ss3_rep, cod$styr, nages,
@@ -488,6 +606,7 @@ fp <- Rceattle::fit_mod(
   initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
+  selFun       = selFun_spec,
   random_rec   = FALSE,
   msmMode      = 0,
   fit_control  = fit_control(phase = FALSE, verbose = 1, bias_adjust_obs = FALSE)
