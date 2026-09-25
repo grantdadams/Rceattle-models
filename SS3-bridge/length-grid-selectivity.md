@@ -60,6 +60,45 @@ This is where the remaining 389 nats of GOA's forward-pass gap sit: the
 composition (1655.76 vs 1331.85) and CAAL (885.02 vs 732.79) rows carry no
 density constant, so those differences are differences in fit.
 
+## SS3's pattern 24, pinned exactly
+
+From `SS_selex.tpl:111-205` (v3.30.22.1), with `len_bins` the POPULATION bins,
+`len_bins_m(z)` their midpoints (`SS_readdata_330.tpl:1611-1617`), and
+`binwidth2` the population bin width (`:1334` / `:1640`):
+
+- `startbin` (`SS_readdata_330.tpl:1642-1646`) is the first population bin whose
+  edge reaches the first size-comp DATA bin edge:
+  `startbin = 1; while (len_bins(startbin) < len_bins_dat(1)) startbin++;`
+  GOA cod: population edges 0.5, 1.5, 2.5, 3.5, 4.5 and a first data edge of
+  4.5 give startbin = 5, so `len_bins_m(startbin)` = 5.0.
+- `t1min = exp(-(len_bins_m(startbin) - peak)^2 / upselex)` -- the ASCENDING
+  anchor is the first data bin, not the first population bin.
+- `j2 = nlength` when `sp(6) > -1000`, so
+  `peak2 = peak + binwidth2 + (0.99 * len_bins_m(j2) - peak - binwidth2) / (1 + exp(-sp(2)))`
+  and `t2min = exp(-(len_bins_m(j2) - peak2)^2 / downselex)`. GOA:
+  `len_bins_m(105)` = 105.0.
+- The curve is evaluated at `len_bins_m(j)` for `j = startbin .. j2`.
+- Below startbin (`SS_selex.tpl:197-201`) SS3 does NOT leave the curve at zero:
+
+  ```cpp
+  if (startbin > 1 && sp(5) >= -1000.)
+    for (j = 1; j <= startbin - 1; j++)
+      sel(j) = square(len_bins_m(j) / len_bins_m(startbin)) * sel(startbin);
+  ```
+
+  a quadratic ramp. GOA fleet 4: `(4/5)^2 * 0.05771 = 0.03693`, matching SS3's
+  reported value exactly.
+
+Reimplementing that in R reproduces SS3's own `sizeselex` to **4.9e-06** on
+fleet 1 and, once the ramp is included, on fleet 4 as well. So the algorithm is
+fully known; what remains is where Rceattle evaluates it.
+
+Rceattle's port (`selectivity.hpp` case 15) differs in four places, all of them
+consequences of using the data grid: `x_first` is `lengths(0) + 0.5*binwidth`
+(7.0, against SS3's 5.0), `x_last` is `lengths(nbins-1) + 0.5*binwidth` (107.0,
+against 105.0), `binwidth` is the data width (5, against 1), and there is no
+sub-startbin ramp.
+
 ## Closing it
 
 Needs an Rceattle change, not a bridge change: evaluate a length-based
