@@ -220,6 +220,22 @@ for (k in 1:6) {
   cat(sprintf("  %-12s fleets %s, %d year column(s)\n", PAR_LINK[k],
               paste(fleet_meta$name[flts], collapse = "/"), length(cols)))
 }
+# KNOWN GAP -- SS3's AGE selectivity, which Rceattle cannot multiply in.
+# All five fleets carry SS3 age pattern 10, which sets ages 1..nages to 1 and
+# leaves age 0 at zero (SS_selex.tpl:997-1001); SS3's realized Asel2 is the
+# size-derived curve TIMES that, so age 0 is zeroed. Rceattle has no per-fleet
+# age multiplier alongside a length-based curve.
+#
+# It shows on fleet 4 alone, because it alone has a non-zero initial floor
+# (P5 = -2.79 -> 0.0577 at the smallest lengths): its sel_at_age(age 0) is
+# 0.0169 against SS3's 0, while ages 1, 2, 3 agree exactly (0.05883, 0.1286,
+# 0.49451). The other four fleets' size curves are already ~0 there.
+#
+# Bin_first_selected is NOT the fix: rule 10 says it is read on the fleet's own
+# Selectivity_dimension, which is Length here, so it zeroes population LENGTH
+# bin 0 rather than age 0. Setting it to 2 lowers the objective by 6.4 nats,
+# but only by breaking the length curve SS3's ramp defines at that bin, so it
+# is deliberately left alone.
 selFun_spec <- build_selectivity(linkages = sel_linkages)
 
 
@@ -281,10 +297,16 @@ stopifnot(identical(as.integer(ctllist$GrowthModel), 1L))
 # is sd_form = "SD". Pattern 0 would make them CVs (AI cod's case).
 stopifnot(identical(as.integer(ctllist$CV_Growth_Pattern), 2L))
 
+# SS3's Linf_decay is -999 for GOA cod -- "replicates 3.24", the 3.24 plus-group
+# mean length -- where AI cod's is -998, "not allow growth above maxage". They
+# are different settings and the AI value gives the plus group 85.31 cm against
+# SS3's 89.76, which then propagates into selectivity-at-age, the age-length
+# key and SSB.
+stopifnot(identical(as.numeric(ctllist$Exp_Decay %||% NA), -999))  # r4ss name
 growthFun_spec <- build_growth(
   fun               = "vonBertalanffy",
   sd_form           = "SD",
-  plus_group_length = "none",
+  plus_group_length = "SS3.24",
   sd_plus_group     = "WHAM",
   pop_lengths       = ss3_rep$lbinspop,
   linkages = list(
