@@ -293,7 +293,13 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   hind <- function(d) d[d$Year >= dl$styr & d$Year <= dl$endyr, ]
   cat_d <- dl$catch_data
   if (!is.null(cat_d)) {
+    # Only rows with a positive catch are scored. SS3 gates on
+    # `catch_ret_obs(f, t) > 0` and Rceattle on `catch_obs(fsh_ind, 0) > 0`, so a
+    # zero-catch year contributes no density and owes no constant. GOA cod has
+    # ten, the years before its pot fishery existed, and counting them put a
+    # spurious +19.81 on the Catch residual.
     cat_d <- hind(cat_d)
+    cat_d <- cat_d[!is.na(cat_d$Catch) & cat_d$Catch > 0, , drop = FALSE]
     k["Catch"] <- sum(log(cat_d$Log_sd) + l2pi)
   }
   # The initial equilibrium catch sits at styr - 1, outside hind(); SS3 fits it

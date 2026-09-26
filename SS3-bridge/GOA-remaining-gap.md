@@ -1,5 +1,9 @@
 # What is left between Rceattle and SS3 on GOA Pacific cod
 
+> **Updated 2026-09-25.** Both composition components now agree to 0.001 and the
+> catch to 1e-04. Every remaining difference is accounted for; see
+> "Full accounting" at the end.
+
 **Status:** measured at SS3's MLE, 2026-09-25. Two SS3 features Rceattle cannot
 express account for all of the remaining difference. Neither is a bridge defect.
 
@@ -84,3 +88,58 @@ The age-0 variant is built by changing the five `10` entries under
 `#_init_values_src` to 1 and `#_last_estimation_phase` to 0 (the GOA starter
 uses those short labels, not the long ones the AI model has), and running an
 SS3 v3.30.22.1 binary. Point the bridge at it with `RCE_SS3_DIR`.
+
+
+## Full accounting (2026-09-25)
+
+Against the age-0-selected SS3 variant, at SS3's MLE, after the density
+constants SS3 drops:
+
+| SS3 component | Rceattle | SS3 | constant | residual |
+|---|---|---|---|---|
+| Length_comp | 1407.6387 | 1407.6400 | — | **-0.0013** |
+| Age_comp | 732.7701 | 732.7710 | — | **-0.0009** |
+| Catch | -263.9869 | 1.5320 | -265.5188 | **-0.0001** |
+| Survey | 52.3850 | -3.5264 | 45.9469 | +9.9645 |
+| Recruitment | 85.9251 | -17.1218 | 53.2984 | +49.7485 |
+
+and three rows SS3 has that Rceattle does not: `Parm_priors` 1.0285,
+`Parm_devs` 6.4903, `Parm_softbounds` 0.0117.
+
+**Survey +9.96 is LLSrv's environmental catchability**, the `EnvExp` gap. The
+predicted index splits cleanly: fleet 4 (Srv) agrees to **4.8e-06** over its 16
+observations, fleet 5 (LLSrv) is out by up to 2.9e-01 over its 34. Both
+catchabilities are injected correctly (1.4964 and 1.38505, matching SS3), and
+the SDs the likelihood uses match SS3's `SE` exactly, so the whole of it is the
+missing exponential link.
+
+**Recruitment +49.75 is a bridge choice, not a model difference.** SS3 carries
+its regime shift as a free parameter, `SR_regime_BLK5add_1976` = -1.3879, which
+it does not penalise. The bridge folds that into `init_dev` so the initial
+numbers pin exactly, and Rceattle then charges it the recruitment deviate
+penalty. Rceattle's `init_dev` is SS3's `Early_InitAge` minus 1.485 at every
+age, and removing the offset drops the quadratic penalty by 56.69 -- the same
+size as the residual, the difference being the bias-adjustment terms. To close
+it the regime needs its own unpenalised parameter rather than a home inside the
+deviates.
+
+**Catch was a harness bug, now fixed.** `.ss3_constants()` charged a density
+constant to all 144 hindcast catch rows, but both models score only positive
+catches (`catch_ret_obs > 0` in SS3, `catch_obs > 0` in Rceattle). GOA has ten
+zero-catch years, the years before its pot fishery existed, and counting them
+put a spurious +19.81 on the residual. With the constant taken over fitted rows
+the residual is -1e-04.
+
+**Priors.** GOA has four, worth 1.0285 in total, which the bridge does not
+inject: `NatM_uniform_Fem_GP_1` Log_Norm(-0.81, 0.41) = 0.0075,
+`L_at_Amax_Fem_GP_1` Normal(99.46, 0.015) = 0.0027, `VonBert_K_Fem_GP_1`
+Normal(0.1966, 0.030) = 0.0296, and `NatM_uniform_Fem_GP_1_BLK4repl_2014`
+Log_Norm(-0.81, 0.41) = 0.9887. The first three map straight onto Rceattle
+priors; the fourth does not, because SS3 puts it on the block's M VALUE while
+Rceattle's parameter is the log-ratio `log(M_block / M_base)`. AI cod has no
+priors at all, which is why its bridge removed them.
+
+**The bias-adjustment ramp is not a factor.** `max_bias_adj = -1` is SS3's
+shortcut for full bias adjustment everywhere, and the `recruit` table confirms
+`biasadjuster` is 1 in every year, so the ramp years in the control file are
+inert and there is nothing to switch off.
