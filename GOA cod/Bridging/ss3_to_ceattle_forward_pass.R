@@ -111,9 +111,14 @@ n_flt      <- nrow(cod$fleet_control)
 cat(sprintf("\nGOA Pcod: styr=%d endyr=%d nages=%d minage=%d fleets=%d\n",
             cod$styr, cod$endyr, nages, minage, n_flt))
 
+# ss3_num is the fleet's own code; ss3_src is the SS3 fleet its parameters come
+# from, which differs only for a fleet the converter split off to carry a second
+# ageing-error matrix. Such a fleet shares its parent's Selectivity_index, so
+# that is where SS3's selectivity and catchability for it live.
 fleet_meta <- data.frame(
   name       = cod$fleet_control$Fleet_name,
   ss3_num    = cod$fleet_control$Fleet_code,
+  ss3_src    = as.integer(cod$fleet_control$Selectivity_index),
   fleet_type = as.character(cod$fleet_control$Fleet_type),
   stringsAsFactors = FALSE
 )
@@ -163,7 +168,7 @@ ssa <- ss3_rep$SelSizeAdj
 stopifnot(!is.null(ssa))
 sel_eff <- array(NA_real_, c(n_flt, 6, length(years_hind)))
 for (fi in active_sel) {
-  d <- ssa[ssa$Fleet == fleet_meta$ss3_num[fi] & ssa$Yr %in% years_hind, ]
+  d <- ssa[ssa$Fleet == fleet_meta$ss3_src[fi] & ssa$Yr %in% years_hind, ]
   if (!nrow(d)) next
   d <- d[order(d$Yr), ]
   for (k in 1:6) {

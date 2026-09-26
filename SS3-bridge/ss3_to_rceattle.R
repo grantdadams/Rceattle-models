@@ -296,8 +296,14 @@ ss3_to_rceattle <- function(ss3_dir,
                                                nlengths_rce, nsex_rce, nspp)
   d$pop_age_transition_index <- 1L
 
-  # Ageing error as SS3 builds it, from the definition the age data use
+  # Ageing error as SS3 builds it: one Rceattle matrix per SS3 definition the
+  # age data use, indexed by Ageing_error_index.
   d$age_error <- build_ss3_age_error(ss3_rep, datlist, nages_rce, minage)
+
+  # SS3 selects a matrix per observation row; Rceattle selects one per fleet, so
+  # a fleet whose age data span two definitions becomes two fleets sharing one
+  # selectivity and one catchability. A no-op where every row agrees.
+  d <- split_fleets_by_ageerr(d, datlist, verbose = verbose)
 
   # ---------------------------------------------------------------------------
   # 9. Environmental covariates -- includes M-block indicators
@@ -1155,26 +1161,95 @@ build_ss3_age_error <- function(ss3_rep, datlist, nages, minage = 0L) {
   used <- c(datlist$agecomp$ageerr[datlist$agecomp$year > 0 & datlist$agecomp$fleet > 0])
   used <- sort(unique(abs(used)))
   if (length(used) == 0) return(build_age_error(nages, 1L, minage))
-  def <- used[which.max(tabulate(match(abs(datlist$agecomp$ageerr), used)))]
-  if (length(used) > 1) {
-    warning("SS3 age data use ageing-error definitions ", paste(used, collapse = ", "),
-            "; Rceattle takes one matrix per species, so definition ", def,
-            " (the most rows) is used for all.", call. = FALSE)
-  }
-  mu  <- as.numeric(ss3_rep$age_error_mean[[paste0("type", def)]])
-  sdv <- as.numeric(ss3_rep$age_error_sd[[paste0("type", def)]])
+
   ages_true <- seq.int(minage, minage + nages - 1L)
   edges <- as.numeric(datlist$agebin_vector)
-  P <- matrix(0, nages, nages)
-  for (i in seq_len(nages)) {
-    a <- ages_true[i] + 1L                   # SS3 true ages start at 0
-    cdf <- stats::pnorm(edges, mu[a], sdv[a])
-    p <- c(cdf[-1], 1) - c(0, cdf[-1])       # bin b = [edge_b, edge_b+1); tails in the ends
-    col <- edges - minage + 1
-    P[i, col] <- p
+  out <- list()
+  for (def in used) {
+    mu  <- as.numeric(ss3_rep$age_error_mean[[paste0("type", def)]])
+    sdv <- as.numeric(ss3_rep$age_error_sd[[paste0("type", def)]])
+    P <- matrix(0, nages, nages)
+    for (i in seq_len(nages)) {
+      a <- ages_true[i] + 1L                   # SS3 true ages start at 0
+      cdf <- stats::pnorm(edges, mu[a], sdv[a])
+      p <- c(cdf[-1], 1) - c(0, cdf[-1])       # bin b = [edge_b, edge_b+1); tails in the ends
+      col <- edges - minage + 1
+      P[i, col] <- p
+    }
+    Pdf <- as.data.frame(P); colnames(Pdf) <- paste0("Obs_age", seq_len(nages))
+    out[[length(out) + 1]] <- cbind(Species = 1L, Ageing_error_index = as.integer(def),
+                                    True_age = ages_true, Pdf)
   }
-  Pdf <- as.data.frame(P); colnames(Pdf) <- paste0("Obs_age", seq_len(nages))
-  cbind(Species = 1L, True_age = ages_true, Pdf)
+  do.call(rbind, out)
+}
+
+#' Split a fleet whose age data use more than one SS3 ageing-error definition
+#'
+#' SS3 picks an ageing-error matrix per OBSERVATION, through the `ageerr` column
+#' on each age-composition and CAAL row, and a survey whose ageing protocol
+#' changed mid-series carries two. Rceattle picks one per FLEET, so such a fleet
+#' becomes two: the rows keep their own matrix, and the two halves share a
+#' `Selectivity_index` and a `Catchability_index`, so they still estimate one
+#' selectivity curve and one catchability between them.
+#'
+#' The fleet keeping the original code is the one with the most rows, so a model
+#' where every row agrees is untouched and keeps its fleet numbering.
+#' @keywords internal
+split_fleets_by_ageerr <- function(d, datlist, verbose = TRUE) {
+  ac <- datlist$agecomp
+  if (is.null(ac) || !nrow(ac) || is.null(ac$ageerr)) return(d)
+  ac <- ac[ac$year > 0 & ac$fleet > 0, , drop = FALSE]
+  if (!nrow(ac)) return(d)
+
+  fc <- d$fleet_control
+  next_code <- max(as.integer(fc$Fleet_code), na.rm = TRUE)
+  if (is.null(fc$Ageing_error_index)) fc$Ageing_error_index <- NA_integer_
+
+  for (fl in sort(unique(ac$fleet))) {
+    rows <- ac[ac$fleet == fl, , drop = FALSE]
+    defs <- sort(unique(abs(rows$ageerr)))
+    i <- which(fc$Fleet_code == fl)
+    if (!length(i)) next
+    keep <- defs[which.max(tabulate(match(abs(rows$ageerr), defs)))]
+    fc$Ageing_error_index[i] <- as.integer(keep)
+    if (length(defs) < 2) next
+
+    for (def in setdiff(defs, keep)) {
+      next_code <- next_code + 1L
+      new <- fc[i, , drop = FALSE]
+      new$Fleet_code <- next_code
+      new$Fleet_name <- paste0(fc$Fleet_name[i], "_ae", def)
+      new$Ageing_error_index <- as.integer(def)
+      # Share one selectivity and one catchability with the fleet it came from.
+      new$Selectivity_index   <- fc$Selectivity_index[i]
+      new$Catchability_index  <- fc$Catchability_index[i]
+      fc <- rbind(fc, new)
+
+      # Move that definition's age rows onto the new fleet. Only age data move;
+      # the catch and index series stay with the original fleet.
+      yrs <- unique(rows$year[abs(rows$ageerr) == def])
+      lbl <- unique(rows$Lbin_lo[abs(rows$ageerr) == def])
+      if (!is.null(d$caal_data) && nrow(d$caal_data)) {
+        m <- d$caal_data$Fleet_code == fl & abs(d$caal_data$Year) %in% yrs
+        d$caal_data$Fleet_code[m] <- next_code
+        d$caal_data$Fleet_name[m] <- new$Fleet_name
+      }
+      if (!is.null(d$comp_data) && nrow(d$comp_data)) {
+        m <- d$comp_data$Fleet_code == fl & abs(d$comp_data$Year) %in% yrs &
+             d$comp_data$Age0_Length1 == 0
+        d$comp_data$Fleet_code[m] <- next_code
+        d$comp_data$Fleet_name[m] <- new$Fleet_name
+      }
+      if (verbose)
+        message(sprintf(paste0("Fleet %s uses SS3 ageing-error definitions %s; split ",
+                               "definition %s onto new fleet %d (%s), sharing its ",
+                               "selectivity and catchability."),
+                        fc$Fleet_name[i], paste(defs, collapse = ", "), def,
+                        next_code, new$Fleet_name))
+    }
+  }
+  d$fleet_control <- fc
+  d
 }
 
 #' Identity ageing-error matrix (no error)
