@@ -1,8 +1,13 @@
 # What is left between Rceattle and SS3 on GOA Pacific cod
 
-> **Updated 2026-09-25.** Both composition components now agree to 0.001 and the
+> **Updated 2026-09-26.** Both composition components now agree to 0.001 and the
 > catch to 1e-04. Every remaining difference is accounted for; see
-> "Full accounting" at the end.
+> "Full accounting" at the end, which was re-derived at the current head on
+> 2026-09-26 and reproduces to 1e-04.
+>
+> Section 2's CAAL residual of +143.5 is **closed** -- that is what the
+> ageing-error fleet split did -- and section 2 is kept for the measurement.
+> Estimation parity is a separate note, `GOA-estimation-parity.md`.
 
 **Status:** measured at SS3's MLE, 2026-09-25. Two SS3 features Rceattle cannot
 express account for all of the remaining difference. Neither is a bridge defect.
@@ -12,8 +17,17 @@ Forward-pass objective, GOA Pcod Model 19.1e (CAAL-corrected copy):
 | | objective |
 |---|---|
 | SS3, as the assessment runs it | 2051.98 |
-| SS3, same parameters, age-0 selected | 2128.82 |
-| Rceattle | 2158.22 |
+| SS3, same parameters, age-0 selected | 2128.83 |
+| Rceattle | **2008.93** |
+
+The Rceattle figure was 2158.22 when this was first written, before the
+ageing-error fleet split closed the CAAL residual of section 2. The Full
+accounting at the end reproduces at the current head; it is the one to trust.
+
+**Estimation parity is written up separately**, in `GOA-estimation-parity.md`.
+Both places where Rceattle's own optimum differs from SS3's trace back here: the
+L1 drift is item 1 below seen through estimation, and M is simply weakly
+identified (0.90 nats at SS3's value).
 
 ## 1. Age selectivity: SS3 zeroes age 0, Rceattle cannot
 
@@ -39,6 +53,12 @@ variant:
 
 So the age-0 zeroing was the entire fleet-4 selectivity discrepancy, and with it
 removed the length compositions agree to **0.001**. It is worth 76.6 nats.
+
+Both composition components have since been checked against the same variant
+across a grid of L1 spanning 0.001 to 6.39 cm, not only at the MLE: max abs
+difference **0.0049** nats on the length comps and **0.0009** on the CAAL
+(`GOA-estimation-parity.md`). That exercises the age-length key over four orders
+of magnitude of the parameter setting its young end.
 
 `Bin_first_selected` is NOT a substitute. Rule 10: it is read on the fleet's own
 `Selectivity_dimension`, which is Length here, so it zeroes population LENGTH
@@ -106,7 +126,9 @@ constants SS3 drops:
 and three rows SS3 has that Rceattle does not: `Parm_priors` 1.0285,
 `Parm_devs` 6.4903, `Parm_softbounds` 0.0117.
 
-**Survey +9.96 is LLSrv's environmental catchability**, the `EnvExp` gap. The
+**Survey +9.96 is LLSrv's environmental catchability**, the `EnvExp` gap,
+re-confirmed 2026-09-26 at +9.9644 after a catchability defect in the fleet split
+was fixed (`shared-block-parameter-injection.md`); for a while it read +16.20. The
 predicted index splits cleanly: fleet 4 (Srv) agrees to **4.8e-06** over its 16
 observations, fleet 5 (LLSrv) is out by up to 2.9e-01 over its 34. Both
 catchabilities are injected correctly (1.4964 and 1.38505, matching SS3), and
