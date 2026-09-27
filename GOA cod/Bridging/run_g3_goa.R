@@ -18,21 +18,13 @@
 mode <- if (length(commandArgs(trailingOnly = TRUE))) commandArgs(trailingOnly = TRUE)[1] else "fixsel"
 source("Bridging/ss3_to_ceattle_forward_pass.R")
 
-map_g3 <- ss3_map
-if (identical(mode, "fixsel")) {
-  # Hold every selectivity linkage coefficient. The linkage table says which
-  # rows are selectivity; the rest (growth, M) stay as the forward pass set them.
-  tbl <- mod0$data_list$linkage_table
-  sel_rows <- which(tbl$process == "sel")
-  f <- map_g3$mapFactor$beta_linkage
-  if (!is.null(f) && length(sel_rows)) {
-    f <- as.character(f); f[sel_rows] <- NA; map_g3$mapFactor$beta_linkage <- factor(f)
-  }
-  cat(sprintf("\n[fixsel] held %d selectivity linkage coefficients; %d beta_linkage free\n",
-              length(sel_rows), sum(!is.na(map_g3$mapFactor$beta_linkage))))
-}
+source("Bridging/g3_map.R")
 
-cat("\n--- G3 warm start from SS3's MLE ---\n")
+# TMBhelper's Newton steps are UNCONSTRAINED: they run after nlminb and can
+# walk a parameter past a bound nlminb respected. Set RCE_G3_NEWTON=0 to see
+# the bounded optimum on its own.
+NEWTON <- as.integer(Sys.getenv("RCE_G3_NEWTON", unset = "3"))
+cat(sprintf("\n--- G3 warm start from SS3's MLE (newtonsteps = %d) ---\n", NEWTON))
 t0 <- Sys.time()
 fit <- tryCatch(
   Rceattle::fit_mod(
@@ -46,7 +38,8 @@ fit <- tryCatch(
     selFun       = selFun_spec,
     random_rec   = FALSE,
     msmMode      = 0,
-    fit_control  = fit_control(phase = FALSE, verbose = 1, newtonsteps = 3,
+    fit_control  = fit_control(phase = FALSE, verbose = 1,
+                               newtonsteps = NEWTON,
                                bias_adjust_obs = FALSE)),
   error = function(e) { cat("FAILED:", conditionMessage(e), "\n"); NULL })
 cat("took", round(difftime(Sys.time(), t0, units = "mins"), 1), "min\n")
