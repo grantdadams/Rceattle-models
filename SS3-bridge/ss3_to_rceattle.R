@@ -1220,10 +1220,23 @@ split_fleets_by_ageerr <- function(d, datlist, verbose = TRUE) {
       new$Fleet_code <- next_code
       new$Fleet_name <- paste0(fc$Fleet_name[i], "_ae", def)
       new$Ageing_error_index <- as.integer(def)
-      # Share one selectivity and one catchability with the fleet it came from.
+      # Share one selectivity and one catchability with the fleet it came from,
+      # so the split costs no parameters. The cost is that any parameter injected
+      # per FLEET must be injected per BLOCK instead: TMB starts a shared
+      # parameter at the mean of its members' values, so a new fleet left at a
+      # default silently drags the real fleet's value to the mean. That is how
+      # Srv's catchability lost 18% on GOA cod -- exp(mean(log(1.4964), log(1)))
+      # = 1.2233 -- for 6.23 nats, with nothing raised.
       new$Selectivity_index   <- fc$Selectivity_index[i]
       new$Catchability_index  <- fc$Catchability_index[i]
       fc <- rbind(fc, new)
+      if (verbose)
+        message(sprintf(
+          "  %s shares Selectivity_index %s and Catchability_index %s with %s: ",
+          new$Fleet_name, new$Selectivity_index, new$Catchability_index,
+          fc$Fleet_name[i]),
+          "inject selectivity and catchability BY BLOCK, not by fleet name, or ",
+          "the shared parameter starts at the mean of the two.")
 
       # Move that definition's age rows onto the new fleet. Only age data move;
       # the catch and index series stay with the original fleet.

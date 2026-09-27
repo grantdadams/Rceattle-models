@@ -119,6 +119,7 @@ fleet_meta <- data.frame(
   name       = cod$fleet_control$Fleet_name,
   ss3_num    = cod$fleet_control$Fleet_code,
   ss3_src    = as.integer(cod$fleet_control$Selectivity_index),
+  q_src      = as.integer(cod$fleet_control$Catchability_index),
   fleet_type = as.character(cod$fleet_control$Fleet_type),
   stringsAsFactors = FALSE
 )
@@ -272,9 +273,50 @@ m_block_beta <- log(M_block / M_base)
 cat(sprintf("M_base = %.4f, M_block = %.4f, beta = %.4f (%d block years)\n",
             M_base, M_block, m_block_beta, sum(cod$env_data$heatwave)))
 
+# --- SS3's priors -------------------------------------------------------------
+# Verified against SS_objfunc.tpl Get_Prior and SS3's own reported Pr_Like:
+#   Pr_type 3 "Log_Norm" = 0.5*((log(x) - Pr)/Psd)^2, NO bias correction
+#   Pr_type 6 "Normal"   = 0.5*((x - Pr)/Psd)^2 on the NATURAL scale
+# Rceattle's linkage prior on an (Intercept) row is evaluated against the BASE
+# parameter, and for fam = normal against its NATURAL-scale value
+# (ceattle.cpp: b_nat = exp(b)), so SS3's natural-scale normals map exactly with
+# no delta-method conversion. Its lognormal centres at
+# log(M_prior) - bias_adjust_proc * sd^2 / 2, so M_prior absorbs that term.
+.bd <- function(label, field) {
+  i <- grep(label, rownames(ctllist$MG_parms))
+  if (!length(i)) return(NA_real_) else as.numeric(ctllist$MG_parms[i[1], field])
+}
+.pr <- function(label, field) {
+  i <- grep(label, rownames(ctllist$MG_parms))
+  if (!length(i)) return(NA_real_) else as.numeric(ctllist$MG_parms[i[1], field])
+}
+M_pr    <- .pr("^NatM", "PRIOR");        M_pr_sd    <- .pr("^NatM", "PR_SD")
+Linf_pr <- .pr("L_at_Amax", "PRIOR");    Linf_pr_sd <- .pr("L_at_Amax", "PR_SD")
+K_pr    <- .pr("VonBert_K", "PRIOR");    K_pr_sd    <- .pr("VonBert_K", "PR_SD")
+cat(sprintf("SS3 bounds: K (%.3g, %.3g)  L1 (%.3g, %.3g)  Linf (%.3g, %.3g)\n",
+            .bd("VonBert_K","LO"), .bd("VonBert_K","HI"), .bd("L_at_Amin","LO"),
+            .bd("L_at_Amin","HI"), .bd("L_at_Amax","LO"), .bd("L_at_Amax","HI")))
+cat(sprintf("\nSS3 priors: M Log_Norm(%.4f, %.4f)  Linf N(%.4f, %.4f)  K N(%.4f, %.4f)\n",
+            M_pr, M_pr_sd, Linf_pr, Linf_pr_sd, K_pr, K_pr_sd))
+# SS3's Log_Norm prior is on log(M) with mean M_pr directly; Rceattle centres at
+# log(M_prior) - bias_adjust_proc*sd^2/2, and bias_adjust_proc is 1 here.
+# The prior centre is shifted by +sd^2/2 because bias_adjust_proc subtracts
+# sd^2/2 back off inside the likelihood; with that flag off the median would land
+# 8.8% low, silently, so assert it rather than rely on the default.
+stopifnot("this bridge assumes fit_control(bias_adjust_proc = TRUE)" =
+            isTRUE(fit_control()$bias_adjust_proc))
+M_prior_nat <- exp(M_pr + M_pr_sd^2 / 2)
+cat(sprintf("  -> Rceattle M_prior = exp(%.4f + %.4f^2/2) = %.5f, sd %.3f\n",
+            M_pr, M_pr_sd, M_prior_nat, M_pr_sd))
+# NOT matched: SS3 also puts Log_Norm(%.2f, %.2f) on the 2014 block's M VALUE
+# (worth 0.9887 of its 1.0285 Parm_priors). Rceattle's parameter there is the
+# log-ratio log(M_block / M_base), so a prior on the block's M has no home.
+
 M1_block <- build_M1(
   M1_model     = 1,
-  M1_use_prior = FALSE,
+  M1_use_prior = TRUE,
+  M_prior      = M_prior_nat,
+  M_prior_sd   = M_pr_sd,
   M2_use_prior = FALSE,
   linkages     = list(M1 = linkage_spec(
     formula = ~ heatwave - 1,
@@ -316,11 +358,13 @@ growthFun_spec <- build_growth(
   pop_lengths       = ss3_rep$lbinspop,
   linkages = list(
     K  = linkage_spec(formula = ~ 1, init = list("(Intercept)" = K_vb),
-                      bounds = list("(Intercept)" = c(0.05, 0.6))),
+                      bounds = list("(Intercept)" = c(max(.bd("VonBert_K","LO"), 1e-3), .bd("VonBert_K","HI"))),
+                      priors = list("(Intercept)" = prior_normal(K_pr, K_pr_sd))),
     L1 = linkage_spec(formula = ~ 1, init = list("(Intercept)" = L_min),
-                      bounds = list("(Intercept)" = c(0.1, 20))),
+                      bounds = list("(Intercept)" = c(max(.bd("L_at_Amin","LO"), 1e-3), .bd("L_at_Amin","HI")))),
     Linf = linkage_spec(formula = ~ 1, init = list("(Intercept)" = L_max),
-                        bounds = list("(Intercept)" = c(60, 140)))
+                        bounds = list("(Intercept)" = c(.bd("L_at_Amax","LO"), .bd("L_at_Amax","HI"))),
+                        priors = list("(Intercept)" = prior_normal(Linf_pr, Linf_pr_sd)))
   )
 )
 
@@ -509,12 +553,36 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
   if ("index_log_q" %in% names(inits)) {
     for (i in seq_len(nrow(fleet_meta))) {
       if (fleet_meta$fleet_type[i] != "Survey") next
+      # Read q for the fleet whose catchability block this fleet belongs to, not
+      # for the fleet itself. A converter-created fleet (an ageing-error split)
+      # has no SS3 fleet of its own, so looking up its own name finds nothing and
+      # it keeps a log q of 0 -- which TMB then averages with its block-mates,
+      # moving the real fleet's q. That cost Srv 18% of its index, silently.
+      src <- fleet_meta$q_src[i]
+      j   <- match(src, fleet_meta$ss3_num)
+      if (is.na(j)) j <- i
       q <- gp(parlist$Q_parms,
-              sprintf("LnQ_base_%s\\(%d\\)$", fleet_meta$name[i], fleet_meta$ss3_num[i]))
+              sprintf("LnQ_base_%s\\(%d\\)$", fleet_meta$name[j], fleet_meta$ss3_num[j]))
       if (!is.na(q)) {
         inits$index_log_q[i] <- q
-        cat(sprintf("  q[%s] = %.4f (exp = %.4f)\n", fleet_meta$name[i], q, exp(q)))
+        cat(sprintf("  q[%s] = %.4f (exp = %.4f)%s\n", fleet_meta$name[i], q, exp(q),
+                    if (j != i) sprintf(" [from %s]", fleet_meta$name[j]) else ""))
       }
+    }
+    # Fleets sharing a Catchability_index share ONE index_log_q, and TMB starts a
+    # shared parameter at the mean of its members' values. Differing values are
+    # therefore silently averaged, and unlike the deviation sds nothing in
+    # Rceattle warns about it, so check here.
+    for (ci in unique(stats::na.omit(fleet_meta$q_src))) {
+      grp <- which(fleet_meta$q_src == ci & fleet_meta$fleet_type == "Survey")
+      if (length(grp) < 2) next
+      v <- inits$index_log_q[grp]
+      if (diff(range(v)) > 1e-8)
+        stop(sprintf("Fleets sharing Catchability_index %d (%s) were given ", ci,
+                     paste(fleet_meta$name[grp], collapse = ", ")),
+             "different log q (", paste(signif(v, 6), collapse = ", "),
+             "). They share one parameter, so it would start at their mean and ",
+             "no fleet would keep its own value.")
     }
   }
   inits
