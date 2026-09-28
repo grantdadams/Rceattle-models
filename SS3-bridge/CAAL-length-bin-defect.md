@@ -24,7 +24,38 @@ is worth 5x; it is now settled at the whole 5 cm bin by the assessment's own pre
 1 cm, and the Rceattle bridge confirms the corrected reading independently.
 
 Correcting the AI model moves mean length-at-age up 0.2–0.5 cm and the 2025 OFL down 1.25%.
-Correcting GOA moves the 2025 OFL up **9.66%**. Corrected copies are `AI cod - Dev/Data/M24_1_caal_bins_fixed`,
+
+**GOA, re-measured 2026-09-28 on a verified matched pair** — the pristine assessment control
+file, 196 estimated parameters on both sides, the two `.dat` files differing only in the CAAL
+block, same v3.30.22.1 binary:
+
+| | original | corrected | change |
+|---|---|---|---|
+| SSB 2024 (terminal) | 102,580 | 103,624 | +1.02% |
+| SSB mean 1977–2024 | | | +1.42% (up in 41 of 48 years) |
+| M | 0.4929 | 0.5216 | +5.81% |
+| K | 0.1905 | 0.2035 | +6.85% |
+| Linf | 99.4609 | 99.4611 | +0.00% |
+| unfished SSB, B40% | | | +0.28% |
+| F reference point (`annF_SPR`) | 0.65 | 0.67 | +3.75% |
+| **OFL 2025** | 45,522 | 47,847 | **+5.11%** |
+| OFL 2028 (peak) | 61,887 | 68,168 | +10.15% |
+
+The correction moves growth and mortality, not scale: unfished SSB and B40% shift by a quarter
+of a percent, and the OFL rise is carried almost entirely by the F reference point following the
+higher M.
+
+> **This is not the +9.66% in the bin-width table further down, and both are right.** That table
+> is built on the BRIDGE configuration -- its 5 cm column is total likelihood 2051.98, which is
+> `goa_pcod_caal_bins_fixed`, carrying `F_Method` 3 → 2 (134 F parameters become estimated) and
+> `max_bias_adj` → −1. The table above is the PRISTINE assessment control file, total likelihood
+> 2068.39. Same data correction, two control configurations, and the OFL effect differs by a
+> factor of nearly two: +9.66% under the bridge's estimated-F setup, +5.11% under the
+> assessment's hybrid F.
+>
+> **Quote the pristine figures when the question is "what does this do to the assessment".** The
+> bridge figures answer a different question, which is what the correction does to the model
+> Rceattle is being matched against. Corrected copies are `AI cod - Dev/Data/M24_1_caal_bins_fixed`,
 `GOA cod/Data/goa_pcod_caal_bins_1cm` and `GOA cod/Data/goa_pcod_caal_bins_fixed`; in each, only
 the two CAAL length columns differ from the original, and rerunning each original reproduces its
 archived likelihood exactly.
@@ -156,7 +187,9 @@ Lengths are taken as integer cm (`as.integer(LENGTH / 10)`), so BIN 34.5 collect
 38 and 39 cm fish — a 5 cm stratum. The last line writes the bin's label into **both** columns, so
 `Lbin_hi = Lbin_lo` is the label written twice, not a 1 cm cell.
 
-**So the fix for the 34.5 row is `35 39`, and the 2025 OFL effect is +9.66%, not +1.97%.**
+**So the fix for the 34.5 row is `35 39`.** On the bridge configuration that table uses, the
+2025 OFL effect is +9.66% rather than the +1.97% the 1 cm reading gives; on the pristine
+assessment control file it is +5.11% (see the measured table near the top).
 
 The rest of this section records how the file alone could not decide it, which is worth keeping:
 it is why the fit comparison below must not be read as evidence.
@@ -193,7 +226,7 @@ only the predicted cell definition changes — and it mildly favours the one-bin
 | natural mortality M | 0.4309 | 0.4412 | 0.4678 |
 | terminal SSB (2024, mt) | 89 958 | 89 908 | 92 522 |
 | B2024 / B0 | 0.233 | 0.235 | 0.242 |
-| **2025 OFL (t)** | 35 141 | 35 833 (+1.97%) | **38 536 (+9.66%)** |
+| **2025 OFL (t)** | 35 141 | 35 833 (+1.97%) | **38 536 (+9.66%)** |   <!-- bridge config; pristine gives +5.11% -->
 | 2025 ABC (t) | 24 124 | 24 724 | 27 308 |
 
 The 1 cm reading gives the lowest total likelihood of the three, and for a while that was read as
