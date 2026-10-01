@@ -22,6 +22,24 @@ if (identical(mode, "fixsel")) {
               length(sel_rows), sum(!is.na(map_g3$mapFactor$beta_linkage))))
 }
 
+# Under RCE_SEL_PARITY the selectivity design columns ARE SS3's coefficients, so
+# two linkage rows carrying the same design_col are the same SS3 parameter -- the
+# Srv / Srv_ae1 ageing-error split is one curve in SS3 and must be one
+# coefficient here. The offset is applied per fleet in the template, so both rows
+# have to exist; sharing a map LEVEL makes them one estimated parameter.
+if (identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")) {
+  tbl <- mod0$data_list$linkage_table
+  f   <- as.character(map_g3$mapFactor$beta_linkage)
+  sel <- which(tbl$process == "sel" & !is.na(f))
+  if (length(sel)) {
+    key <- paste(tbl$param[sel], tbl$design_col[sel], sep = "|")
+    f[sel] <- paste0("selp", match(key, unique(key)))
+    map_g3$mapFactor$beta_linkage <- factor(f)
+    cat(sprintf("[sel parity] %d selectivity rows share %d coefficients\n",
+                length(sel), length(unique(key))))
+  }
+}
+
 # SS3 estimates M (phase 5) and the pattern-24 base parameters; ss3_fix_map held
 # log_M1 and every sel_dn6 slot, so free the ones SS3 moved. Without this
 # Rceattle optimises 206 parameters against SS3's 330 and the comparison is of

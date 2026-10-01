@@ -207,10 +207,121 @@ for (j in seq_along(vary_yr)) {
 cat(sprintf("\nSelectivity linkages: %d year columns (%d-%d)\n",
             length(yr_cols), min(years_hind[vary_yr]), max(years_hind[vary_yr])))
 
+# ---- Option: SS3's own parameterisation, for estimation parity --------------
+# RCE_SEL_PARITY=true replaces the per-year design below with SS3's two
+# mechanisms, so Rceattle estimates the SAME coefficients SS3 does rather than
+# one per varying year (which makes a 10-year block ten parameters):
+#
+#   blocks  Blk_Fxn = 2 REPLACES the parameter over a year range, so one
+#           identity-link column per block, coefficient = block - base.
+#   devs    realized = base * exp(dev * dev_se), dev_se fixed at 0.2, so one
+#           LOG-link column per dev year, coefficient = dev * 0.2. Verified to
+#           SS3's printed precision on all 63 (see GOA-parameter-parity.md).
+#
+# They compose as base * exp(log_off) + nat_off only because they never overlap:
+# devs are 1977-1989 and blocks start 1990 or 1996.
+SEL_PARITY <- identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")
+
+# SS3's parameter table, for base values, phases and the BLK/DEVmult names.
+.ss3_P <- local({
+  ln <- readLines(file.path(SS3_DIR, "Report.sso"), warn = FALSE)
+  h  <- grep("^Num +Label +Value +Active_Cnt", ln)[1]
+  j <- h + 1; lab <- character(0); v <- numeric(0); ph <- character(0)
+  while (j <= length(ln)) {
+    f <- strsplit(trimws(ln[j]), "[ \t]+")[[1]]
+    if (length(f) < 5 || !grepl("^[0-9]+$", f[1])) break
+    lab <- c(lab, f[2]); v <- c(v, as.numeric(f[3])); ph <- c(ph, f[5]); j <- j + 1
+  }
+  list(value = stats::setNames(v, lab), phase = stats::setNames(as.numeric(ph), lab))
+})
+# SS3 labels a pattern-24 parameter Size_DblN_<name>_<Fleet>(<n>); the names
+# carry parentheses, so every lookup here is literal, never a regex.
+SS3_PAR_NAME <- c("peak", "top_logit", "ascend_se", "descend_se",
+                  "start_logit", "end_logit")
+# A fleet split for ageing error (Srv_ae1) shares its parent's curve, so resolve
+# through Selectivity_index -- its own name has no SS3 parameters.
+.ss3_sel_stem <- function(fi, k) {
+  j <- match(fleet_meta$ss3_src[fi], fleet_meta$ss3_num)
+  if (is.na(j)) j <- fi
+  sprintf("Size_DblN_%s_%s(%d)", SS3_PAR_NAME[k], fleet_meta$name[j],
+          fleet_meta$ss3_num[j])
+}
+
 # One linkage per pattern-24 parameter, restricted to the fleets that move it.
 PAR_LINK <- c("dn_peak", "top_logit", "ascend_se", "descend_se",
               "start_logit", "end_logit")
 sel_linkages <- list()
+if (SEL_PARITY) {
+  # SS3's own coefficients: one per block, one per dev year, per fleet-parameter.
+  DEV_SE <- 0.2
+  n_blk <- n_blk_held <- n_dev <- 0L
+  for (k in 1:6) {
+    specs <- list()
+    for (src in unique(fleet_meta$ss3_src[active_sel])) {
+      grp <- active_sel[fleet_meta$ss3_src[active_sel] == src]
+      fi  <- grp[1]
+      stem <- .ss3_sel_stem(fi, k)
+      nm   <- names(.ss3_P$value)
+      blk  <- nm[startsWith(nm, paste0(stem, "_BLK"))]
+      dev  <- nm[startsWith(nm, paste0(stem, "_DEVmult_"))]
+      if (!length(blk) && !length(dev)) next
+      base <- .ss3_P$value[[stem]]
+
+      # -- blocks: identity, coefficient = block value - base, over the range.
+      b_cols <- character(0); b_init <- list(); b_held <- character(0)
+      for (bn in blk) {
+        pat <- as.integer(sub(".*_BLK([0-9]+)(repl|add)_.*", "\\1", bn))
+        yr0 <- as.integer(sub(".*_BLK[0-9]+(repl|add)_", "", bn))
+        rng <- ctllist$Block_Design[[pat]]
+        rng <- matrix(rng, ncol = 2, byrow = TRUE)
+        r   <- rng[rng[, 1] == yr0, , drop = FALSE]
+        stopifnot(nrow(r) == 1L)
+        cn  <- sprintf("s%dp%d_blk%d", src, k, yr0)
+        cod$env_data[[cn]] <- as.integer(cod$env_data$Year >= r[1, 1] &
+                                         cod$env_data$Year <= r[1, 2])
+        b_cols <- c(b_cols, cn)
+        b_init[[cn]] <- .ss3_P$value[[bn]] - base
+        if (!is.finite(.ss3_P$phase[[bn]]) || .ss3_P$phase[[bn]] <= 0)
+          b_held <- c(b_held, cn)
+      }
+      # -- devs: LOG link, coefficient = dev * dev_se, one year each.
+      d_cols <- character(0); d_init <- list()
+      for (dn in dev) {
+        y  <- as.integer(sub(".*_DEVmult_", "", dn))
+        cn <- sprintf("s%dp%d_dev%d", src, k, y)
+        cod$env_data[[cn]] <- as.integer(cod$env_data$Year == y)
+        d_cols <- c(d_cols, cn)
+        d_init[[cn]] <- .ss3_P$value[[dn]] * DEV_SE
+      }
+
+      # Held blocks need their own spec: est_phase is per spec, not per column.
+      free_b <- setdiff(b_cols, b_held)
+      if (length(free_b)) {
+        specs[[length(specs) + 1L]] <- linkage_spec(
+          formula = stats::reformulate(c("0", free_b)),
+          fleet = fleet_meta$ss3_num[grp], link = "identity",
+          init = b_init[free_b])
+        n_blk <- n_blk + length(free_b)
+      }
+      if (length(b_held)) {
+        specs[[length(specs) + 1L]] <- linkage_spec(
+          formula = stats::reformulate(c("0", b_held)),
+          fleet = fleet_meta$ss3_num[grp], link = "identity",
+          init = b_init[b_held], est_phase = 0)
+        n_blk_held <- n_blk_held + length(b_held)
+      }
+      if (length(d_cols)) {
+        specs[[length(specs) + 1L]] <- linkage_spec(
+          formula = stats::reformulate(c("0", d_cols)),
+          fleet = fleet_meta$ss3_num[grp], link = "log", init = d_init)
+        n_dev <- n_dev + length(d_cols)
+      }
+    }
+    if (length(specs)) sel_linkages[[PAR_LINK[k]]] <- specs
+  }
+  cat(sprintf("\n[sel parity] %d block coefficients (+%d held), %d dev coefficients = %d\n",
+              n_blk, n_blk_held, n_dev, n_blk + n_dev))
+} else {
 for (k in 1:6) {
   flts <- active_sel[sapply(active_sel, function(fi)
     any(abs(sel_off[fi, k, ]) > 1e-8, na.rm = TRUE))]
@@ -226,6 +337,7 @@ for (k in 1:6) {
   )
   cat(sprintf("  %-12s fleets %s, %d year column(s)\n", PAR_LINK[k],
               paste(fleet_meta$name[flts], collapse = "/"), length(cols)))
+}
 }
 # KNOWN GAP -- SS3's AGE selectivity, which Rceattle cannot multiply in.
 # All five fleets carry SS3 age pattern 10, which sets ages 1..nages to 1 and
@@ -709,8 +821,15 @@ inits <- init_from_ss3(parlist, ctllist, mod0$estimated_params, cod,
 # base parameter: SelSizeAdj already folds in whatever block or dev applied in
 # that year, and every offset below is measured against it. -999 goes in raw,
 # because fit_mod() derives sel_dn6_ends from sel_dn6[5:6] > -999.
+# Under RCE_SEL_PARITY the base must be SS3's BASE parameter instead, because the
+# coefficients are SS3's own: a 1977 base would absorb DEVmult_1977 and leave
+# three dev coefficients short on FshTrawl.
 for (fi in active_sel) {
   v <- sel_base[fi, ]
+  if (SEL_PARITY) for (k in 1:6) {
+    stem <- .ss3_sel_stem(fi, k)
+    if (stem %in% names(.ss3_P$value)) v[k] <- .ss3_P$value[[stem]]
+  }
   v[!is.finite(v)] <- -999
   inits$sel_dn6[, fi, 1] <- v
   cat(sprintf("  sel_dn6[%s] base: %s\n", fleet_meta$name[fi],
