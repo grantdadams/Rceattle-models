@@ -1,5 +1,11 @@
 # Handoff: Match SS3 model exactly — forward pass + estimation (GOA Pcod 2024)
 
+> **SUPERSEDED (2026-09-30). Read `../../SS3-bridge/HANDOFF.md` instead.**
+> This is a May/June 2026 snapshot, kept for history. It cites `ceattle_v01_11.cpp`
+> (now `ceattle.cpp`), reports "TOTAL NLL +539 vs SS3" where the forward pass at SS3's
+> MLE is now 1998.9663, and names "Pope's vs Baranov" as the open blocker, which is long
+> resolved. The current accounting is `../../SS3-bridge/GOA-estimation-parity.md`.
+
 Last updated: 2026-05-31 (evening).
 
 **Goal**: get Rceattle to reproduce SS3's reported quantities (R, Bio, SSB,

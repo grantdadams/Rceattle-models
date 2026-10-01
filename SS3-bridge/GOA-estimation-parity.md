@@ -242,7 +242,34 @@ the point: those numbers were right, and the code had regressed under them.
   replacements left free.
 - The M-block prior does not map: SS3 puts Log_Norm(−0.81, 0.41) on the block's M
   **value**, where Rceattle's parameter is `log(M_block / M_base)`.
-- `EnvExp`, SS3 environmental link type 1, for LLSrv catchability.
+- ~~`EnvExp`, SS3 environmental link type 1, for LLSrv catchability.~~
+  **Closed 2026-09-30.** Rceattle 5.47.0 added `link = "exponential"`, which is
+  SS3's type 1 (`SS_timevaryparm.tpl:206`, `case 1: // exponential env link`),
+  and `ss3_to_ceattle_forward_pass.R` now carries it:
+  `control.ss_new` gives `LnQ_base_LLSrv(5)` an `env-var` of `101` -- type 1 on
+  environmental variable 1 -- and SS3's coefficient is `0.517737`
+  (`LnQ_base_LLSrv(5)_ENV_add` in the `.par`; `ss_summary.sso` calls the same
+  parameter `_ENV_mult`, and SS3's type 1 is multiplicative, so r4ss's label
+  misleads).
+
+  Measured with `RCE_Q_ENV` on and off, so the lognormal constant cancels:
+
+  | | total jnll | Index, LLSrv |
+  |---|---|---|
+  | without the link | 2008.9309 | 44.74738 |
+  | with the link | 1998.9663 | 34.78278 |
+  | closed | **9.9646** | **9.96459** |
+
+  This table predicted `+9.9645`. The whole of it lands in `Index data` and on
+  LLSrv: no other `jnll_comp` row moves by more than 1e-6. LLSrv's q runs
+  1.2242-1.9374 about its base of 1.3851.
+
+  Two notes for whoever reads a fitted coefficient here. Variable 1 covers
+  1979-2024 and the model starts in 1977, so seven model years are filled with 0;
+  that is required (the linkage refuses an NA fixed-effect covariate) and
+  harmless, because LLSrv has no index observation before 1990. And `beta`
+  multiplies `log q`, so it is only interpretable alongside its base -- a fit that
+  crossed `q = 1` would carry the opposite sign for the same curve.
 - The regime shift needs its own unpenalised parameter rather than a home inside
   `init_dev` (item 2 above).
 - `parity_check.R`'s G1 does not run on GOA: its `growth_matrix` read assumes

@@ -30,10 +30,11 @@
 #     fleets with obs_equ_catch != 0), and initMode is NonEquilibrium.
 #   - Three fisheries and two surveys are active; four fleets are Off.
 #
-# Known gap: LLSrv's catchability carries SS3's env link type 1, which
-# MULTIPLIES log q by exp(beta*env) (SS_timevaryparm.tpl:206). Rceattle's
-# "Environmental" is the additive form (SS3's type 2), so it is not a
-# substitute. LLSrv is the one fleet expected to miss on the predicted index.
+# LLSrv's catchability carries SS3's env link type 1, which MULTIPLIES log q by
+# exp(beta*env) (SS_timevaryparm.tpl:206). Rceattle's "Environmental" is the
+# additive form (SS3's type 2) and is not a substitute, but link = "exponential"
+# (5.47.0) is that form, and this script now carries it: it closes 9.9646 nats of
+# index likelihood, all of it on LLSrv. RCE_Q_ENV=false drops it again.
 # =============================================================================
 
 library(r4ss); library(dplyr); library(tidyr)
@@ -244,6 +245,34 @@ for (k in 1:6) {
 # is deliberately left alone.
 selFun_spec <- build_selectivity(linkages = sel_linkages)
 
+# ---- LLSrv catchability: SS3's environmental link type 1 --------------------
+# control.ss_new gives LnQ_base_LLSrv(5) an env-var of 101: link type 1 on
+# environmental variable 1. SS3 holds Svy_log_q = log(q) * exp(beta * x) and takes
+# q as its exponential, which is Rceattle's link = "exponential".
+# Variable 1 runs 1979-2024 and the model starts in 1977, so the covariate has to
+# be filled over the missing years: model.matrix() drops NA rows and the linkage
+# refuses a fixed-effect covariate holding NA. Zero is the right fill and is
+# provably harmless -- exp(0) = 1 leaves the base q untouched, and LLSrv has no
+# index observation before 1990, so nothing fitted reads those years.
+q_env <- datlist$envdat[datlist$envdat$variable == 1L, c("year", "value")]
+cod$env_data$LLSrv_q_env <- q_env$value[match(cod$env_data$Year, q_env$year)]
+cod$env_data$LLSrv_q_env[!is.finite(cod$env_data$LLSrv_q_env)] <- 0
+cat(sprintf("\nLLSrv q env link: variable 1 over %d-%d; %d model year(s) filled with 0\n",
+            min(q_env$year), max(q_env$year),
+            sum(!(cod$env_data$Year %in% q_env$year))))
+
+# RCE_Q_ENV=false drops the link, so the index likelihood can be read with and
+# without it; the lognormal constant cancels in the difference.
+Q_ENV <- !identical(tolower(Sys.getenv("RCE_Q_ENV", "true")), "false")
+qFun_spec <- if (Q_ENV) {
+  build_catchability(linkages = list(
+    q = linkage_spec(~ LLSrv_q_env, by = ~ fleet, fleet = "LLSrv",
+                     link = "exponential")))
+} else {
+  build_catchability()
+}
+cat(sprintf("LLSrv q env link: %s\n", if (Q_ENV) "ON" else "OFF (baseline)"))
+
 
 # =============================================================================
 # 3. M1: base plus the heatwave block, as a multiplicative log-linkage
@@ -426,6 +455,7 @@ mod0 <- Rceattle::fit_mod(
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   selFun       = selFun_spec,
+  qFun         = qFun_spec,
   random_rec   = FALSE,
   msmMode      = 0,
   # SS3 bias-corrects RECRUITMENT but applies no bias correction to the catch
@@ -547,9 +577,9 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
   }
 
   # --- Survey catchability (log scale) ---
-  # LLSrv's SS3 q also carries an exponential environmental link, which has no
-  # Rceattle counterpart; only the base is injected, so its predicted index
-  # will not track SS3.
+  # Only the BASE log q is injected here; LLSrv's env link type 1 rides on top of
+  # it as a q linkage, and its coefficient is injected with the other linkage
+  # betas below.
   if ("index_log_q" %in% names(inits)) {
     for (i in seq_len(nrow(fleet_meta))) {
       if (fleet_meta$fleet_type[i] != "Survey") next
@@ -681,6 +711,22 @@ for (k in 1:6) {
 cat(sprintf("Set %d selectivity linkage coefficients (largest |offset| = %.4g)\n",
             n_set, max_off))
 
+# LLSrv's env-link coefficient. r4ss labels the .par entry _ENV_add even though
+# SS3's type 1 is multiplicative (ss_summary.sso calls it _ENV_mult), so match
+# either spelling; the value is the same.
+q_beta_row <- grep("LnQ_base_LLSrv\\(5\\)_ENV_(add|mult)",
+                   rownames(parlist$Q_parms))
+if (Q_ENV && length(q_beta_row) == 1L) {
+  q_beta  <- parlist$Q_parms[q_beta_row, "ESTIM"]
+  q_b_row <- which(tbl$process == "q" & tbl$design_col == "LLSrv_q_env")
+  if (length(q_b_row) == 1L) {
+    inits$beta_linkage[q_b_row] <- q_beta
+    cat(sprintf("q env link[LLSrv]: beta = %.6f\n", q_beta))
+  } else {
+    warning(sprintf("q env linkage row: found %d (expected 1)", length(q_b_row)))
+  }
+}
+
 R_init    <- exp(inits$rec_pars[1, 1])
 M1_at_age <- rep(M_base, nages)
 inits <- init_state_from_ss3_natage(inits, ss3_rep, cod$styr, nages,
@@ -702,6 +748,7 @@ fp <- Rceattle::fit_mod(
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
   selFun       = selFun_spec,
+  qFun         = qFun_spec,
   random_rec   = FALSE,
   msmMode      = 0,
   fit_control  = fit_control(phase = FALSE, verbose = 1, bias_adjust_obs = FALSE)
