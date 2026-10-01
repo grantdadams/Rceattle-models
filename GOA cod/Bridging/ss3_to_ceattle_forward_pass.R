@@ -602,14 +602,32 @@ regime_shift <- gp(parlist$SR_parms, "SR_regime_BLK")
 # only SS3's Early_InitAge departures. RCE_INIT_LINK=false folds it back.
 INIT_LINK <- !identical(tolower(Sys.getenv("RCE_INIT_LINK", "true")), "false")
 regime_lvl <- if (INIT_LINK && !is.na(regime_shift)) regime_shift else 0
+# SS3 penalises the regime: SS_objfunc.tpl:810 is
+#   regime_like = 0.5 * (log(R1/R1_exp) / (sigmaR/ave_age))^2
+# with ave_age = 1/M - 0.5 (SS_biofxn.tpl:1285). log(R1/R1_exp) IS the regime
+# shift, so the identical density is normal(0, sigmaR/ave_age) on the init
+# coefficient. Verified on the pristine assessment: M = 0.492942 gives
+# ave_age 1.52864 and sd 0.28783, and 0.5*(0.678228/0.28783)^2 = 2.7758 against
+# SS3's reported InitEQ_Regime of 2.77603.
+# The bridge's own ctl sets lambda 0 on that component, so SS3 reports 0 for it
+# there; RCE_INIT_PRIOR=false drops the prior to match that configuration
+# instead of the assessment's.
+init_ave_age <- 1 / M_base - 0.5
+init_pr_sd   <- (gp(parlist$SR_parms, "SR_sigmaR") %||% 0.44) / init_ave_age
+INIT_PRIOR   <- !identical(tolower(Sys.getenv("RCE_INIT_PRIOR", "true")), "false")
 recFun_spec <- if (INIT_LINK && !is.na(regime_shift)) {
   cod$env_data$init_lvl <- 1
   build_srr(linkages = list(init = linkage_spec(
     formula = ~ 0 + init_lvl,
-    init    = list(init_lvl = regime_shift))))
+    init    = list(init_lvl = regime_shift),
+    priors  = if (INIT_PRIOR) list(init_lvl = prior_normal(0, init_pr_sd)))))
 } else {
   build_srr()
 }
+if (INIT_LINK && !is.na(regime_shift))
+  cat(sprintf("init prior: %s  sd = %.5f (sigmaR/(1/M-0.5)), penalty at SS3's value = %.4f\n",
+              if (INIT_PRIOR) "ON" else "OFF", init_pr_sd,
+              0.5 * (regime_shift / init_pr_sd)^2))
 cat(sprintf("init level linkage: %s (SR_regime = %.6f)\n",
             if (INIT_LINK && !is.na(regime_shift)) "ON" else "OFF", regime_shift))
 
