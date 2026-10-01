@@ -143,6 +143,53 @@ So the deviations are penalised with a **fixed** sd of 0.2 and no autocorrelatio
 that is an identity-link `(1 | Year)` term with `integrate = FALSE` and the sd supplied rather
 than estimated -- a penalised deviate, not an integrated random effect, and not a free offset.
 
+## How SS3's DEVmult actually works, and why it is a LOG link
+
+Measured 2026-10-01, and it changes the design. SS3's base and its 1977 realized value differ on
+the dev'd FshTrawl parameters:
+
+| parameter | SS3 base | realized 1977 | `DEVmult_1977` |
+|---|---|---|---|
+| `Size_DblN_peak_FshTrawl(1)` | 57.75250 | 52.88110 | -0.44060 |
+| `Size_DblN_ascend_se_FshTrawl(1)` | 5.12526 | 4.83955 | -0.28680 |
+
+It is not additive -- `57.7525 - 0.4406` is not `52.8811`. It is
+
+```
+realized = base * exp(dev * dev_se)
+```
+
+with `dev_se` the control file's fixed **0.2**: `ln(52.8811 / 57.7525) / -0.44060 = 0.2000`, and
+`ln(4.83955 / 5.12526) / 0.2 = -0.28685` against the reported -0.28680. So the `DEVmult`
+parameter is a **standardised** deviate and the realized effect is multiplicative. That also
+reconciles `Parm_devs = 6.4903`: it is `sum(dev^2)/2` over the 63 standardised deviates (mean
+`|dev|` ~0.35 gives ~4.7, same order), not a 0.2-scaled quadratic.
+
+**Consequences for the Rceattle design:**
+
+- The **devs are a `log` link** with offset `dev * 0.2`, equivalently a `log`-link `(1 | Year)`
+  term over the dev years with `integrate = FALSE` and sigma fixed at **0.2**. They are NOT
+  identity offsets.
+- The **blocks stay `identity`**, because `Blk_Fxn = 2` REPLACES the parameter, so the offset is
+  `block_value - base`.
+- The two compose correctly **only because they never overlap**: devs are 1977-1989 and blocks
+  start 1990 (patterns 2, 3) or 1996 (pattern 1). Rceattle consumes them as
+  `base * exp(log_offset) + nat_offset`, so a dev year gets `base * exp(dev * 0.2)` and a block
+  year gets `base + (block - base)`. If a year ever carried both, this decomposition would be
+  wrong.
+
+The current bridge treats every selectivity offset as `identity`, derived from the realized
+series, which reproduces the forward pass exactly and is why G2 matches. It is the wrong
+parameterisation to ESTIMATE under: an identity offset on a dev year has no penalty and the wrong
+scale.
+
+**One more count subtlety.** The bridge sets Rceattle's base to the realized **1977** value
+(`sel_base <- sel_eff[, , 1]`). For FshTrawl that absorbs `DEVmult_1977`, so a design keyed on
+1978-1989 would give 12 dev coefficients where SS3 has 13 -- three short across FshTrawl's three
+dev'd parameters. To match, set the base to SS3's **base** parameter and give 1977 its own dev
+column. `descend_se_FshTrawl` happens to be unaffected because its `DEVmult_1977` is 0.00000 (it
+is one of the 13 inert ones).
+
 ## To do, in order
 
 1. **Restructure the selectivity linkage design** so each estimated block is ONE coefficient
