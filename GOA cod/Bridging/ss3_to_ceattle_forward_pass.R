@@ -77,7 +77,13 @@ local({
 # The as-written copy is refused by the converter, and rightly: SS3 truncates
 # its non-integer Lbin values and fits bins the file does not name. Pete
 # Hulson's prep code settles the 5 cm reading -- see CAAL-length-bin-defect.md.
-SS3_DIR  <- Sys.getenv("RCE_SS3_DIR", unset = "Data/goa_pcod_caal_bins_fixed")
+# Default to the model that matches the ASSESSMENT's specification: CAAL bins
+# corrected AND SS3's InitEQ_Regime penalty active (the lambda-0 line removed).
+# goa_pcod_caal_bins_fixed has that penalty switched off, which let its regime run
+# to -1.3879; with the penalty on it is -0.740496 (SE 0.195), close to the
+# assessment's -0.678228. Re-fitted with SS3 v3.30.25.1, not the 22.1 of the other
+# directories, so that is a version change as well.
+SS3_DIR  <- Sys.getenv("RCE_SS3_DIR", unset = "Data/goa_pcod_caal_lambda_on")
 PAR_FILE <- "ss3.par"
 DAT_FILE <- "GOAPcod2024Oct17_1e_5cm.dat"
 CTL_FILE <- "Model19_1e.ctl"
@@ -127,9 +133,33 @@ fleet_meta <- data.frame(
 print(cod$fleet_control[, c("Fleet_name", "Fleet_type", "Selectivity",
                             "Selectivity_dimension", "Time_varying_sel")])
 
+# Report.sso's PARAMETERS table, as a named vector. The par file's layout is NOT
+# version-stable: v3.30.22.1 writes named sections, v3.30.25.1 writes generic
+# MGparm[n] labels and no SR_ names at all, so SS_readpar_3.30() returns an
+# SR_parms block with no rownames and every named lookup silently gives NA.
+# Report.sso keeps its labels across both, so it is the fallback.
+.ss3_report_values <- local({
+  ln <- readLines(file.path(SS3_DIR, "Report.sso"), warn = FALSE)
+  h  <- grep("^Num +Label +Value +Active_Cnt", ln)[1]
+  if (is.na(h)) return(numeric(0))
+  j <- h + 1; lab <- character(0); v <- numeric(0)
+  while (j <= length(ln)) {
+    f <- strsplit(trimws(ln[j]), "[ \t]+")[[1]]
+    if (length(f) < 4 || !grepl("^[0-9]+$", f[1])) break
+    lab <- c(lab, f[2]); v <- c(v, suppressWarnings(as.numeric(f[3]))); j <- j + 1
+  }
+  stats::setNames(v, lab)
+})
+
 gp <- function(sec, pat) {
-  if (is.null(sec)) return(NA_real_)
-  i <- grep(pat, rownames(sec)); if (length(i)) sec[i[1], "ESTIM"] else NA_real_
+  if (!is.null(sec)) {
+    i <- grep(pat, rownames(sec))
+    if (length(i)) return(sec[i[1], "ESTIM"])
+  }
+  # Fall back to Report.sso so a par-format change cannot turn a value into NA.
+  i <- grep(pat, names(.ss3_report_values))
+  if (length(i)) return(unname(.ss3_report_values[i[1]]))
+  NA_real_
 }
 
 
