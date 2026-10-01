@@ -40,6 +40,67 @@ if (identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")) {
   }
 }
 
+# Hold what SS3 could not identify, at SS3's own value. RCE_HOLD_SE is the
+# standard-error threshold: on GOA cod 22 parameters have SE > 50 -- 15 top_logit
+# and 7 descend_se -- where AI cod and EBS cod have NONE above 10. Estimating them
+# reproduces SS3's parameter COUNT and its flat directions with it, and Rceattle's
+# dgesv refuses the resulting singular system where SS3 inverts it and reports the
+# large SEs instead. Fixing at the FITTED value, not at 0: top_logit is
+# logit(plateau fraction), so 0 means a plateau halfway to maxlen where the fitted
+# -5 means 0.6% -- a different curve. For the 13 descend_se DEVmults the fitted
+# value IS ~3e-07, so those are effectively fixed at zero.
+# OFF by default: the singularity it was written for was an artifact of
+# newtonsteps > 0, not of the parameters. See the note in GOA-parameter-parity.md.
+.hold_se <- suppressWarnings(as.numeric(Sys.getenv("RCE_HOLD_SE", "Inf")))
+if (is.finite(.hold_se)) {
+  tbl <- mod0$data_list$linkage_table
+  # SS3 label for a selectivity linkage row, matching the forward pass's scheme.
+  big <- names(.ss3_report_values)[
+    vapply(names(.ss3_report_values), function(n) {
+      i <- which(names(.ss3_P$sd) == n)
+      length(i) == 1L && is.finite(.ss3_P$sd[[i]]) && .ss3_P$sd[[i]] > .hold_se
+    }, logical(1))]
+  if (length(big)) {
+    cat(sprintf("[hold] %d SS3 parameters have SE > %g\n", length(big), .hold_se))
+    # sel_dn6 base slots
+    g <- as.character(map_g3$mapFactor$sel_dn6)
+    nmv <- c("peak","top_logit","ascend_se","descend_se","start_logit","end_logit")
+    nheld <- 0L
+    # sel_dn6 is [6, n_flt, sex], so slot (fleet, k) sits at (fleet-1)*6 + k.
+    # Look the SE up directly rather than through a name-set membership test.
+    for (fi in active_sel) for (k in seq_along(nmv)) {
+      stem <- .ss3_sel_stem(fi, k)
+      sdv  <- if (stem %in% names(.ss3_P$sd)) .ss3_P$sd[[stem]] else NA_real_
+      j <- (fi - 1L) * 6L + k
+      if (j > length(g)) next
+      if (is.finite(sdv) && sdv > .hold_se && !is.na(g[j])) {
+        g[j] <- NA; nheld <- nheld + 1L
+        cat(sprintf("  [hold] sel_dn6 %s %s (SS3 SE %.1f)\n",
+                    fleet_meta$name[fi], nmv[k], sdv))
+      }
+    }
+    map_g3$mapFactor$sel_dn6 <- factor(g)
+    # linkage coefficients: the design column name carries the SS3 identity
+    f <- as.character(map_g3$mapFactor$beta_linkage)
+    nb <- 0L
+    for (i in seq_len(nrow(tbl))) {
+      if (is.na(f[i]) || tbl$process[i] != "sel") next
+      dc <- as.character(tbl$design_col[i])
+      # s<src>p<k>_blk<yr> / _dev<yr> -> the SS3 parameter it came from
+      m <- regmatches(dc, regexec("^s([0-9]+)p([0-9]+)_(blk|dev)([0-9]+)$", dc))[[1]]
+      if (length(m) != 5L) next
+      fi <- match(as.integer(m[2]), fleet_meta$ss3_num)
+      if (is.na(fi)) next
+      stem <- .ss3_sel_stem(fi, as.integer(m[3]))
+      pat  <- if (m[4] == "blk") "_BLK[0-9]+repl_" else "_DEVmult_"
+      hit  <- grep(paste0("^", gsub("([()])", "\\\\\\1", stem), pat, m[5], "$"), big)
+      if (length(hit)) { f[i] <- NA; nb <- nb + 1L }
+    }
+    map_g3$mapFactor$beta_linkage <- factor(f)
+    cat(sprintf("[hold] held %d sel_dn6 slots and %d linkage coefficients\n", nheld, nb))
+  }
+}
+
 # SS3 estimates M (phase 5) and the pattern-24 base parameters; ss3_fix_map held
 # log_M1 and every sel_dn6 slot, so free the ones SS3 moved. Without this
 # Rceattle optimises 206 parameters against SS3's 330 and the comparison is of
