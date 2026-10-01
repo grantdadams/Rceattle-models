@@ -227,12 +227,15 @@ SEL_PARITY <- identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")
   ln <- readLines(file.path(SS3_DIR, "Report.sso"), warn = FALSE)
   h  <- grep("^Num +Label +Value +Active_Cnt", ln)[1]
   j <- h + 1; lab <- character(0); v <- numeric(0); ph <- character(0)
+  sd <- numeric(0)
   while (j <= length(ln)) {
     f <- strsplit(trimws(ln[j]), "[ \t]+")[[1]]
-    if (length(f) < 5 || !grepl("^[0-9]+$", f[1])) break
-    lab <- c(lab, f[2]); v <- c(v, as.numeric(f[3])); ph <- c(ph, f[5]); j <- j + 1
+    if (length(f) < 11 || !grepl("^[0-9]+$", f[1])) break
+    lab <- c(lab, f[2]); v <- c(v, as.numeric(f[3])); ph <- c(ph, f[5])
+    sd <- c(sd, suppressWarnings(as.numeric(f[11]))); j <- j + 1
   }
-  list(value = stats::setNames(v, lab), phase = stats::setNames(as.numeric(ph), lab))
+  list(value = stats::setNames(v, lab), phase = stats::setNames(as.numeric(ph), lab),
+       sd = stats::setNames(sd, lab))
 })
 # SS3 labels a pattern-24 parameter Size_DblN_<name>_<Fleet>(<n>); the names
 # carry parentheses, so every lookup here is literal, never a regex.
@@ -254,7 +257,7 @@ sel_linkages <- list()
 if (SEL_PARITY) {
   # SS3's own coefficients: one per block, one per dev year, per fleet-parameter.
   DEV_SE <- 0.2
-  n_blk <- n_blk_held <- n_dev <- 0L
+  n_blk <- n_blk_held <- n_dev <- n_dev_held <- 0L
   for (k in 1:6) {
     specs <- list()
     for (src in unique(fleet_meta$ss3_src[active_sel])) {
@@ -310,6 +313,27 @@ if (SEL_PARITY) {
           init = b_init[b_held], est_phase = 0)
         n_blk_held <- n_blk_held + length(b_held)
       }
+      # The 13 descend_se_FshTrawl devs sit at ~2e-07: SS3 did not identify them.
+      # Estimating them reproduces SS3's count AND its flat directions, which
+      # makes the system exactly singular.
+      # Hold them unless RCE_SEL_DEV_ALL asks for the faithful-but-unfittable set.
+      d_keep <- d_cols
+      if (!identical(tolower(Sys.getenv("RCE_SEL_DEV_ALL", "false")), "true")) {
+        # SS3 reports Parm_StDev = 0 for EVERY dev row, so sd cannot discriminate.
+        # The value does: the 13 it could not identify sit at ~2e-07 against
+        # 0.3-1.4 for the 50 real ones.
+        bad <- vapply(dev, function(dn) abs(.ss3_P$value[[dn]]) < 1e-4, logical(1))
+        if (any(bad)) {
+          held_d <- d_cols[bad]
+          specs[[length(specs) + 1L]] <- linkage_spec(
+            formula = stats::reformulate(c("0", held_d)),
+            fleet = fleet_meta$ss3_num[grp], link = "log",
+            init = d_init[held_d], est_phase = 0)
+          n_dev_held <- n_dev_held + length(held_d)
+          d_keep <- d_cols[!bad]
+        }
+      }
+      d_cols <- d_keep; d_init <- d_init[d_cols]
       if (length(d_cols)) {
         # SS3 penalises the STANDARDISED deviate, sum(dev^2)/2 (Parm_devs). The
         # coefficient here is dev * dev_se, so the same density is normal(0,
@@ -326,8 +350,8 @@ if (SEL_PARITY) {
     }
     if (length(specs)) sel_linkages[[PAR_LINK[k]]] <- specs
   }
-  cat(sprintf("\n[sel parity] %d block coefficients (+%d held), %d dev coefficients = %d\n",
-              n_blk, n_blk_held, n_dev, n_blk + n_dev))
+  cat(sprintf("\n[sel parity] blocks %d (+%d held), devs %d (+%d held unidentified in SS3) = %d estimated\n",
+              n_blk, n_blk_held, n_dev, n_dev_held, n_blk + n_dev))
 } else {
 for (k in 1:6) {
   flts <- active_sel[sapply(active_sel, function(fi)

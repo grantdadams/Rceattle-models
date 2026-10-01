@@ -190,6 +190,50 @@ dev'd parameters. To match, set the base to SS3's **base** parameter and give 19
 column. `descend_se_FshTrawl` happens to be unaffected because its `DEVmult_1977` is 0.00000 (it
 is one of the 13 inert ones).
 
+## Reached: 330 = 330. And the cold start does not converge, for a reason worth having
+
+**Parameter parity is achieved** (`RCE_SEL_PARITY=true`, measured on the merged
+`init` + exponential-q tree): Rceattle estimates **330** by distinct map level against SS3's
+`Active_count` of **330**, and the design is value-preserving -- `sel_at_age` reproduces SS3 to
+**4.49e-06** and the objective to **8e-06** before anything is freed. The dev penalty matches
+`Parm_devs` to **0.01 nats** on a 43.5-nat normalising constant.
+
+**The fit then fails**, warm and cold, with `dgesv: system is exactly singular` /
+`reciprocal condition number = 1.8e-17`. That is not a bridge defect. Taking the Hessian at
+SS3's own values and decomposing it: **24 directions with |eigenvalue| < 1e-2**, against a
+maximum of 4.5e+07, and the smallest seven are NEGATIVE (-7.4e-05 to -2.5e-07), i.e. zero
+curvature with numerical noise.
+
+Named, the flat mass is concentrated in three places:
+
+1. **`top_logit` block coefficients -- almost all of them.** `s1p2_blk1990/2005/2017`,
+   `s2p2_blk1990/2005/2007/2017`, `s3p2_blk2017`, `s4p2_blk1996`, each loading against its own
+   `sel_dn6` base. `top_logit` is the double normal's plateau WIDTH on a logit scale, and SS3's
+   values put it at -4.5 to -12.2, i.e. a plateau of **0.0105 down to 4.9e-06**. A flat top
+   0.006 wide and one 1e-05 wide are the same curve, so the coefficient has no curvature.
+2. **The 13 `descend_se_FshTrawl` devs**, `s1p4_dev1977..1989`, which SS3 itself estimates at
+   ~2e-07.
+3. **Three `dn_peak` blocks** -- `s4p1_blk1996`, `s4p1_blk2006`, `s1p1_blk2007`.
+
+**So GOA Pacific cod's control file asks SS3 to estimate roughly 24 parameters the data do not
+inform.** SS3 returns values for them anyway and reports `Parm_StDev = 0`; nothing in its output
+says they are unidentified. Rceattle inverts a Hessian where SS3's optimiser does not, so
+faithful count parity surfaces the deficiency as a hard failure.
+
+**What this means for the comparison.** "Estimate all the same parameters" is achievable as a
+COUNT and is not achievable as a FIT. The equal-footing comparison is of the identified
+subspace: estimate the ~306 directions the data inform and hold the ~24 they do not at SS3's
+values. That is a stronger claim than a count match, because it compares the same estimable
+model rather than the same parameter list.
+
+Two traps found getting here, both from reading Rceattle's own output rather than assuming:
+
+- **`Parm_StDev` is 0 for EVERY dev row**, not just the unidentified ones, so it cannot be used
+  to find them. SS3 does not report standard errors for devs at all. The VALUE discriminates
+  (~2e-07 against 0.3-1.4); the gradient does not (~1e-06 for both).
+- **A relative eigenvalue threshold is useless here.** `1e-6 * max` with a maximum of 4.5e+07 is
+  44.9, which flags well-determined directions as flat. Use an absolute cut.
+
 ## To do, in order
 
 1. **Restructure the selectivity linkage design** so each estimated block is ONE coefficient
