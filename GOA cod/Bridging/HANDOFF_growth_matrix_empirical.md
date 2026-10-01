@@ -1,5 +1,15 @@
 # Handoff: Populate `growth_matrix` from `age_trans_matrix` in empirical growth branch
 
+> **STILL OPEN, but no longer blocks the cod bridge (checked 2026-09-30).** The refusal this
+> note describes is still in the package, at `R/1-data_check.R:1807` -- empirical growth with
+> CAAL data is refused rather than enabled, so the "fixed empirical WAA + fit CAAL" workflow
+> remains unimplemented. What changed is that the bridge no longer needs it: GOA cod is
+> converted with `build_growth(fun = "vonBertalanffy", ...)`
+> (`ss3_to_ceattle_forward_pass.R:382`), i.e. it took this note's "switch to parametric growth"
+> option, and reproduces SS3's CAAL and length compositions to 0.001 that way. So read this as a
+> package feature request, not as a bridge blocker. Bridge state is in
+> `../../SS3-bridge/HANDOFF.md`.
+
 Discovered 2026-05-22 during the GOA Pcod SS3→Rceattle estimation bridge.
 The current behavior makes empirical growth incompatible with any CAAL-based
 likelihood, which blocks faithful reproduction of an SS3 model that fits
