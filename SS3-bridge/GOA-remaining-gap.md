@@ -54,6 +54,19 @@ variant:
 So the age-0 zeroing was the entire fleet-4 selectivity discrepancy, and with it
 removed the length compositions agree to **0.001**. It is worth 76.6 nats.
 
+> **79.88 nats at head**, re-measured 2026-10-01 on `goa_pcod_caal_lambda_on` with
+> `SS3-bridge/ss3_age0_fp.R` (both variants as pure forward passes at the same
+> parameters, estimation off): `Length_comp` 1334.33 with age 0 zeroed against
+> 1414.21 with it selected, and 2058.00 against 2138.86 on the total, so **80.86
+> on the total**. The 76.6 above was measured on an earlier CAAL-corrected copy.
+>
+> **It is not what makes Rceattle's optimum differ from SS3's.** Profiling the
+> age-0-SELECTED variant over the initial recruitment level still minimises at
+> SS3's -0.7405, and its `Length_comp` slope is **+3.78**, *more* positive than
+> the assessment's +2.96 — so removing the zeroing moves Rceattle's composition
+> response further from, not closer to, the second basin's. See the two-basin
+> section below.
+
 Both composition components have since been checked against the same variant
 across a grid of L1 spanning 0.001 to 6.39 cm, not only at the MLE: max abs
 difference **0.0049** nats on the length comps and **0.0009** on the CAAL
@@ -125,6 +138,18 @@ constants SS3 drops:
 
 and three rows SS3 has that Rceattle does not: `Parm_priors` 1.0285,
 `Parm_devs` 6.4903, `Parm_softbounds` 0.0117.
+
+> **The recruitment constant is 57.0289, not 53.2984, once the level lives in the
+> init linkage (PR #182) rather than in `init_dev`.** Re-measured 2026-10-01 with
+> `GOA cod/Bridging/rce_fp_scan.R` against `SS3-bridge/ss3_age0_fp.R`: the deviate
+> rows are 41.4662 (Rceattle `init_dev` + `rec_dev`) against -15.5627 (SS3
+> `Recruitment`), both flat in the level. Carrying 53.2984 leaves a spurious
+> +3.7305 and is the whole of the "+0.79 unexplained remainder" a total-level
+> audit reports. **Pair SS3's `InitEQ_Regime` with Rceattle's init linkage PRIOR,
+> not with the deviate rows** — that pairing is exact at every point of a
+> six-point grid in the level (7.7203/7.7204, 4.3427, 2.9398, 1.3403, 0.3202,
+> 0.0000). This grid does not *test* the 57.0289 itself, since neither side's
+> deviate rows depend on the level; varying a `rec_dev` would.
 
 **Survey +9.96 is LLSrv's environmental catchability**, the `EnvExp` gap,
 re-confirmed 2026-09-26 at +9.9644 after a catchability defect in the fleet split
@@ -218,3 +243,67 @@ priors at all, which is why its bridge removed them.
 shortcut for full bias adjustment everywhere, and the `recruit` table confirms
 `biasadjuster` is 1 in every year, so the ramp years in the control file are
 inert and there is nothing to switch off.
+
+## Two basins, not an initial-state disagreement (2026-10-01)
+
+The cold start converges once `newtonsteps = 0` and the freed `sel_dn6` P5/P6 slots
+start off SS3's `-999` sentinel (`GOA cod/Bridging/g3_cold_start.R`), and it lands
+**8.3 nats BELOW** the fit started from SS3's MLE:
+
+| | objective | SSB cor vs SS3 | max abs rel err | 2024 ratio |
+|---|---|---|---|---|
+| forward pass at SS3's MLE | 1934.4047 | — | — | — |
+| warm (from SS3's MLE) | 1866.0803 | 0.99933 | 0.132 (1977) | 0.935 |
+| cold | 1857.7862 | 0.94701 | 0.900 (1977) | 0.950 |
+| warm, L1 pinned at 1.28591 | 1869.2717 | **0.99976** | **0.114** (2019) | 0.941 |
+| cold, L1 pinned | 1860.3388 | 0.94434 | 0.936 (1977) | 0.953 |
+
+L1 is not the cause: pinning it costs ~3 nats and the gap survives at 8.9.
+
+**It is not the initial state either.** Pin the initial recruitment level and
+re-estimate everything else (`GOA cod/Bridging/rce_regime_profile.R`,
+`SS3-bridge/ss3_regime_profile{,_age0}.R`), six points:
+
+| | -1.20 | -0.90 | -0.7405 | -0.50 | -0.2444 | 0.00 |
+|---|---|---|---|---|---|---|
+| Rceattle from SS3's MLE | +2.76 | +0.40 | **0.00** | +0.50 | +2.50 | +5.81 |
+| SS3, age 0 zeroed | +2.92 | +0.34 | **0.00** | +0.74 | +3.05 | +6.61 |
+| SS3, age 0 selected | +2.45 | +0.16 | **0.00** | +1.04 | +3.66 | +7.49 |
+| Rceattle from the COLD optimum | +7.61 | +3.55 | +2.03 | +0.54 | **0.00** | +0.49 |
+
+Rceattle's profile from SS3's MLE minimises where SS3's does, and its composition
+slope is **+2.64** against SS3's +2.96 — the same sign. Profiling from the cold
+optimum finds a **second basin** whose `Composition` is ~1348 across the *whole*
+grid (slope +0.41, flat), so the ~6-nat composition advantage belongs to the
+**basin, not the level**; at the same level of -0.7405 the two basins give SSB1977
+of 126,280 and 187,270 mt. The differing initial state is a symptom.
+
+**What separates the basins is selectivity**: `sel_dn6` differs by up to **20.5**
+between them and `beta_linkage` by 13.8, against `log_F` 0.67 and `rec_dev` 0.097.
+That is what a weakly identified likelihood has. SS3 reports 22 parameters with
+SE > 50 and a maximum of **507**, all `top_logit` / `descend_se` families, and
+Rceattle's own `convergence_diagnostics()` flags 9 (cold) to 19 (warm) `sel_dn6`
+parameters as non-identifiable. SS3 lands in the upper basin because ADMB's phased
+quasi-Newton starts it there; it never asks the question that would find the other.
+
+Gradient at SS3's MLE (`GOA cod/Bridging/fp_parity.R`), max 95.7357 over 308 fixed
+effects: `log_growth_pars` 95.74 (Linf -95.74, K -75.56, L1 +33.23),
+`growth_log_sd` 66.80, `beta_linkage` 48.68, `index_log_q` 47.07, `rec_pars` 46.19,
+`rec_dev` 12.31, `init_dev` 1.28, `log_F` 0.39, **`sel_dn6` 0.049**. The
+selectivity injection is clean; the whole residual force is growth and what
+compensates for it, which is where the age-0 difference bites.
+
+**Open:** which basin is right. `SS3-bridge/ss3_jitter.R` asks whether SS3 finds
+the second one from a perturbed start, which decides whether this is a property of
+the GOA cod model or of Rceattle's rendering of it.
+
+Two traps:
+
+- **`est_phase = 0` on a `linkage_spec` does not pin the coefficient when `map` is
+  passed explicitly.** `map_g3$mapFactor$beta_linkage` re-frees the row and every
+  grid point returns the free fit -- 1866.0803 with 317 parameters, six times. Pin
+  it in the map, on the row `.is_init_linkage_row()` identifies (row 5 of 129), and
+  assert the realised `recruitment_linkage_offset` equals what was asked.
+- **r4ss rounds `parameters$Value` to 6 significant digits**, so `SR_LN(R0)` reads
+  13.0710 where `ss3.par` holds 13.0710125502. An assertion at 1e-8 against the par
+  value fires on a run that did exactly what it was told.
