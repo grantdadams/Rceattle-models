@@ -1,0 +1,14 @@
+# variant D
+1 #_Lbin_method: 1=poplenbins; 2=datalenbins; 3=lengths
+# first CAAL row, columns 7-8:
+  34.5 34.5
+# likelihood components:
+  TOTAL         2068.39
+  Catch         1.21395e-12
+  Survey        -0.972632
+  Length_comp   1340.79
+  Age_comp      721.519
+  Recruitment   -2.62328
+  Parm_priors   1.15484
+# bins SS3 actually used (FIT_AGE_COMPS, Lbin_lo-Lbin_hi):
+3.5-3.5 8.5-8.5 13.5-13.5 18.5-18.5 23.5-23.5 28.5-28.5 33.5-33.5 38.5-38.5 43.5-43.5 48.5-48.5 53.5-53.5 58.5-58.5 63.5-63.5 68.5-68.5 73.5-73.5 78.5-78.5 83.5-83.5 88.5-88.5 93.5-93.5 98.5-98.5 103.5-103.5 

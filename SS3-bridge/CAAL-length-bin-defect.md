@@ -5,7 +5,11 @@
 Pacific cod models write their columns the same way but are **not** materially affected — see the section below, which
 is worth reading as the shape of a negative result. In general it affects any SS3 model that
 writes lengths in the `Lbin_lo` / `Lbin_hi` columns of a conditional age-at-length (CAAL) row
-under `Lbin_method = 1` or `2`, on Stock Synthesis 3.30.24 or earlier.
+under `Lbin_method = 1`. **Not fixed in the current release:** measured on v3.30.25.1 the bins
+still come back 1 cm low, worth 19.6 nats of `Age_comp` on GOA cod (see the v3.30.25.1 section).
+An earlier version of this line said "3.30.24 or earlier", which that measurement disproves, and
+said `Lbin_method = 2` was affected as well — it is not, because method 2 converts a data bin
+number to a population bin by exact match before use.
 
 ## Summary
 
@@ -62,28 +66,33 @@ archived likelihood exactly.
 
 ## Why it happens
 
-SS3 reads the two CAAL length columns into **integer** containers, so a value written as `24.5`
-becomes `24` before anything else looks at it. All line numbers are Stock Synthesis v3.30.22.1,
-the version both models were run with.
+Under `Lbin_method = 1` the two columns are **population length bin numbers**, used with no
+length-to-bin conversion, and the decimal is dropped when the value is used as a bin index. Both
+cod data files set `Lbin_method = 1` and then write lengths, not bin numbers.
 
-1. `SS_readdata_330.tpl:2448-2449` — the containers are integer matrices:
+> **Corrected 2026-09-30.** An earlier version of this note said the columns are read into
+> `imatrix` containers, citing `SS_readdata_330.tpl:2448-2449` for v3.30.22.1, so that `24.5`
+> became `24` at read time. **The source on disk declares `matrix` — an ADMB double — at that
+> same line**, and I cannot check a v3.30.22.1 copy (both checkouts here report the unversioned
+> `#V3.30.xx.yy`). The read-time claim is therefore unverified, and it is also the wrong
+> explanation: if the truncation happened at read, `Lbin_method = 3` would truncate too and then
+> fail its exact-match test, which it demonstrably does not. The exact line that drops the
+> decimal in the method-1 path is **not pinned down**; everything below is measured from model
+> output rather than read from source, and does not depend on it.
 
-   ```
-   imatrix  Lbin_lo(1,Nfleet,1,Nobs_a);
-   imatrix  Lbin_hi(1,Nfleet,1,Nobs_a);
-   ```
-
-2. `SS_readdata_330.tpl:2586-2587` — the data file's columns 7 and 8 are assigned into them from
-   a double vector, which truncates: `24.5` becomes `24`.
+1. `SS_readdata_330.tpl:2586-2587` — the data file's columns 7 and 8 are assigned straight across:
 
    ```
    Lbin_lo(f, j) = Age_Data[i](7);
    Lbin_hi(f, j) = Age_Data[i](8);
    ```
 
-3. `SS_readdata_330.tpl:2589-2600` — under `Lbin_method = 1` the values are **population length
-   bin numbers** and are used with no further conversion. (Both cod data files set
-   `Lbin_method = 1` and then write lengths, not bin numbers.)
+2. `SS_readdata_330.tpl:2589-2600` — the `switch (Lbin_method)` converts all three spellings to
+   population bin numbers. **Case 1 does no conversion at all**: the value is already supposed to
+   be a bin number. Case 2 maps a data bin number and case 3 a length, each by an exact match
+   against the population bin lower edges (`len_bins(k) == ...`), calling `write_message(FATAL, 0)`
+   when nothing matches. That asymmetry is the whole story: a method-3 length is converted to an
+   index before use, a method-1 length never is.
 
 4. `SS_readdata_330.tpl:2681-2684` — the row's length filter is set over the **inclusive** bin
    index range:
@@ -254,6 +263,44 @@ A useful guard **while a file writes lengths in those columns**: compare `Report
 should agree, and any difference is the truncation. Once the columns hold bin *numbers*, as they
 should, the two legitimately differ and the test becomes whether `Report.sso`'s `Lbin_lo` and
 `Lbin_hi` bracket the intended data bin.
+
+## Still present in SS3 v3.30.25.1, and the two spellings are exactly equivalent
+
+Measured 2026-09-30 on the current release (`ss3_osx_arm64`, v3.30.25.1), GOA Pcod Model 19.1e as
+five forward passes at **one common parameter set** — the same `Model19_1e.ctl`, `ss3.par` and
+`forecast.ss` from `Data/goa_pcod`, `init_values_src = 1`, `last_estimation_phase = 0` — so only
+the CAAL reading varies. Files in `lbin-method-check/`.
+
+| run | `Lbin_method` | columns 7-8 | bins SS3 used | `Age_comp` | `TOTAL` |
+|---|---|---|---|---|---|
+| D | 1 | `34.5 34.5` | `3.5-3.5`, `8.5-8.5`, `13.5-13.5` — **1 cm low** | 721.519 | 2068.39 |
+| A | 3 | `34.5 34.5` | `4.5-4.5`, `9.5-9.5`, `14.5-14.5` | **741.112** | **2087.98** |
+| C | 1 | `35 35` | `4.5-4.5`, `9.5-9.5`, `14.5-14.5` | **741.112** | **2087.98** |
+| B | 1 | `35 39` | `0.5-8.5`, `9.5-13.5`, `14.5-18.5` | **916.192** | **2263.06** |
+| E | 3 | `34.5 38.5` | `4.5-8.5`, `9.5-13.5`, `14.5-18.5` | **916.192** | **2263.06** |
+
+Every other component is identical across all five (Catch 1.21e-12, Survey -0.972632,
+Length_comp 1340.79, Recruitment -2.62328, Parm_priors 1.15484), which is the check that nothing
+but the CAAL reading moved.
+
+Three things follow.
+
+**The defect is live in the current release.** D is the file as the assessment ships it, and its
+bins still come back 1 cm below their labels — worth **19.6 nats** of `Age_comp` against the same
+model read correctly. Anyone writing lengths under `Lbin_method = 1` is silently fitting the
+wrong bins on v3.30.25.1.
+
+**`Lbin_method = 3` with lengths and `Lbin_method = 1` with bin numbers are the same model.**
+A and C agree on every component, and all 9160 CAAL cells match on bin, observation and
+prediction. Likewise B and E. So either spelling is correct; it is mixing lengths with method 1
+that is wrong.
+
+**`Lbin_lo` and `Lbin_hi` are both LEFT EDGES** — the first and last bin of a range, not the ends
+of an interval. The five 1 cm bins covering the 34.5-39.5 data bin are `34.5 38.5` as lengths or
+`35 39` as bin numbers. Writing `34.5 39.5` names a **sixth** bin, since 39.5 is the left edge of
+the next data bin. B and E differ only at the extremes: B makes the lowest data bin a minus group
+(`0.5-8.5`) and the top a plus group (`105 105`), which is worth nothing to six significant
+figures here but is a deliberate choice, not a slip.
 
 ## Every run has it, including the current assessments
 
