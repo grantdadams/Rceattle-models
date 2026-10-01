@@ -446,6 +446,30 @@ if (!is.null(va) && nrow(va) > 0) {
 # Rceattle's NonEquilibrium.
 INIT_MODE <- Sys.getenv("RCE_INITMODE", unset = "NonEquilibrium")
 cat("\ninitMode:", INIT_MODE, "\n")
+# ---- SS3's SR_regime as an unpenalised initial recruitment level -----------
+# Read at top level; init_from_ss3()'s own `regime` is local to it. r4ss and
+# ss_summary disagree on the suffix for an env-linked parameter (_ENV_add vs
+# _ENV_mult), so match the stem only.
+regime_shift <- gp(parlist$SR_parms, "SR_regime_BLK")
+# Block pattern 5 is 1976-1976, one year at styr - 1: it shifts the level the
+# INITIAL age-structure sits at, not any fitted year. Folding it into init_dev
+# pins the numbers but charges the shift the recruitment-deviate penalty, which
+# the optimiser then retires by lowering R0 (0.37 log units, R0 31% low). An
+# `init` linkage carries the level with no penalty instead, so init_dev holds
+# only SS3's Early_InitAge departures. RCE_INIT_LINK=false folds it back.
+INIT_LINK <- !identical(tolower(Sys.getenv("RCE_INIT_LINK", "true")), "false")
+regime_lvl <- if (INIT_LINK && !is.na(regime_shift)) regime_shift else 0
+recFun_spec <- if (INIT_LINK && !is.na(regime_shift)) {
+  cod$env_data$init_lvl <- 1
+  build_srr(linkages = list(init = linkage_spec(
+    formula = ~ 0 + init_lvl,
+    init    = list(init_lvl = regime_shift))))
+} else {
+  build_srr()
+}
+cat(sprintf("init level linkage: %s (SR_regime = %.6f)\n",
+            if (INIT_LINK && !is.na(regime_shift)) "ON" else "OFF", regime_shift))
+
 cat("\n--- Building mod0 (parameter shape) ---\n")
 mod0 <- Rceattle::fit_mod(
   data_list    = cod,
@@ -454,6 +478,7 @@ mod0 <- Rceattle::fit_mod(
   initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
+  recFun       = recFun_spec,
   selFun       = selFun_spec,
   qFun         = qFun_spec,
   random_rec   = FALSE,
@@ -625,7 +650,7 @@ init_from_ss3 <- function(parlist, ctllist, inits, data_list, fleet_meta,
 # Derive init_dev so Rceattle's styr numbers equal SS3's. With Finit = 0 the
 # decay is sum(M1) alone, which is what initMode 1/2 build.
 init_state_from_ss3_natage <- function(inits, ss3_rep, styr, nages, R_init,
-                                       M1_at_age) {
+                                       M1_at_age, level = 0) {
   ss3_age_cols <- as.character(0:(nages - 1))
   row <- ss3_rep$natage %>%
     dplyr::filter(Yr == styr, `Beg/Mid` == "B", Sex == 1) %>% dplyr::slice(1)
@@ -642,7 +667,9 @@ init_state_from_ss3_natage <- function(inits, ss3_rep, styr, nages, R_init,
     mort_sum <- sum(as.numeric(M1_at_age[1:k]))
     target_N <- ss3_N[k + 1]
     if (k == (nages - 1)) target_N <- target_N * (1 - exp(-as.numeric(M1_at_age[nages])))
-    inits$init_dev[1, k] <- log(max(target_N, 1e-10)) - log(R_init) + mort_sum
+    # `level` is what an init linkage carries (0 when it is off); subtracting it
+    # leaves the SAME numbers-at-age with the level outside the penalised devs.
+    inits$init_dev[1, k] <- log(max(target_N, 1e-10)) - log(R_init) + mort_sum - level
   }
   cat(sprintf("init_dev[1, 1:%d] set to pin styr N\n", nages - 1))
   inits
@@ -730,7 +757,8 @@ if (Q_ENV && length(q_beta_row) == 1L) {
 R_init    <- exp(inits$rec_pars[1, 1])
 M1_at_age <- rep(M_base, nages)
 inits <- init_state_from_ss3_natage(inits, ss3_rep, cod$styr, nages,
-                                    R_init = R_init, M1_at_age = M1_at_age)
+                                    R_init = R_init, M1_at_age = M1_at_age,
+                                    level = regime_lvl)
 inits <- init_log_F_from_ss3(inits, ss3_rep, fleet_meta, years_hind)
 
 # Map out what SS3 holds fixed, so G2's gradient test covers only the
@@ -747,6 +775,7 @@ fp <- Rceattle::fit_mod(
   initMode     = INIT_MODE,
   growthFun    = growthFun_spec,
   M1Fun        = M1_block,
+  recFun       = recFun_spec,
   selFun       = selFun_spec,
   qFun         = qFun_spec,
   random_rec   = FALSE,

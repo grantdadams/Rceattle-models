@@ -1,23 +1,90 @@
-# GOA Pacific cod: estimating the same 196 parameters SS3 does
+# GOA Pacific cod: estimating the same parameters SS3 does
 
 **Status:** the target is enumerated and verified; the work to reach it is identified.
-Measured 2026-09-30 from `Data/goa_pcod/Report.sso` (`Model19_1e`, the pristine assessment
-control file). Read with `GOA-estimation-parity.md`, which measures how far the two optima
-sit apart, and `HANDOFF.md` for branch state.
+Read with `GOA-estimation-parity.md`, which measures how far the two optima sit apart, and
+`HANDOFF.md` for branch state.
 
-SS3 reports **`Active_count: 196`**. Taking the `PARAMETERS` table rows with a numeric
-`Active_Cnt` (lines 239-491 of that `Report.sso`) and grouping them:
+## Which SS3 model, because there are three and they disagree
 
-| kind | n | what it is |
+This matters more than it looks, and an earlier version of this note got it wrong by mixing
+them. `Active_count` from each `Report.sso`:
+
+| directory | `Active_count` | `SR_regime_BLK5add_1976` |
 |---|---|---|
-| `SizeSel_..._DEVmult_<yr>` | **63** | per-year selectivity deviations, **penalised** |
-| `Main_RecrDev_1978..2024` | **47** | recruitment deviations |
-| `SizeSel_..._BLK2repl_<yr>` | **41** | selectivity block replacements |
-| `Early_InitAge_1..10` | **10** | initial age deviations |
-| `LnQ_base_LLSrv(5)_ENV_mult` | **1** | environmental catchability |
-| base singles | **34** | M, growth (5), SR_LN(R0), `SR_regime_BLK5add_1976`, `Early_RecrDev_1977`, 2 log q, 24 selectivity base |
+| `Data/goa_pcod` (pristine assessment) | **196** | -0.678228 |
+| `Data/goa_pcod_caal_bins_fixed` (**what the bridge reads**) | **330** | -1.3879 |
+| `Data/goa_pcod_caal_bins_1cm` | 330 | -1.39409 |
 
-63 + 47 + 41 + 10 + 1 + 34 = 196.
+**The bridge targets 330**, because `ss3_to_ceattle_forward_pass.R:80` defaults `RCE_SS3_DIR` to
+`Data/goa_pcod_caal_bins_fixed`. The 134-parameter difference from the pristine model is exactly
+its 134 annual `F_fleet_N_YR_...` parameters: the bridge variant runs `F_Method = 2`, which makes
+F explicit, where the pristine model's `F_Method = 3` solves for it. 196 + 134 = 330.
+
+So quote 330 for the bridge and 196 for the assessment, and never mix a value read from one
+directory with a count read from another.
+
+## SS3's 330, decomposed
+
+From the `PARAMETERS` table of `goa_pcod_caal_bins_fixed/Report.sso`, rows with a numeric
+`Active_Cnt` (387 rows, 330 active):
+
+| kind | n |
+|---|---|
+| annual F (`F_fleet_N_YR_YYYY_s_1`) | **134** |
+| selectivity `DEVmult` (penalised, fixed sd 0.2) | **63** |
+| `Main_RecrDev_1978..2024` | **47** |
+| selectivity block replacements | **40** |
+| base singles (M, 5 growth, SR_LN(R0), 2 log q, 23 selectivity base) | **32** |
+| `Early_InitAge_1..10` | **10** |
+| `NatM..._BLK4repl_2014` and `SR_regime_BLK5add_1976` | **2** |
+| `Early_RecrDev_1977` | **1** |
+| `LnQ_base_LLSrv(5)_ENV_mult` | **1** |
+
+134 + 63 + 47 + 40 + 32 + 10 + 2 + 1 + 1 = 330.
+
+## Thirteen of the 330 are not identified in SS3 either
+
+`Size_DblN_descend_se_FshTrawl(1)_DEVmult_1977..1989` are estimated at **~2e-07** with a reported
+sd of **0**, and the realized `descend_se` shows no dev-year variation at all. They are held at
+zero by the sd-0.2 penalty with no data pulling them. The other four dev groups are real:
+
+| dev group | n | max abs | mean abs |
+|---|---|---|---|
+| `peak` FshLL(2) | 12 | 1.409 | 0.513 |
+| `ascend_se` FshLL(2) | 12 | 0.967 | 0.389 |
+| `peak` FshTrawl(1) | 13 | 0.718 | 0.302 |
+| `ascend_se` FshTrawl(1) | 13 | 0.814 | 0.318 |
+| **`descend_se` FshTrawl(1)** | **13** | **6.7e-07** | **2.0e-07** |
+
+So matching the count means estimating 13 coefficients that do nothing. That reproduces SS3's
+parameter set faithfully and reproduces its flat directions with it, which is a risk to
+`pdHess`. Decide it deliberately and say which was done; do not let it be an accident.
+
+## Block year ranges, from the control file
+
+`Model19_1e.ctl` lines 19-26: 6 patterns, `2 4 1 1 1 1` blocks each.
+
+| pattern | blocks | used by |
+|---|---|---|
+| 1 | 1996-2005, 2006-2024 | `Srv(4)` |
+| 2 | 1990-2004, 2005-2006, 2007-2016, 2017-2024 | `FshTrawl(1)`, `FshLL(2)` |
+| 3 | 2017-2024 | `FshPot(3)` |
+| 4 | **2014-2016** | `NatM` -- a three-year window, not 2014 onwards |
+| 5 | **1976-1976** | `SR_regime` -- one year, at `styr - 1` |
+| 6 | 1976-2006 | |
+
+Pattern 5 confirms the regime is a single year before the hindcast, which is why no linkage can
+address it directly (`.trim_env_data()` drops pre-styr rows) and why it is expressed as an
+initial-level parameter instead.
+
+Not every block present is active: `SizeSel_P_1_FshTrawl(1)_BLK2repl_2017` is phase **-1**, so
+`peak` FshTrawl has 3 active blocks where the other pattern-2 parameters have 4. The 40 is a
+count of ACTIVE blocks.
+
+Per fleet and parameter, the control file also sets `dev_se` at phase **-5** fixed at **0.2** and
+`dev_autocorr` at phase **-6** fixed at **0**. So the deviations are penalised deviates with a
+fixed sd and no autocorrelation: in Rceattle an identity-link `(1 | Year)` with
+`integrate = FALSE` and the sd supplied, not a free offset and not an integrated random effect.
 
 ## What matches already, and why that was worth checking
 
@@ -26,7 +93,7 @@ dissolved:
 
 - **Recruitment deviations match at 48.** `Main_RecrDev` runs 1978-2024, which is 47, but
   `Early_RecrDev_1977` is a separate ACTIVE single. Rceattle estimates `rec_dev` across
-  1977-2024 = 48. Equal.
+  1977-2024 = 48. Equal. (Both counts are the same in all three directories.)
 - **Initial age deviations match at 10.** `#_Nages = 10` and `Report.sso`'s `NUMBERS_AT_AGE`
   columns run 0-10, so the population has **11** ages and Rceattle's `nages = 11` under the
   converter's `minage = 0`. `init_dev` is estimated over columns `1:(nages - 1)` = 10, against

@@ -165,6 +165,23 @@ goes 85.9251 -> 36.0116, so **the residual closes from +49.7485 to -0.165**.
 There is no difference in the initial state; there was only a penalty SS3 does
 not charge.
 
+**CLOSED 2026-10-01 with the real parameter.** `feat/srr-init-level` (PR #182) adds `init`, a
+recruitment linkage parameter carrying the level with no penalty, and the bridge now wires it
+behind `RCE_INIT_LINK` (default on). Forward pass, link off then on, everything else identical:
+
+| | off | on |
+|---|---|---|
+| total jnll | 1998.9663 | **1949.2178** |
+| `Initial abundance deviates` | 54.97530 | **5.22683** |
+| free parameters | 1073 | 1074 |
+| styr numbers-at-age, max abs rel diff | — | **0 exactly** |
+
+The drop is **49.74847** against this note's predicted **+49.7485**, so the Recruitment residual
+closes to about **3e-05**. No other `jnll_comp` row moves. The numbers-at-age are identical to
+machine zero, where the `Finit` proxy below left 1.2e-04 and overshot by 0.165 nats -- both
+because `Finit` also enters the plus group's geometric series, which the real parameter does not.
+So the proxy was sound enough to diagnose the defect and the parameter is exact.
+
 `Finit` is the wrong home for it, and is used here only to measure. It reports a
 recruitment regime as an initial fishing mortality of 1.39/yr with `SPRFinit`
 evaluated there; it works only because GOA cod has no initial equilibrium catch,
