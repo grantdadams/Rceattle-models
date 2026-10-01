@@ -135,15 +135,51 @@ catchabilities are injected correctly (1.4964 and 1.38505, matching SS3), and
 the SDs the likelihood uses match SS3's `SE` exactly, so the whole of it is the
 missing exponential link.
 
-**Recruitment +49.75 is a bridge choice, not a model difference.** SS3 carries
-its regime shift as a free parameter, `SR_regime_BLK5add_1976` = -1.3879, which
-it does not penalise. The bridge folds that into `init_dev` so the initial
-numbers pin exactly, and Rceattle then charges it the recruitment deviate
-penalty. Rceattle's `init_dev` is SS3's `Early_InitAge` minus 1.485 at every
-age, and removing the offset drops the quadratic penalty by 56.69 -- the same
-size as the residual, the difference being the bias-adjustment terms. To close
-it the regime needs its own unpenalised parameter rather than a home inside the
-deviates.
+**Recruitment +49.75 is a bridge choice, not a model difference -- measured
+2026-09-30.** SS3 carries its regime shift as a free parameter,
+`SR_regime_BLK5add_1976` = -1.3879, which it does not penalise. The bridge folds
+that into `init_dev` so the initial numbers pin exactly, and Rceattle then
+charges the constant shift the recruitment deviate penalty.
+
+Carrying the level somewhere unpenalised instead closes it. Under `srr_fun = 0`
+`R_init = R0(sp, 0)` with no `SPRFinit` feedback, and under `initMode 4`
+(`FishedNonEquilibriumScaled`) `Finit` enters the initial decay ONCE rather than
+cumulatively, so `exp(-Finit)` is a constant multiplier on ages 1..nages-2 and
+carries no penalty. Setting `Finit = -SR_regime` and re-pinning `init_dev`
+(`+Finit` at every age, plus `log[(1-e^-Mp-Finit)/(1-e^-Mp)]` = 0.8145 on the
+plus group, whose geometric series divides by `1 - exp(-M_plus - Finit)`):
+
+| jnll row | level in `init_dev` | level in `Finit` | change |
+|---|---|---|---|
+| Index data | 52.38500518 | 52.38500512 | -5.8e-08 |
+| Catch data | -263.98685665 | -263.98687065 | -1.4e-05 |
+| Composition data | 1407.63853186 | 1407.63871718 | +1.9e-04 |
+| CAAL data | 732.77013449 | 732.77013586 | +1.4e-06 |
+| **Initial abundance deviates** | **54.97530425** | **5.06183553** | **-49.9133** |
+| Recruitment deviates | 30.94981834 | 30.94981834 | 0 |
+| M prior | 0.03485308 | 0.03485308 | 0 |
+
+The whole of it is one row and no fitted component moves. Against SS3's
+recruitment component (-17.1218 plus its 53.2984 constant = 36.1766), Rceattle
+goes 85.9251 -> 36.0116, so **the residual closes from +49.7485 to -0.165**.
+There is no difference in the initial state; there was only a penalty SS3 does
+not charge.
+
+`Finit` is the wrong home for it, and is used here only to measure. It reports a
+recruitment regime as an initial fishing mortality of 1.39/yr with `SPRFinit`
+evaluated there; it works only because GOA cod has no initial equilibrium catch,
+so nothing else scores `Finit` (AI cod has one); it stops being a level under a
+fitted curve, where `SPRFinit` feeds back into `R_init` in the opposing
+direction; and the plus group's deviate absorbs +0.81 that a clean parameter
+would not, so part of the remaining 5.06 is an artefact of the carrier.
+Rceattle needs a free, unpenalised initial recruitment LEVEL. `init_log_scalar`
+(`ceattle.cpp`, section 6.5) is already the slot -- it is hard-wired to
+`rec_dev(sp, 0)` for `initMode 5` and zero otherwise.
+
+Caveat on the run: styr numbers-at-age agree to 1.2e-04 rather than exactly,
+because the plus-group correction uses `M_base` where the model's year-0
+plus-group M differs slightly under the M block; that is also the 1.9e-04 on the
+composition. Reproduce with `scratchpad/regime_in_finit.R` (forward pass only).
 
 **Catch was a harness bug, now fixed.** `.ss3_constants()` charged a density
 constant to all 144 hindcast catch rows, but both models score only positive
