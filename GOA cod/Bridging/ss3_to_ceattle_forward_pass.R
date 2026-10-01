@@ -311,9 +311,16 @@ if (SEL_PARITY) {
         n_blk_held <- n_blk_held + length(b_held)
       }
       if (length(d_cols)) {
+        # SS3 penalises the STANDARDISED deviate, sum(dev^2)/2 (Parm_devs). The
+        # coefficient here is dev * dev_se, so the same density is normal(0,
+        # dev_se) on it: coef^2/(2*se^2) = dev^2/2. Without this the count
+        # matches SS3 but the fit is looser by the whole penalty.
+        d_prior <- stats::setNames(
+          lapply(d_cols, function(z) prior_normal(0, DEV_SE)), d_cols)
         specs[[length(specs) + 1L]] <- linkage_spec(
           formula = stats::reformulate(c("0", d_cols)),
-          fleet = fleet_meta$ss3_num[grp], link = "log", init = d_init)
+          fleet = fleet_meta$ss3_num[grp], link = "log", init = d_init,
+          priors = d_prior)
         n_dev <- n_dev + length(d_cols)
       }
     }
