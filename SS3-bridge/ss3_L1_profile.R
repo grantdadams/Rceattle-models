@@ -13,9 +13,21 @@
 #   Rscript SS3-bridge/ss3_L1_profile.R [src_dir] [ss3_exe]
 suppressMessages(library(r4ss))
 
+# No SS3 binary is checked in. Point SS3_EXE at one, or pass it as an
+# argument; get a matching build with
+# r4ss::get_ss3_exe(version = "v3.30.22.1"). v3.30.25.1 is the only
+# binary that runs on macOS arm64 and reproduces this model's MLE total.
 args <- commandArgs(trailingOnly = TRUE)
-SRC  <- normalizePath(if (length(args) > 0) args[1] else
-  "/private/tmp/claude-501/-Users-grantadams-Documents-GitHub-Rceattle-ecosystem-Rceattle/6adf6d97-2cdc-48dd-84b0-c6b720cb5b45/scratchpad/goa_age0")
+# The age-0-SELECTED variant, which is not checked in either: build it with the
+# recipe in GOA-remaining-gap.md "Reproducing" (the five `10` entries under
+# #_age_selex_patterns become `0`), then name it here or in SS3_AGE0_DIR.
+.src <- if (length(args) > 0) args[1] else Sys.getenv("SS3_AGE0_DIR", "")
+if (!nzchar(.src) || !dir.exists(.src)) {
+  stop("give the age-0-selected SS3 directory as argument 1 or in SS3_AGE0_DIR; ",
+       "see GOA-remaining-gap.md \"Reproducing\" for how to build it.",
+       call. = FALSE)
+}
+SRC  <- normalizePath(.src)
 EXE  <- normalizePath(if (length(args) > 1) args[2] else Sys.getenv("SS3_EXE", "ss3"))
 ROOT <- file.path(tempdir(), "ss3L1prof")
 

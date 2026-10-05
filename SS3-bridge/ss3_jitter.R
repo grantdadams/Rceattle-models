@@ -14,11 +14,15 @@
 #   Rscript ss3_jitter.R [n] [fraction]
 suppressMessages(library(r4ss))
 
+# No SS3 binary is checked in. Point SS3_EXE at one, or pass it as an
+# argument; get a matching build with
+# r4ss::get_ss3_exe(version = "v3.30.22.1"). v3.30.25.1 is the only
+# binary that runs on macOS arm64 and reproduces this model's MLE total.
 args <- commandArgs(trailingOnly = TRUE)
 N    <- as.integer(if (length(args) > 0) args[1] else 24)
 FRAC <- as.numeric(if (length(args) > 1) args[2] else 0.1)
 SRC  <- "/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA cod/Data/goa_pcod_caal_lambda_on"
-EXE  <- "/private/tmp/claude-501/-Users-grantadams-Documents-GitHub-Rceattle-ecosystem-Rceattle/6adf6d97-2cdc-48dd-84b0-c6b720cb5b45/scratchpad/ss3bin/ss3"
+EXE  <- Sys.getenv("SS3_EXE", "ss3")
 ROOT <- file.path(tempdir(), "ss3jit")
 MLE  <- 2058.00
 

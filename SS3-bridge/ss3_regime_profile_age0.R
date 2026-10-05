@@ -16,7 +16,11 @@
 suppressMessages(library(r4ss))
 
 SRC <- "/Users/grantadams/Documents/GitHub/Rceattle ecosystem/Rceattle-models/GOA cod/Data/goa_pcod_caal_lambda_on"
-EXE <- "/private/tmp/claude-501/-Users-grantadams-Documents-GitHub-Rceattle-ecosystem-Rceattle/6adf6d97-2cdc-48dd-84b0-c6b720cb5b45/scratchpad/ss3bin/ss3"
+# No SS3 binary is checked in. Point SS3_EXE at one, or pass it as an
+# argument; get a matching build with
+# r4ss::get_ss3_exe(version = "v3.30.22.1"). v3.30.25.1 is the only
+# binary that runs on macOS arm64 and reproduces this model's MLE total.
+EXE <- Sys.getenv("SS3_EXE", "ss3")
 ROOT <- file.path(tempdir(), "ss3regage0")
 GRID <- c(-1.2, -0.9, -0.740496, -0.5, -0.2444, 0.0)
 
