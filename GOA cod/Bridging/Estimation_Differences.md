@@ -1480,3 +1480,27 @@ encodes cannot be set per observation.
 **The gate is widened** rather than left to be inferred from a residual: `parity_g1()` now prints
 which fleet slots differ from slot 1 at `endyr`. It does not yet compare each slot against SS3's
 own per-fleet key, which is the next step — that needs SS3's ALK at month 7 as well as month 1.
+
+### #20, narrowed: both keys are CORRECT, only the assignment is wrong
+
+Measured 2026-10-08. SS3 reports two age-length keys, `Sub_Seas: 1` and `Sub_Seas: 2`, which
+differ by **9.857e-02**. Rceattle computes **both, correctly**:
+
+| Rceattle `growth_matrix` slot | vs SS3 subseas 1 | vs SS3 subseas 2 |
+|---|---|---|
+| slot 1 (FshTrawl) | **3.87e-07** | 9.86e-02 |
+| slot 3 (FshPot) | 9.86e-02 | **6.03e-07** |
+
+So nothing in the growth or the key is wrong, and the earlier reading of this as "the ALK differs
+by fleet" was too broad. Rceattle holds SS3's subseas-1 key in one slot and its subseas-2 key in
+another, each to SS3's printed precision. **The defect is purely which fleet is pointed at which
+slot**, and it is worth 9.86e-02 wherever it is wrong -- the same order as the 5.97e-02 predicted
+CAAL error.
+
+`condbase` reports `Subseas = 2` for all 8260 CAAL rows, with `Month` 1 for the three fisheries
+and 7 for the survey, so the per-fleet rule is not simply "month 1 -> slot 1". The observed
+pattern does not follow the slot assignment either: FshTrawl is on slot 1 and clean (0/192) while
+FshPot is on slot 3 and has the most bad rows (29/161). **So the remaining question is which slot
+`caal_hat` actually reads per row**, which is a trace through the CAAL prediction in the template
+rather than an inference from the slot table, and is the next step. Do not assume it is the
+fleet's own `growth_matrix` slot; that assumption is what this measurement rules out.
