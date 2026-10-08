@@ -19,8 +19,20 @@ Measurements, not prose, settle questions here:
 
 ## State
 
-GOA cod forward pass at SS3's MLE: **1998.9663** with the LLSrv environmental link on,
-**2008.9309** with it off. SS3 `TOTAL` is 2051.98.
+GOA cod forward pass at SS3's MLE: **1962.1657** (re-measured 2026-10-08, env link on,
+`RCE_SS3_DIR=Data/goa_pcod_caal_bins_fixed`, SS3 `TOTAL` 2051.98). The earlier **1998.9663**
+was the same thing with the deviates residual still open; it is stale, not a different
+configuration. Identical on `afsc/dev` 5.53.0 and on `merge/dsem-v5-main-5.49.1`.
+
+**The likelihood now matches SS3 to additive constants: max residual 0.0013 nats across all
+five components.** Both residuals this file lists below are closed. See
+`GOA-estimation-parity.md`, "Re-measured 2026-10-08".
+
+**Pair the SS3 run or the numbers are meaningless.** The forward pass DEFAULTS to
+`Data/goa_pcod_caal_lambda_on` (SS3 `TOTAL` 2058.00); the accounting is `bins_fixed`
+(2051.98). On `lambda_on` the same five residuals come back at a max of 6.57. And the
+parity doc's SS3 column is the **age-0-selected variant** from
+`_ss3_L1_scan_goa_age0.rds`, not the raw `Report.sso` rows.
 
 **Do not compare per-fleet index likelihoods to SS3's directly.** They differ by a
 lognormal constant — Srv is off by 15.78 where the parity doc records a residual of
@@ -31,7 +43,32 @@ The two dominant residuals in that accounting:
 | residual | size | status |
 |---|---|---|
 | Index, LLSrv | +9.9645 | **closed** 2026-09-30, measured 9.96459 |
-| Recruitment | +49.7485 | **attributed** to the `init_dev` penalty, not closed |
+| Recruitment | +49.7485 | **closed** -- re-measured 2026-10-08 at 0.0000 |
+
+**The linkage coefficients are now pinned** (2026-10-08). `ss3_map` left 869 of 873
+`beta_linkage` coefficients free, so Rceattle fitted 1074 parameters against SS3's 330 and any
+free fit overfitted by 715 nats. The forward pass now holds them at the injected values:
+forward pass **unchanged at 1962.1657** (the check -- pinning a parameter at the value it held
+cannot move an unoptimised evaluation), free fit **1225.23 -> 1925.91** and converged
+(max |gradient| 2.08 -> 0.00478), G2 at SS3's MLE **185 -> 83**. `RCE_FIX_LINKAGE=false`
+restores the old behaviour. See `GOA-parameter-parity.md`, "FIXED 2026-10-08".
+
+**One missing feature is now the whole remaining gap.** The open item is not a residual but a
+structural difference:
+`../GOA cod/Bridging/Estimation_Differences.md` **#19** -- SS3's
+`age_selex_pattern = 10` zeroes age-0 selectivity on all five length-selected fleets and
+Rceattle has no analogue. `Srv` carries 0.035657 there against SS3's 0, and that single
+value is every remaining G1 failure (Srv length comp 9.05e-02, survey index 1.02e-01,
+CAAL 5.97e-02, FshTrawl 2.35e-05). Ages 1-10 agree to 1e-6 on every fleet. It is also why
+the accounting must use the patched SS3 variant.
+
+It also accounts for the growth half of the residual G2 gradient. L1 is injected correctly
+(`Growth injected: ... L1=1.3007`), so `log_growth_pars` at -83 is Rceattle's likelihood
+preferring a different L1 at SS3's own MLE -- and `GOA-estimation-parity.md` already measured
+that the original model's L1 slice rises where the age-0-selected variant's falls, "the direct
+evidence that the age-0 zeroing is what holds SS3's L1 at 1.3007". Rceattle behaves like the
+patched variant because it cannot zero age 0. So #19 explains the five G1 failures, the growth
+gradient, and the L1 floor together.
 
 Everything else at the MLE is small (catch +0.080 at SS3's L1).
 

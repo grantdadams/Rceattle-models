@@ -1376,3 +1376,107 @@ residual traced. Targets:
   applying this bridge to other stocks
 - [HANDOFF_growth_matrix_empirical.md](HANDOFF_growth_matrix_empirical.md) —
   separate empirical-growth + CAAL package bug (still open)
+
+## 19. SS3 `age_selex_pattern = 10` zeroes age-0 selectivity; Rceattle has no analogue 🔴
+
+**SS3** ([Pcod ctl `#_age_selex_patterns`](Data/goa_pcod_caal_bins_fixed/Model19_1e.ctl)):
+all five length-selected fleets carry pattern **10**, which is "selectivity = 1
+from age 1 on" -- i.e. **age 0 is forced to zero** on top of whatever the size
+selectivity gives:
+
+```
+10  0  0  0   #_1 FshTrawl
+10  0  0  0   #_2 FshLL
+10  0  0  0   #_3 FshPot
+10  0  0  0   #_4 Srv
+10  0  0  0   #_5 LLSrv
+```
+
+**Rceattle** has no age-selectivity pattern layered over a length-based curve, so
+it carries whatever the double-normal gives at age 0 through the age-length key.
+
+**Measured** (forward pass at SS3's MLE, `Data/goa_pcod_caal_bins_fixed`,
+2026-10-08). Selectivity-at-age at `endyr`, both scaled to a maximum of 1, SS3's
+`Asel2` against Rceattle's `sel_at_age`:
+
+| fleet | Rceattle age 0 | SS3 age 0 | G1 gate, that fleet's length comp |
+|---|---|---|---|
+| FshTrawl | 0.000007 | 0 | 2.35e-05 **FAIL** (tol 1e-05) |
+| FshLL | 0.000000 | 0 | 9.17e-07 pass |
+| FshPot | 0.000000 | 0 | 1.08e-06 pass |
+| **Srv** | **0.035657** | 0 | **9.05e-02 FAIL** |
+| LLSrv | 0.000000 | 0 | 7.81e-07 pass |
+
+Ages 1-10 agree to 1e-6 or better on every fleet, so this is age 0 and nothing
+else. `Srv` is the only fleet whose curve puts real mass there, and it is also
+the only fleet whose `start_logit`/`end_logit` SS3 does NOT pin (-2.93422 and
+-1.27905 against the `-999` sentinel everywhere else), so it is the only fleet
+exercising the double-normal's tail arms.
+
+**This one value explains every remaining G1 failure.** 3.6% age-0 selectivity on
+`Srv` propagates into its length comp (9.05e-02), the survey index (1.02e-01
+relative) and CAAL (5.97e-02); FshTrawl's 7e-06 is why it sits just over a 1e-05
+tolerance. Everything upstream is exact: length- and weight-at-age ~4e-06, the
+age-length key 3.87e-07, N-at-age 6.89e-06, SSB 4.74e-06, recruitment 2.65e-06.
+
+**This is why the parity accounting uses an "age-0-selected" SS3 variant.**
+`../../SS3-bridge/ss3_age0_fp.R`'s `age0_patch()` rewrites pattern 10 to 0 for
+those five fleets -- it changes SS3 to match Rceattle, not the reverse. Against
+that variant the likelihood matches to additive constants (max residual 0.0013
+nats, all five components; see `../../SS3-bridge/GOA-estimation-parity.md`).
+Against the UNPATCHED model it cannot, and the gap is this.
+
+**To close it** Rceattle needs a way to zero (or otherwise age-modify) a
+length-based fleet's selectivity below a given age. Until then, state which SS3
+variant any parity number was measured against: the original and the
+age-0-selected variant are different models.
+
+## 20. The fleet -> ALK slot assignment does not follow SS3's sampling month 🔴
+
+**The symptom** was `predicted CAAL` at 5.97e-02 — the sole remaining G1 failure after #19 was
+patched out — while the CAAL *likelihood* matched to −0.0009. An error that vanishes from the sum
+but not the cells.
+
+**Characterised** (forward pass at SS3's MLE, `goa_pcod_caal_bins_fixed_age0`, 2026-10-08), 5067
+paired cells:
+
+- It is **compensating pairs within a row**: row 813 carries +0.060142 and −0.057930, row 744
+  +0.051109 and −0.048713. Rceattle's `caal_hat` row sums are exactly 1.000000 and the A/B ratio
+  has median 1.000046, so nothing is rescaled — probability is **moved between adjacent ages**.
+- Confined to lengths **24.5–54.5 cm**, peaking at 39.5 (41.7% of rows bad), **zero outside**.
+  That is the mid-length band where several ages share a length, i.e. where the key's SHAPE
+  matters rather than its level.
+- Confined to **2007 onwards**: 1990, 1993, 1996, 1999, 2001, 2003, 2005 and 2020 are clean.
+- 52 of 827 rows, 86 of 5067 cells. By fleet: FshPot 29/161, FshLL 12/179, Srv 11/162, and
+  **FshTrawl 0/192, Srv_ae1 0/133**.
+
+**Every ingredient of predicted CAAL was measured and matches**: the age-length key 3.87e-07,
+selectivity-at-age across ALL years (≤3.4e-06 on every fleet, not just `endyr`), N-at-age across
+all years 5.25e-06. Rceattle's ALK is year-invariant to 2.22e-16.
+
+**The cause.** `growth_matrix` is `[fleet, sex, age, length, year]` — the ALK is FLEET-SPECIFIC —
+and the G1 gate only ever compared slot 1 at `endyr`. The slots disagree by **9.86e-02**, the
+same order as the CAAL error:
+
+| fleet | SS3 CAAL month (`condbase`) | Rceattle ALK slot | bad CAAL rows |
+|---|---|---|---|
+| FshTrawl | 1 | = slot 1 | 0 / 192 |
+| FshLL | 1 | = slot 1 | 12 / 179 |
+| **FshPot** | **1** | **differs, 9.86e-02** | **29 / 161** |
+| Srv | **7** | differs, 9.86e-02 | 11 / 162 |
+| Srv_ae1 | 7 | = slot 1 | 0 / 133 |
+
+SS3 samples CAAL in month 1 for the three fisheries and month **7** for the survey. Rceattle's
+assignment does not follow that: `FshPot` is given a different slot from its month-1 siblings and
+carries the most bad rows, while `Srv_ae1` — the survey's ageing-error variant, month 7 — is
+given slot 1. Ageing error is NOT the cause: `Srv_ae1` is the ageing-error fleet and it is clean.
+
+**And Rceattle cannot express the timing anyway.** `caal_data` carries
+`Fleet_name, Fleet_code, Species, Sex, Year, Length, Sample_size, CAAL_1..CAAL_11` — **no `Month`
+or `Season` column**. SS3's `condbase` has `Month` (1 and 7), `Subseas` and `Time` (`Yr + 0.5`).
+So a CAAL observation's within-year timing has nowhere to live, and whatever the fleet slot
+encodes cannot be set per observation.
+
+**The gate is widened** rather than left to be inferred from a residual: `parity_g1()` now prints
+which fleet slots differ from slot 1 at `endyr`. It does not yet compare each slot against SS3's
+own per-fleet key, which is the next step — that needs SS3's ALK at month 7 as well as month 1.

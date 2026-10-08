@@ -216,6 +216,60 @@ SS3 drops:
 | Index | 52.3849 | −3.5264 | 45.9469 | **+9.9644** |
 | deviates (init + rec) | 85.9251 | −17.1218 | 53.2984 | **+49.7485** |
 
+### Re-measured 2026-10-08 — both open residuals are CLOSED
+
+The table above is kept as the record of what was open. Re-run at
+`merge/dsem-v5-main-5.49.1` (5.52.0.9001) and, identically, at plain `afsc/dev`
+5.53.0, against the same age-0-selected SS3 variant:
+
+| component | Rceattle | SS3 | constant | residual | was |
+|---|---|---|---|---|---|
+| Composition (length) | 1407.6387 | 1407.6400 | — | **−0.0013** | −0.0002 |
+| CAAL | 732.7701 | 732.7710 | — | **−0.0009** | −0.0007 |
+| Catch | −263.9869 | 1.5319 | −265.5188 | **−0.0000** | −0.0000 |
+| Index | 42.4204 | −3.5264 | 45.9469 | **−0.0001** | **+9.9644** |
+| deviates (init + rec) | 36.1766 | −17.1218 | 53.2984 | **0.0000** | **+49.7485** |
+
+**Max residual 0.0013 nats.** The Index closed with `link = "exponential"`
+(PR #181), which this doc already predicted. The deviates residual, recorded
+above as *attributed but not closed*, is closed too and nothing recorded it.
+
+Forward-pass total at SS3's MLE is now **1962.1657**, not the 1998.9663 in
+`HANDOFF.md`. That is the two closures, not a regression: 1998.9663 was the total
+with the deviates residual still open.
+
+**Two traps that make a closed bridge look broken.** Both cost a session:
+
+1. **Pair the SS3 run.** `ss3_to_ceattle_forward_pass.R` defaults to
+   `RCE_SS3_DIR=Data/goa_pcod_caal_lambda_on` (SS3 `TOTAL` 2058.00), but this
+   accounting is `Data/goa_pcod_caal_bins_fixed` (2051.98). Scored on
+   `lambda_on` the same five residuals come back at a max of **6.57**, not
+   0.0013.
+2. **The SS3 column here is the age-0-SELECTED variant**, whose components are
+   saved in `_ss3_L1_scan_goa_age0.rds` at `L1 = 1.3007` -- not the raw
+   `Report.sso` rows. `bins_fixed` reports `Length_comp` 1331.85 where this
+   column has 1407.64; comparing against the raw row gives a spurious +75.79.
+   No SS3 binary is needed to re-derive it, the scan file has it.
+
+### What is still open
+
+- **`Estimation_Differences.md` #19, age-0 selectivity.** SS3's
+  `age_selex_pattern = 10` zeroes age-0 selectivity on all five length-selected
+  fleets; Rceattle has no analogue. `Srv` carries 0.035657 there against SS3's 0,
+  and that one value is every remaining G1 failure: Srv length comp 9.05e-02,
+  survey index 1.02e-01, CAAL 5.97e-02, FshTrawl 2.35e-05. Ages 1-10 agree to
+  1e-6 on every fleet. This is why the accounting needs the patched variant.
+- **G2: max |gradient| 185 at SS3's MLE**, on `beta_linkage` (−185, −112, −104),
+  `log_growth_pars` (−83, −66.7) and `growth_log_sd` (64.4). SS3's MLE is not a
+  stationary point for Rceattle.
+- **Three prior rows still have no mapping**: Rceattle `Linkage-table priors`
+  7.1118 and `M prior` 0.0349 against SS3 `Parm_priors` 1.02845, `Parm_devs`
+  6.49032, `Parm_softbounds` 0.0117358. The 7.11-against-6.49 pair looks like one
+  quantity under two names; unmeasured.
+- **`parity_check.R`'s NLL table reads raw `Report.sso` rows**, so it prints
+  `Length_comp` residual +75.79. It should read the age-0 column, as the table
+  above does.
+
 plus three SS3 rows Rceattle has no analogue for: `Parm_priors` 1.0285,
 `Parm_devs` 6.4903, `Parm_softbounds` 0.0117.
 
@@ -312,3 +366,56 @@ a gradient of 0.01, and M = 0.35 is one.
 The review's own competing hypothesis -- that the L1 profile is the `init_dev`
 pool -- did not hold: `init_dev` moves −0.83 over that profile while the
 compositions move +7.61.
+
+## The age-0 zeroing is removed from the bridged model (2026-10-08)
+
+`Data/goa_pcod_caal_bins_fixed_age0/` is now a persistent SS3 directory: the bridged model with
+`age_selex_pattern` 10 -> 0 on the five length-selected fleets, estimation off
+(`last_estimation_phase 0`), parameters read from the original `ss3.par`. Built by
+`../GOA cod/Bridging/mk_age0.R` with `Data/_iso_v25_base/ss3` (ADMB 13.2, arm64), using
+`ss3_age0_fp.R`'s own `age0_patch()` verbatim. It reproduces the saved variant
+(`_ss3_L1_scan_goa_age0.rds` at `L1 = 1.3007`) on every component to 1e-4.
+
+**One gotcha, and it bit:** SS3 REWRITES `ss3.par` on exit, with different labels
+(`SR_parm[1]` -> `SRparm[1]`) and a "Number of parameters = 1" header. The forward pass injects
+from that file, so reading SS3's own output instead of the original MLE par moved the
+Recruitment residual to +4.4511 and shifted N-at-age, SSB, recruitment, index and catch to
+~4e-05. The original par is restored and SS3's output kept as `ss3.par.ss3out`. **Any patched
+directory must carry the original MLE par** -- the point is one structural switch changed, not
+one switch and a re-serialized par.
+
+### Result: 23 of 24 G1 checks pass, and the NLL table needs no override
+
+Scored with `RCE_SS3_DIR=Data/goa_pcod_caal_bins_fixed_age0` and the linkage coefficients
+pinned, straight off the raw `Report.sso` rows:
+
+| component | Rceattle | SS3 | constant | residual |
+|---|---|---|---|---|
+| Composition (length) | 1407.6387 | 1407.6400 | — | **−0.0013** |
+| CAAL / Age_comp | 732.7701 | 732.7710 | — | **−0.0009** |
+| Catch | −263.9868 | 1.5320 | −265.5188 | **−0.0001** |
+| Survey | 42.4204 | −3.5264 | 45.9469 | **−0.0001** |
+| deviates (init + rec) | 36.1766 | −17.1218 | 53.2984 | **0.0000** |
+
+G1 went 19/24 to **23/24**. Every selectivity gate passes -- `Srv` 3.57e-02 -> **1.17e-06** --
+and every length comp -- `Srv` 9.05e-02 -> **7.96e-07**, FshTrawl 2.35e-05 -> 9.45e-07. The
+survey index went 1.02e-01 -> **4.85e-06**. So the age-0 difference really was the whole of it,
+as `Estimation_Differences.md` #19 predicted.
+
+### What is left
+
+**1. `predicted CAAL`, 5.97e-02 -- the sole remaining G1 failure.** Unchanged by the age-0 patch,
+so it is a separate cause: see #17 (CAAL pop-bin integration over the data bin) and
+`CAAL-length-bin-defect.md`. Note the CAAL *likelihood* matches to −0.0009 while the predicted
+CAAL *cells* are off by 5.97e-02, so the error cancels in the sum.
+
+**2. G2 is still 83, and a correction to what I said about it.** Pinning the linkages took it
+185 -> 83 and removed `beta_linkage`; removing the age-0 zeroing did not move it. It is now
+`log_growth_pars` (−83, −66.7, 32.2), `growth_log_sd` (64.4, 10.4), `rec_pars` (44.6) and
+`rec_dev` (10.4). Earlier in this work the growth gradient was attributed to #19; that is only
+half right. The age-0 zeroing is why **SS3's** MLE puts L1 at 1.3007, but the patched model's
+own MLE is NOT at 1.3007 either -- its L1 slice falls, which is what the scan measured. So the
+gradient at 1.3007 is expected for both Rceattle AND the patched SS3 model, because 1.3007 is
+the ORIGINAL model's optimum. **To test gradient parity, run the patched model with estimation
+ON and compare at its own MLE.** G2 at 1.3007 cannot be driven to zero and is not evidence of a
+discrepancy.

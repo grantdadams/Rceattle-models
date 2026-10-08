@@ -88,6 +88,27 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   rce_alk <- t(q$growth_matrix[1, 1, seq_len(nages), seq_along(rce_edges), ey])
   rows[[length(rows) + 1]] <- .gate_row("age-length key, Jan 1", rce_alk, ss_alk, tol, "abs")
 
+  # Rceattle's growth_matrix is FLEET-specific: [fleet, sex, age, length, year].
+  # Checking slot 1 alone hid a real difference -- the slots disagree by up to
+  # 9.86e-02 here, the same order as the predicted-CAAL error, and the bridge's
+  # fleet -> slot assignment does not follow SS3's per-fleet sampling MONTH
+  # (SS3 condbase: FshTrawl/FshLL/FshPot month 1, Srv month 7; Rceattle gives
+  # FshPot a different slot from its month-1 siblings). Report which slots differ
+  # from slot 1 so the assignment is visible rather than inferred from a CAAL
+  # residual. Rceattle's caal_data carries no Month column, so nothing in it can
+  # express the timing a slot is supposed to encode.
+  if (!is.null(dim(q$growth_matrix)) && dim(q$growth_matrix)[1] > 1L) {
+    nslot <- min(dim(q$growth_matrix)[1], nrow(dl$fleet_control))
+    dif <- vapply(seq_len(nslot), function(i)
+      max(abs(q$growth_matrix[i, 1, seq_len(nages), seq_along(rce_edges), ey] -
+              q$growth_matrix[1, 1, seq_len(nages), seq_along(rce_edges), ey])),
+      numeric(1))
+    if (any(dif > 1e-8))
+      cat("age-length key differs by FLEET slot (vs slot 1, at endyr): ",
+          paste(sprintf("%s %.2e", dl$fleet_control$Fleet_name[which(dif > 1e-8)],
+                        dif[dif > 1e-8]), collapse = ", "), "\n", sep = "")
+  }
+
   # Selectivity-at-age by fleet, end year. Both scaled to a maximum of 1:
   # SS3's Asel2 and Rceattle's sel_at_age share the shape, and F carries the scale.
   sel <- ss3_rep$ageselex
@@ -199,16 +220,42 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   cm <- dl$comp_data
   lb <- ss3_rep$lendbase
   if (is.null(lb) || !nrow(lb) || is.null(cm) || !nrow(cm)) return(list())
-  offset <- if (is.null(dl$comp_offset)) 0 else dl$comp_offset[1]
-  lens   <- as.numeric(dl$lengths[1, ])
-  lens   <- lens[is.finite(lens)]
+  offset <- if (is.null(dl[["comp_offset"]])) 0 else dl[["comp_offset"]][1]
+  # The COMP length bins, not the population grid. `dl$lengths` was a silent `$`
+  # partial match to `lengths_pop`: SS3 keeps DATA bins (lbin_vector, 21 here, 5 cm)
+  # for comps and a finer POPULATION grid (lbin_vector_pop, 105, 1 cm) for the
+  # age-length key, and ss3_to_rceattle.R carries that split through. comp_hat is
+  # dimensioned by the data bins, so a position in the population grid indexes off
+  # the end of it -- "subscript out of bounds" once a bin landed past column 21.
+  # SS3's own lendbase carries exactly the data bins, so take them from there, and
+  # assert the count against the model so a change on either side fails loudly
+  # rather than mis-aligning a column.
+  lens <- sort(unique(as.numeric(lb$Bin)))
+  lens <- lens[is.finite(lens)]
+  nl   <- dl[["nlengths"]]
+  if (length(nl) && !is.na(nl[1]) && length(lens) != nl[1]) {
+    stop("SS3 reports ", length(lens), " length-comp bins but the Rceattle model ",
+         "carries nlengths = ", nl[1], ", so the comp columns cannot be aligned.",
+         call. = FALSE)
+  }
+  ncomp <- ncol(fp$quantities$comp_hat)
+  if (length(lens) > ncomp) {
+    stop("SS3 has ", length(lens), " length-comp bins but comp_hat has ", ncomp,
+         " columns.", call. = FALSE)
+  }
   lb$key <- paste(lb$Fleet, lb$Yr)
   sp     <- split(seq_len(nrow(lb)), lb$key)
   out <- list()
   for (fi in seq_len(nrow(dl$fleet_control))) {
     fl <- dl$fleet_control$Fleet_code[fi]
     a <- b <- numeric(0)
-    for (i in which(cm$Year > 0 & cm$Fleet_code == fl)) {
+    # Length-comp rows only. Age0_Length1 == 1 is a length composition; a fleet
+    # carrying both reads age comps into the same comp_hat rows, and pairing one
+    # of those with a lendbase year would score an age row against length bins.
+    al <- cm[["Age0_Length1"]]
+    rows <- which(cm$Year > 0 & cm$Fleet_code == fl &
+                  (if (is.null(al)) TRUE else al == 1))
+    for (i in rows) {
       idx <- sp[[paste(fl, cm$Year[i])]]
       if (is.null(idx)) next
       s <- lb[idx, ]
@@ -326,8 +373,15 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 #' fixed (a negative phase). SS3 never moved those, so its solution says nothing
 #' about their gradient and they cannot be part of the test. They are still
 #' printed, marked `fixed`.
+# `ss3_nll` optionally replaces SS3's reported likelihood rows for the names it
+# carries. Needed because the accounting compares against the age-0-SELECTED SS3
+# variant (see Estimation_Differences.md #19), whose components live in
+# `_ss3_L1_scan_goa_age0.rds`, not in the raw Report.sso the forward pass reads.
+# `bins_fixed` reports Length_comp 1331.85 where that variant has 1407.64, so
+# scoring against the raw row shows a ~76 nat residual that is a model
+# difference, not a fit difference.
 parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10,
-                      fixed_in_ss3 = character()) {
+                      fixed_in_ss3 = character(), ss3_nll = NULL) {
   obj  <- fp$obj
   par  <- obj$par
   g    <- as.numeric(obj$gr(par))
@@ -340,6 +394,18 @@ parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10,
   rce <- rowSums(fp$quantities$jnll_comp)
   rce <- rce[abs(rce) > 0]
   ss  <- setNames(ss3_rep$likelihoods_used[, "values"], rownames(ss3_rep$likelihoods_used))
+  # Overridden names win; anything not named keeps the reported row, so a partial
+  # override is legal and says in `ss3_source` which rows it touched.
+  ss3_source <- rep("Report.sso", length(ss)); names(ss3_source) <- names(ss)
+  if (length(ss3_nll)) {
+    hit <- intersect(names(ss3_nll), names(ss))
+    miss <- setdiff(names(ss3_nll), names(ss))
+    if (length(miss))
+      warning("ss3_nll names not in SS3's reported components, ignored: ",
+              paste(miss, collapse = ", "), call. = FALSE)
+    ss[hit] <- ss3_nll[hit]
+    ss3_source[hit] <- "override"
+  }
   ss3_name <- unname(.JNLL_TO_SS3[names(rce)])
   comp <- data.frame(rceattle = names(rce), rce_nll = round(rce, 4),
                      ss3 = ss3_name, stringsAsFactors = FALSE)
@@ -349,6 +415,7 @@ parity_g2 <- function(fp, ss3_rep, grad_tol = 1e-3, top = 10,
   k <- .ss3_constants(fp, ss3_rep)
   comp$constant <- round(unname(k[comp$ss3]), 4)
   comp$residual <- round(comp$diff - ifelse(is.na(comp$constant), 0, comp$constant), 4)
+  comp$ss3_from <- unname(ss3_source[comp$ss3])
 
   gmax <- if (any(est)) max(abs(g[est])) else NA_real_
   list(max_abs_grad = gmax, pass = isTRUE(gmax <= grad_tol),
@@ -376,9 +443,10 @@ parity_g3 <- function(cold, fp, ss3_rep, obj_tol = 1e-3, tol = 1e-4) {
 
 #' Print G1 and G2 together.
 parity_report <- function(fp, ss3_rep, tol = 1e-5, grad_tol = 1e-3,
-                          fixed_in_ss3 = character()) {
+                          fixed_in_ss3 = character(), ss3_nll = NULL) {
   g1 <- parity_g1(fp, ss3_rep, tol)
-  g2 <- parity_g2(fp, ss3_rep, grad_tol, fixed_in_ss3 = fixed_in_ss3)
+  g2 <- parity_g2(fp, ss3_rep, grad_tol, fixed_in_ss3 = fixed_in_ss3,
+                  ss3_nll = ss3_nll)
   cat("\n=== G1: forward state at SS3 MLE ===\n"); print(g1, row.names = FALSE)
   cat(sprintf("\n=== G2: max |gradient| at SS3 MLE = %.3g  (%s) ===\n",
               g2$max_abs_grad, if (g2$pass) "PASS" else "FAIL"))

@@ -427,3 +427,142 @@ SS3's **age** selectivity pattern 10 (ages 1..nages = 1, age 0 = 0) multiplies t
 size-derived curve. It is not an estimated parameter, so it does not enter this count, but it is
 worth **76.6 nats** on the forward pass and Rceattle has no per-fleet age multiplier to compose
 with a length-based curve. See `GOA-remaining-gap.md` section 1.
+
+## MEASURED 2026-10-08: Rceattle estimates 1074, not 225 — the selectivity linkages are not pinned
+
+`GOA-estimation-parity.md` records "selectivity blocks + devs | 103 | **0 — held at SS3's
+values**" and a Rceattle total of **225**. That is false. Counted off `fp$obj$par` from the
+forward pass (`RCE_SS3_DIR=Data/goa_pcod_caal_bins_fixed`):
+
+| Rceattle block | free | SS3 counterpart | n |
+|---|---|---|---|
+| `beta_linkage` | **869** | sel `DEVmult` 63 + block replacements 40 | **103** |
+| `log_F` | 134 | annual F | 134 |
+| `rec_dev` | 48 | `Main_RecrDev` 47 + `Early_RecrDev_1977` 1 | 48 |
+| `init_dev` | 10 | `Early_InitAge_1..10` | 10 |
+| `sel_dn6` | 5 | part of the 23 selectivity base | |
+| `log_growth_pars` 3, `growth_log_sd` 2, `index_log_q` 2, `rec_pars` 1 | 8 | part of the 32 base singles | |
+| **total** | **1074** | | **330** |
+
+`ss3_map$mapFactor$beta_linkage` is a factor of length 873 with **4 NA and 869 distinct
+levels** -- i.e. four pinned, every other coefficient free and on its own level.
+`ss3_to_ceattle_forward_pass.R` only ever *writes* `inits$beta_linkage` (lines 700, 932, 948);
+there is no code anywhere that maps it out. So the pinning the accounting assumes has never
+existed, and Rceattle carries **766 free parameters SS3 does not have**.
+
+**What this does and does not invalidate.**
+
+- **The forward pass is unaffected.** It runs at `estimateMode = 3`, which builds without
+  optimising, so a free parameter sitting at SS3's injected value contributes exactly what SS3's
+  value contributes. The likelihood parity (max residual 0.0013 nats) stands.
+- **G2 is not interpretable as stated.** Max |gradient| 185 at SS3's MLE, on `beta_linkage`
+  (-185, -112, -104) and the growth parameters, is 869 unintended free parameters wanting to
+  move. SS3's MLE cannot be a stationary point for a model with 766 extra directions in it.
+- **Every free fit is overfitting.** `run_goa_cod.R`'s free fit stops at **1225.23** against the
+  **1940.10** this file's sibling records as "Rceattle's own optimum" -- 715 nats lower, which is
+  what 766 surplus parameters buy. That number is not a better fit and not a bad stop; it is a
+  different model.
+
+**To close it**, map `beta_linkage` down to the 103 coefficients SS3 actually estimates, holding
+the rest at the injected values: the 63 `DEVmult` as identity-link `(1 | Year)` with
+`integrate = FALSE` and sd 0.2 supplied (the control file fixes `dev_se` at phase -5, value 0.2,
+and `dev_autocorr` at phase -6, value 0), and the 40 active block replacements as their own
+coefficients. Until then quote 1074, and do not quote 225.
+
+### FIXED 2026-10-08: the linkage coefficients are now held
+
+`ss3_to_ceattle_forward_pass.R` now pins every `beta_linkage` coefficient at the value it
+injects, right after `ss3_fix_map()`. `RCE_FIX_LINKAGE=false` leaves them free. Grant's call.
+
+Measured before and after, `Data/goa_pcod_caal_bins_fixed`:
+
+| | free | forward pass at SS3's MLE | Rceattle's own optimum | max abs gradient there |
+|---|---|---|---|---|
+| before | 1074 | 1962.1657 | 1225.2296 | **2.08** (not converged) |
+| after | **205** | **1962.1657** (unchanged) | **1925.9058** | **0.00478** (converged) |
+
+**The forward pass does not move, and that is the check.** Pinning a free parameter at the
+value it already holds cannot change an unoptimised evaluation, so an unchanged 1962.1657 is
+what confirms the 766 surplus directions were never contributing to the forward-pass
+likelihood -- only to any fit taken from it. The likelihood parity (max residual 0.0013 nats)
+is therefore unaffected, and estimation parity is now meaningful for the first time.
+
+Rceattle's optimum lands **14.2 nats below** the 1940.10 this file's sibling records, at a
+better gradient (0.00478 against 0.0077). Both closures since that measurement moved the
+forward pass by -36.8, so an optimum moving in the same direction is expected; it has not been
+attributed term by term.
+
+**G2 at SS3's MLE improves 185 -> 83** and `beta_linkage` leaves the top ten entirely. What
+remains is `log_growth_pars` (-83, -66.7, 32.2), `growth_log_sd` (64.4, 10.4), `index_log_q`
+(45), `rec_pars` (44.6) and `rec_dev` (10.4, 7.75, 6.54).
+
+### The growth gradient and the age-0 selectivity difference are ONE issue
+
+The growth half of that residual gradient is not a separate problem. L1 **is** injected
+correctly (the log reads `Growth injected: K=0.2039 L1=1.3007 Linf=99.4611`), so the gradient
+is Rceattle's likelihood genuinely preferring a different L1 at SS3's own MLE. This file's
+sibling already measured why: the ORIGINAL model's L1 slice *rises* +14.70 at 0.5 and +38.51 at
+0.001, where the age-0-SELECTED variant's *falls* -- "the direct evidence that the age-0 zeroing
+is what holds SS3's L1 at 1.3007". Rceattle has no age-0 zeroing
+(`../GOA cod/Bridging/Estimation_Differences.md` #19), so it behaves like the age-0-selected
+variant and its composition likelihood pulls L1 down.
+
+So one missing feature accounts for all of it: the five remaining G1 failures, the growth
+gradient in G2, and the "L1 runs to a harness floor" behaviour. Zeroing age-0 selectivity on a
+length-based fleet is the single thing left to close the GOA cod bridge.
+
+### 2026-10-08, part 2: the selectivity parameterisation DOES match, and why it looked like it did not
+
+`RCE_SEL_PARITY=true` already implements SS3's two mechanisms -- blocks as identity-link columns
+(coefficient = block value - base, over the block's year range), devs as log-link columns
+(coefficient = dev x 0.2, one year each). It is **off by default**. With it on:
+
+```
+[sel parity] blocks 40 (+7 held), devs 50 (+13 held unidentified in SS3) = 90 estimated
+```
+
+40 blocks is exactly SS3's active count, and 50 + 13 = SS3's 63 devs. So the structure matches;
+it is not a subset of the per-year design and could never have been reached by pinning.
+
+**The phase source was the bug.** A block is held when its SS3 phase is non-positive, read from
+`SS3_DIR/Report.sso` column 5. A directory written with `last_estimation_phase 0` -- which every
+forward-pass variant is -- reports `Active_Cnt = _` and **`Phase = -1` for every parameter**, so
+nothing had a positive phase and all 47 blocks were held:
+
+| directory | block phase | blocks with positive phase |
+|---|---|---|
+| `goa_pcod_caal_bins_fixed` (estimated) | 1 | **42** |
+| `goa_pcod_caal_bins_fixed_age0` (estimation off) | **-1** | **0** |
+| `goa_pcod_caal_bins_fixed_age0_est` (estimated) | 1 | **42** |
+
+It failed quietly: a `NAs introduced by coercion` warning on the phase vector, then 47 held
+blocks reported as a normal line of output. **`RCE_SS3_PHASE_DIR`** now points the phase read at
+an estimated sibling while values and data still come from `SS3_DIR`; it reports how many labels
+matched (387 of 387).
+
+**Counts now, age-0 removed, `RCE_SEL_PARITY=true RCE_FIX_LINKAGE=false`:** Rceattle **302**
+against SS3's **330**. The remaining 28 are the 13 devs SS3 estimates that are unidentified in
+it (`descend_se_FshTrawl` at ~2e-07, already documented above) plus the selectivity base slots
+SS3 estimates that the PHASE-honouring map pins (SS3 has 23 active selectivity base, Rceattle 5
+free `sel_dn6`).
+
+| | SS3 (330 free) | Rceattle (302 free) |
+|---|---|---|
+| objective | 2075.78 | 1876.93 (max grad 0.00114) |
+| K | 0.207996 | 0.207575 |
+| Linf | 99.460800 | 99.460613 |
+| L1 | **0.000000** | 0.034862 |
+| ln(R0) | 12.619400 | 12.671387 |
+| M | 0.456845 | 0.467787 (**not estimated** in Rceattle) |
+
+**`L1` is not representable.** SS3's patched MLE puts L1 at exactly its bound, 0. Rceattle
+parameterises growth on the log scale, so injecting that MLE fails outright with "Initial
+parameter values are not within bounds: log_growth_pars". That is what the "harness floor at
+1e-3" in the estimation doc actually is -- not a harness choice but a parameterisation limit.
+Freed, Rceattle lands at 0.0349 rather than at a floor.
+
+**Still not the same MLE.** After the additive constants Rceattle sits ~33 nats BELOW SS3 with 28
+FEWER parameters, which is the wrong direction for a parameter-count explanation and so is a
+real difference in fit, not a degrees-of-freedom artifact. The unmatched prior rows (Rceattle M
+prior + linkage priors against SS3 `Parm_priors` + `Parm_devs` + `Parm_softbounds`) and the
+`predicted CAAL` 5.97e-02 cell error are the two unexplained terms left.

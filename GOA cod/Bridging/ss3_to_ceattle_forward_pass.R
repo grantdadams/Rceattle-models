@@ -253,6 +253,15 @@ cat(sprintf("\nSelectivity linkages: %d year columns (%d-%d)\n",
 SEL_PARITY <- identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")
 
 # SS3's parameter table, for base values, phases and the BLK/DEVmult names.
+#
+# PHASES must come from an ESTIMATED run. A directory written with
+# `last_estimation_phase 0` reports `Active_Cnt = _` and `Phase = -1` for every
+# parameter, so `RCE_SEL_PARITY` then sees no positive phase anywhere and holds
+# all 47 selectivity blocks instead of estimating SS3's 40. Measured: 42 blocks
+# carry a positive phase in the estimated runs and 0 in the forward-pass one.
+# RCE_SS3_PHASE_DIR points the phase read at an estimated sibling while values
+# and data still come from SS3_DIR.
+.ss3_PHASE_DIR <- Sys.getenv("RCE_SS3_PHASE_DIR", unset = SS3_DIR)
 .ss3_P <- local({
   ln <- readLines(file.path(SS3_DIR, "Report.sso"), warn = FALSE)
   h  <- grep("^Num +Label +Value +Active_Cnt", ln)[1]
@@ -264,7 +273,23 @@ SEL_PARITY <- identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")
     lab <- c(lab, f[2]); v <- c(v, as.numeric(f[3])); ph <- c(ph, f[5])
     sd <- c(sd, suppressWarnings(as.numeric(f[11]))); j <- j + 1
   }
-  list(value = stats::setNames(v, lab), phase = stats::setNames(as.numeric(ph), lab),
+  # `_` for an inactive parameter's Active_Cnt is expected; suppress the coercion
+  # warning it used to raise rather than leave a real NA looking like noise.
+  if (!identical(.ss3_PHASE_DIR, SS3_DIR)) {
+    ln2 <- readLines(file.path(.ss3_PHASE_DIR, "Report.sso"), warn = FALSE)
+    h2  <- grep("^Num +Label +Value +Active_Cnt", ln2)[1]
+    j2 <- h2 + 1; lab2 <- character(0); ph2 <- character(0)
+    while (j2 <= length(ln2)) {
+      f2 <- strsplit(trimws(ln2[j2]), "[ \t]+")[[1]]
+      if (length(f2) < 11 || !grepl("^[0-9]+$", f2[1])) break
+      lab2 <- c(lab2, f2[2]); ph2 <- c(ph2, f2[5]); j2 <- j2 + 1
+    }
+    ph <- ph2[match(lab, lab2)]
+    cat(sprintf("phases read from %s (%d of %d labels matched)\n",
+                basename(.ss3_PHASE_DIR), sum(!is.na(ph)), length(lab)))
+  }
+  list(value = stats::setNames(v, lab),
+       phase = stats::setNames(suppressWarnings(as.numeric(ph)), lab),
        sd = stats::setNames(sd, lab))
 })
 # SS3 labels a pattern-24 parameter Size_DblN_<name>_<Fleet>(<n>); the names
@@ -963,6 +988,43 @@ inits <- init_log_F_from_ss3(inits, ss3_rep, fleet_meta, years_hind)
 # parameters SS3 actually moved.
 ss3_map <- ss3_fix_map(mod0$map, ss3_rep, inits, cod$fleet_control,
                        years_hind, verbose = TRUE)
+
+# Hold the selectivity linkage coefficients at the values injected above.
+# SS3 estimates 103 selectivity parameters (63 penalised `DEVmult` with a fixed
+# sd of 0.2, 40 active block replacements); Rceattle's linkage machinery exposes
+# 873 coefficients and build_map() leaves every one free, so this map carried
+# 766 directions SS3 does not have. That made any fit from it a different model:
+# 1074 parameters against SS3's 330, landing 715 nats below SS3's optimum by
+# overfitting. The forward pass itself was never affected -- estimateMode = 3
+# does not optimise, so a free coefficient sitting at its injected value
+# contributes exactly that value -- which is why the likelihood parity held
+# while the parameter count did not.
+# Set RCE_FIX_LINKAGE=false to leave them free.
+# SELECTIVITY rows only. The linkage table also carries the growth K/L1/Linf
+# intercepts, the M heatwave block, the q environmental link and the recruitment
+# initial level -- 7 coefficients SS3 estimates as `NatM..._BLK4repl_2014`,
+# `LnQ_base_LLSrv(5)_ENV_mult` and `SR_regime_BLK5add_1976`. Pinning those too
+# fixes M, the env link and the regime at SS3's values and they stop being
+# estimated at all, which reads as a perfect M match because it is SS3's own
+# number handed back.
+if (!identical(tolower(Sys.getenv("RCE_FIX_LINKAGE", "true")), "false") &&
+    "beta_linkage" %in% names(ss3_map$mapFactor)) {
+  # From mod0, not `cod`: fit_mod() builds the linkage table, so `cod` does not
+  # carry one yet at this point and a read of it silently matches nothing.
+  .lt  <- as.data.frame(mod0$data_list$linkage_table)
+  .sel <- which(.lt$process == "sel")
+  .v   <- as.integer(as.character(ss3_map$mapFactor$beta_linkage))
+  .was <- length(unique(stats::na.omit(.v)))
+  .v[.sel] <- NA_integer_
+  ss3_map$mapFactor$beta_linkage <- droplevels(factor(.v))
+  if (!is.null(ss3_map$mapList$beta_linkage))
+    ss3_map$mapList$beta_linkage[.sel] <- NA
+  cat(sprintf(paste0("beta_linkage: held %d selectivity coefficients at SS3's values ",
+                     "(%d were free); %d non-selectivity coefficient(s) left free: %s\n"),
+              length(.sel), .was, length(unique(stats::na.omit(.v))),
+              paste(unique(paste0(.lt$process[-.sel], ":", .lt$param[-.sel])),
+                    collapse = ", ")))
+}
 
 cat("\n--- Forward-pass fit (estimateMode = 3) ---\n")
 fp <- Rceattle::fit_mod(
