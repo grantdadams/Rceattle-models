@@ -26,7 +26,7 @@ ROWS <- c("Index data", "Catch data", "Composition data", "CAAL data",
 # mapFactor$beta_linkage carries one entry per linkage_table ROW (g3_map.R
 # indexes it that way), so the init row is found with the package's predicate.
 tbl <- mod0$data_list$linkage_table
-ir  <- which(Rceattle:::.is_init_linkage_row(tbl))
+ir  <- which(Rceattle:::.is_r_init_linkage_row(tbl))
 stopifnot(length(ir) == 1)
 cat(sprintf("\ninit linkage is linkage_table row %d of %d (process %s, param %s)\n",
             ir, nrow(tbl), as.character(tbl$process[ir]),

@@ -10,7 +10,7 @@ ROWS <- c("Index data", "Catch data", "Composition data", "CAAL data",
           "Initial abundance deviates", "Recruitment deviates",
           "M prior", "Linkage-table priors")
 tbl <- mod0$data_list$linkage_table
-ir  <- which(Rceattle:::.is_init_linkage_row(tbl))
+ir  <- which(Rceattle:::.is_r_init_linkage_row(tbl))
 stopifnot(length(ir) == 1)
 out <- NULL
 for (v in GRID) {

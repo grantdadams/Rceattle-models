@@ -647,7 +647,7 @@ init_pr_sd   <- (gp(parlist$SR_parms, "SR_sigmaR") %||% 0.44) / init_ave_age
 INIT_PRIOR   <- !identical(tolower(Sys.getenv("RCE_INIT_PRIOR", "true")), "false")
 recFun_spec <- if (INIT_LINK && !is.na(regime_shift)) {
   cod$env_data$init_lvl <- 1
-  build_srr(linkages = list(init = linkage_spec(
+  build_srr(linkages = list(R_init = linkage_spec(
     formula = ~ 0 + init_lvl,
     init    = list(init_lvl = regime_shift),
     priors  = if (INIT_PRIOR) list(init_lvl = prior_normal(0, init_pr_sd)))))
