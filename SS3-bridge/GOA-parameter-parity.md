@@ -606,3 +606,40 @@ is the last row, and it is three things:
 parameter count does not affect: at `estimateMode = 3` nothing is optimised, so a held parameter
 sitting at its injected value contributes exactly what SS3's value contributes. The count matters
 only for the estimated comparison.
+
+#### Correction: the 103 = 103 above is a COINCIDENCE, and the three extras are not missing
+
+Measured from the map and the linkage table together, under `RCE_SEL_PARITY`: the table is 129
+rows (122 `sel`, 7 non-`sel`) and `beta_linkage` has **103 free = 100 selectivity + 3
+non-selectivity**, with 22 selectivity rows pinned. So it is not 63 + 40, and the match to SS3's
+103 selectivity coefficients was arithmetic luck.
+
+Row by row, the non-`sel` coefficients:
+
+| row | state | SS3 counterpart |
+|---|---|---|
+| `growth K / L1 / Linf (Intercept)` | **pinned** | none -- they would duplicate `log_growth_pars` |
+| `M M1 heatwave` | **free** | `NatM..._BLK4repl_2014` |
+| `recruitment R_init init_lvl` | **free** | `SR_regime_BLK5add_1976` |
+| `q (Intercept)` | **pinned** | none -- duplicates `index_log_q` |
+| `q LLSrv_q_env` | **free** | `LnQ_base_LLSrv(5)_ENV_mult` |
+
+**So all three of SS3's non-selectivity extras ARE free**, and the pinned intercepts are pinned
+correctly: an intercept linkage on a process that already has a base parameter duplicates it, and
+leaving both free is the masking trap. That also fits the two convergence flags on the free fit --
+`index_log_q` reported non-identifiable and a non-invertible Hessian -- which would be worse, not
+better, with the intercepts freed.
+
+**Corrected gap, still 22:**
+
+| | Rceattle | SS3 | |
+|---|---|---|---|
+| selectivity linkage | **100** | 63 `DEVmult` + 40 blocks = **103** | **-3** |
+| non-selectivity linkage | 3 | 2 blocks + `ENV_mult` = 3 | match |
+| base singles (`sel_dn6` 5, growth 5, q 2, `rec_pars` 1) | 13 | 32 | **-19** |
+| `log_F` / `rec_dev` / `init_dev` | 134 / 48 / 10 | 134 / 48 / 10 | match |
+
+The -19 is 18 selectivity base plus `log_M1`, as above. The **-3 on the selectivity linkage is
+new and unexplained**: `[sel parity]` declares 90 estimated (40 blocks + 50 devs) while the map
+leaves 100 free, and SS3 has 103. Those three numbers need reconciling against the 122 `sel`
+rows and the 22 pinned before any count claim is made again.
