@@ -1504,3 +1504,43 @@ FshPot is on slot 3 and has the most bad rows (29/161). **So the remaining quest
 `caal_hat` actually reads per row**, which is a trace through the CAAL prediction in the template
 rather than an inference from the slot table, and is the next step. Do not assume it is the
 fleet's own `growth_matrix` slot; that assumption is what this measurement rules out.
+
+## 21. A linkage on a SHARED selectivity block is duplicated per fleet, and the copies diverge 🔴
+
+**Rceattle.** `fleet_control` declares `Srv` (4) and `Srv_ae1` (10) with the same
+`Selectivity_index = 4` and `Catchability_index = 4`, so the base `sel_dn6` block is ONE shared
+parameter (rule 10). But the **linkage table keys on `fleet`, not on `Selectivity_index`**, so a
+selectivity linkage generates one coefficient PER FLEET for the same design column:
+
+```
+47 distinct block columns   ->   59 linkage rows
+   the 12 s4* columns (SS3 source fleet 4) appear on BOTH Srv and Srv_ae1, 12 rows each
+```
+
+**Measured** (age-0-removed model, `RCE_SEL_PARITY=true`, free fit, 2026-10-08). The copies are
+estimated independently and diverge on the log scale:
+
+| column | `Srv` | `Srv_ae1` | difference |
+|---|---|---|---|
+| `s4p5_blk1996` | -3.82671 | 17.05918 | **+20.89** |
+| `s4p1_blk2006` | 9.13890 | -3.11320 | -12.25 |
+| `s4p1_blk1996` | 11.79350 | 1.41909 | -10.37 |
+| `s4p3_blk1996` | 1.65783 | 9.22607 | +7.57 |
+| `s4p6_blk1996/2006` | 11.33745 | 11.33745 | 0 (the held pair) |
+
+max |difference| **20.89**. So two fleets that share one selectivity block get **different
+realised selectivity** as soon as a linkage is attached. The sharing holds for the base and is
+silently abandoned for the offsets.
+
+**SS3** has one fleet 4 with one set of selectivity parameters and cannot express this.
+
+**What it explains.** The 12 surplus block coefficients (47 columns against 59 rows); the
+`index_log_q` non-identifiability flagged on `Srv_ae1`; the non-invertible Hessian on the free
+fit; and plausibly much of why Rceattle reaches ~33 nats BELOW SS3 with FEWER declared parameters
+-- it has freedom SS3 does not.
+
+**This is an Rceattle defect, not a bridge one.** Any assessment that shares a
+`Selectivity_index` across fleets AND attaches a selectivity linkage gets independent offsets per
+fleet while believing the block is shared. The fix is for the linkage design to key on the
+sharing index rather than the fleet, as `build_map()` already does for the base block. Until
+then, do not share a `Selectivity_index` across fleets that carry a selectivity linkage.
