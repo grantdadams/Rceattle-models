@@ -986,7 +986,21 @@ inits <- init_log_F_from_ss3(inits, ss3_rep, fleet_meta, years_hind)
 
 # Map out what SS3 holds fixed, so G2's gradient test covers only the
 # parameters SS3 actually moved.
-ss3_map <- ss3_fix_map(mod0$map, ss3_rep, inits, cod$fleet_control,
+# ss3_fix_map() reads `ss3_rep$parameters$Phase` to decide what SS3 held fixed,
+# so it needs the same corrected phases as .ss3_P. In a forward-pass directory
+# SS3 writes Phase = -1 for every parameter -- measured: 117 negative and 0
+# positive in the age-0 forward-pass run against 42 negative and exactly 330
+# positive in its estimated sibling -- so reading them there maps out 117
+# parameters SS3 actually estimates, and no count can match.
+.ss3_rep_phase <- ss3_rep
+if (!identical(.ss3_PHASE_DIR, SS3_DIR)) {
+  .pp <- .ss3_P$phase[match(ss3_rep$parameters$Label, names(.ss3_P$phase))]
+  .ss3_rep_phase$parameters$Phase <- unname(.pp)
+  cat(sprintf("map phases from %s: %d negative, %d positive\n",
+              basename(.ss3_PHASE_DIR), sum(.pp < 0, na.rm = TRUE),
+              sum(.pp > 0, na.rm = TRUE)))
+}
+ss3_map <- ss3_fix_map(mod0$map, .ss3_rep_phase, inits, cod$fleet_control,
                        years_hind, verbose = TRUE)
 
 # Hold the selectivity linkage coefficients at the values injected above.

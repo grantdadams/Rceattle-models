@@ -566,3 +566,43 @@ FEWER parameters, which is the wrong direction for a parameter-count explanation
 real difference in fit, not a degrees-of-freedom artifact. The unmatched prior rows (Rceattle M
 prior + linkage priors against SS3 `Parm_priors` + `Parm_devs` + `Parm_softbounds`) and the
 `predicted CAAL` 5.97e-02 cell error are the two unexplained terms left.
+
+### 2026-10-08, part 3: the gap is 22, and exactly which 22
+
+`ss3_fix_map()` reads `ss3_rep$parameters$Phase` and needed the same phase redirect as `.ss3_P`.
+A forward-pass directory reports **117 negative and 0 positive** phases where its estimated
+sibling reports **42 negative and exactly 330 positive** -- SS3's own count -- so the map was
+pinning 117 parameters SS3 estimates. Fixed: the forward pass now rebuilds
+`ss3_rep$parameters$Phase` from `RCE_SS3_PHASE_DIR` before calling the map, and says so. Free
+count 302 -> **308**, forward pass unchanged at 1934.1311 (the check: a map cannot move an
+unoptimised evaluation).
+
+With `RCE_SEL_PARITY=true RCE_FIX_LINKAGE=false` against the age-0-removed model:
+
+| Rceattle block | free | SS3 counterpart | n | |
+|---|---|---|---|---|
+| `log_F` | 134 | annual F | 134 | match |
+| `beta_linkage` | **103** | sel `DEVmult` 63 + block replacements 40 | **103** | **match** |
+| `rec_dev` | 48 | `Main_RecrDev` 47 + `Early_RecrDev_1977` 1 | 48 | match |
+| `init_dev` | 10 | `Early_InitAge_1..10` | 10 | match |
+| `sel_dn6` 5, growth 5, `index_log_q` 2, `rec_pars` 1 | 13 | base singles 32, `NatM`/`SR_regime` blocks 2, `LnQ ENV_mult` 1 | 35 | **-22** |
+| **total** | **308** | | **330** | |
+
+**The selectivity count now matches exactly**, which was the hard part. The whole remaining gap
+is the last row, and it is three things:
+
+1. **18 selectivity base.** SS3 has 23 active; Rceattle frees 5. `ss3_fix_map()` only maps out 7
+   `sel_dn6` slots, so the rest are held by Rceattle's own `build_map()` -- which is the
+   `RCE_SEL_PARITY` design: the base is held and the variation lives in the 103 linkage
+   coefficients. A legitimate split of the same information, not a missing parameter, but it does
+   mean the counts cannot both be 330 and mean the same thing.
+2. **1 M.** `log_M1` is not in `obj$par` at all; base M is fixed at SS3's value, which is why a
+   fitted M of exactly 0.467787 is SS3's own number handed back rather than an estimate.
+3. **3 non-selectivity linkage coefficients** -- `NatM..._BLK4repl_2014`,
+   `SR_regime_BLK5add_1976`, `LnQ_base_LLSrv(5)_ENV_mult`. They exist in Rceattle's linkage table
+   and SS3 estimates all three.
+
+**The forward-pass likelihood already matches to 0.0013 nats**, and that is the comparison the
+parameter count does not affect: at `estimateMode = 3` nothing is optimised, so a held parameter
+sitting at its injected value contributes exactly what SS3's value contributes. The count matters
+only for the estimated comparison.
