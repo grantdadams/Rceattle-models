@@ -1544,3 +1544,54 @@ fit; and plausibly much of why Rceattle reaches ~33 nats BELOW SS3 with FEWER de
 fleet while believing the block is shared. The fix is for the linkage design to key on the
 sharing index rather than the fleet, as `build_map()` already does for the base block. Until
 then, do not share a `Selectivity_index` across fleets that carry a selectivity linkage.
+
+### #20 RETRACTED (2026-10-08): the fleet -> ALK assignment is CORRECT
+
+The claim above -- that the fleet to ALK slot assignment does not follow SS3's sampling month --
+is **wrong**, and it rested on a mislabelled array index. `ceattle.cpp:3334` sets
+
+```cpp
+int wtind = nspp * 2 + flt;          // growth_matrix(wtind, sex, age, lp, yr)
+```
+
+so `growth_matrix`'s first dimension is 2 species-level slots followed by one per fleet. With
+`nspp = 1` the R indices are 1-2 species-level and 3-12 fleets 1-10. I read R index 3 as
+"FshPot" when it is **FshTrawl**, and built the whole entry on that.
+
+Re-measured with the correct mapping, at `endyr`:
+
+| R slot | fleet | vs SS3 subseas 1 | vs SS3 subseas 2 |
+|---|---|---|---|
+| 1, 2 | (species-level) | **3.87e-07** | 9.86e-02 |
+| 3-7 | FshTrawl, FshLL, FshPot, Srv, LLSrv | 9.86e-02 | **6.03e-07** |
+| 8-11 | IPHCLL, ADFG, SPAWN, Seine | **3.87e-07** | 9.86e-02 |
+| 12 | Srv_ae1 | 9.86e-02 | **6.03e-07** |
+
+**Every fleet carrying length or CAAL data uses SS3's subseas-2 key, matching to 6.03e-07**, and
+the population uses subseas 1 at 3.87e-07. That is what SS3 does -- `condbase` reports
+`Subseas = 2` for all 8260 CAAL rows. The four age-based `Fixed`-selectivity fleets sit on the
+subseas-1 key and carry no length data, so it does not reach them. The assignment is systematic
+and right.
+
+**So the predicted-CAAL error of 5.97e-02 is still unexplained.** What is now ruled out, each
+measured: the age-length key (every relevant slot, 6.03e-07), selectivity-at-age across all years
+(<= 3.4e-06 on every fleet), N-at-age across all years (5.25e-06), and the slot assignment.
+
+**The live candidate is the ageing-error matrix**, which `ceattle.cpp:3701` applies to CAAL and
+nothing else:
+
+```cpp
+caal_hat(caal_ind, obs_age) += pred_CAAL(flt, sex, true_age, ln, yr)
+                             * age_error(flt_ageing_error_index(flt), true_age, obs_age);
+```
+
+It is row-normalised and spreads true age into neighbouring observed ages, which is exactly the
+compensating-pair signature measured above -- row 813 at +0.060142 and -0.057930, row sums exactly
+1.000000. The fleet mapping is `Ageing_error_index` 2 for FshTrawl, FshLL, FshPot and Srv, 1 for
+Srv_ae1, `NA` for LLSrv and the age fleets; three of the four index-2 fleets carry the bad rows
+(FshPot 29, FshLL 12, Srv 11) and FshTrawl, also index 2, is clean. That last point is not yet
+explained, so this is a lead and not a conclusion.
+
+Note `dl$age_error` is 22 x 14 and is SS3's SPECIFICATION (mean age and SD per definition, row
+sums 3, 4, 5, ... not 1), not the realised probability matrix -- the template expands it. Compare
+the EXPANDED matrix against SS3's, not this array.
