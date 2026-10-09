@@ -545,8 +545,16 @@ M1_block <- build_M1(
   M_prior      = M_prior_nat,
   M_prior_sd   = M_pr_sd,
   M2_use_prior = FALSE,
+  # `~ heatwave`, WITH an intercept, not `~ heatwave - 1`. map_linkage_adjuster()
+  # masks the base parameter only for a linkage formula carrying no intercept, so
+  # the slope-only form pinned log_M1 and base M was never estimated -- a fitted
+  # M then came back as exactly SS3's injected 0.467787, which reads as a perfect
+  # match and is SS3's own number handed back. With an intercept the base holds
+  # the level and stays estimable while the linkage (Intercept) row is fixed at 0,
+  # so nothing is double-counted. SS3 estimates NatM_uniform_Fem_GP_1 and the
+  # 2014 block, which is now what Rceattle does too.
   linkages     = list(M1 = linkage_spec(
-    formula = ~ heatwave - 1,
+    formula = ~ heatwave,
     by      = ~ species,
     init    = list(heatwave = m_block_beta)
   ))

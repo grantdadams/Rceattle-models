@@ -643,3 +643,53 @@ The -19 is 18 selectivity base plus `log_M1`, as above. The **-3 on the selectiv
 new and unexplained**: `[sel parity]` declares 90 estimated (40 blocks + 50 devs) while the map
 leaves 100 free, and SS3 has 103. Those three numbers need reconciling against the 122 `sel`
 rows and the 22 pinned before any count claim is made again.
+
+### 2026-10-09: 308 -> 322, M is estimated at last, and the shift is a density constant
+
+**M (+1).** `build_M1()`'s linkage was `~ heatwave - 1`. `map_linkage_adjuster()`
+(`R/3-build_map.R:1829`) masks the base parameter **only for a formula carrying no intercept**:
+with one, "the base parameter holds the level and stays estimable; the linkage `(Intercept)` row
+is fixed at 0 instead". So the slope-only form pinned `log_M1` and base M was never estimated --
+which is why a "fitted" M came back as exactly SS3's injected 0.467787 and looked like a perfect
+match. Now `~ heatwave`: the `(Intercept)` row sits at init 0 and pinned, `log_M1` is free, and
+the forward pass is **unchanged at 1934.1311** -- the check, since `log_M1` was already injected
+at `log(M_base)`. Rceattle's own optimum now moves M to **0.494401**. SS3 estimates
+`NatM_uniform_Fem_GP_1` and the 2014 block; so does Rceattle.
+
+**The 13 unidentified devs (+13).** `RCE_SEL_DEV_ALL=true` already existed. With it,
+`[sel parity]` reads `devs 63 (+0 held)` -- SS3's 63 exactly.
+
+**Free count 308 -> 322**, and every G1 gate still passes: selectivity across ALL years
+<= 3.4e-06 on every fleet, predicted CAAL 8.04e-06, every length comp ~1e-06.
+
+**The forward pass moves -8.9765 when the 13 are freed, and it is an additive constant, not a
+fit difference.** All five data components are bit-identical (Index 42.4204, Catch -263.9869,
+Composition 1407.6387, CAAL 732.7701, init_dev 5.2268, rec_dev 30.9498). The whole shift is in
+`Linkage-table priors`, and it is exactly 13 times the N(0, 0.2) normalising constant:
+
+```
+log(1/(0.2*sqrt(2*pi)))        =  0.690499  per coefficient
+x 13                           =  8.976492
+observed 1934.1311 - 1925.1546 =  8.976500
+residual                       = -8.1e-06
+```
+
+Rceattle's dev penalty is a proper density and carries its constant; SS3's `Parm_devs` (6.4903)
+is a sum-of-squares penalty without one. So this belongs with the constants the accounting
+already carries for Catch (-265.5188) and Index (+45.9469), and the forward-pass comparison
+should use **1925.1546** with the 13 freed, or 1934.1311 with them held. Same model either way.
+
+**Remaining gap to 330 is 8, and it is two items that partly cancel:**
+
+```
+322  current
++18  free the selectivity base where a block linkage covers it (sel_dn6 frees 5; SS3 has 23 active)
+-10  remove the duplicated block coefficients (#21: 47 columns emit 59 rows, Srv/Srv_ae1)
+---
+330
+```
+
+Both are the same structural issue -- how a linkage relates to the base it is attached to -- and
+both are the entry #21 class now with the other session. Nothing else is outstanding: `log_F`
+134, `beta_linkage` 103 of SS3's 103, `rec_dev` 48, `init_dev` 10 and the 3 non-selectivity
+linkage coefficients all match.
