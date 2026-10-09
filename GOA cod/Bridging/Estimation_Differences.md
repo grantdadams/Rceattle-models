@@ -1595,3 +1595,41 @@ explained, so this is a lead and not a conclusion.
 Note `dl$age_error` is 22 x 14 and is SS3's SPECIFICATION (mean age and SD per definition, row
 sums 3, 4, 5, ... not 1), not the realised probability matrix -- the template expands it. Compare
 the EXPANDED matrix against SS3's, not this array.
+
+### #20 resolved: it was the SCORER's key, and G1 is now 24/24
+
+The predicted-CAAL error was never in Rceattle. `.g1_caal()` keyed its lookup on
+`paste(cb$Yr, cb$Lbin_lo)` -- **without the fleet**. Measured on this model's `condbase`:
+
+```
+408 (Yr, Lbin_lo) groups;  197 of them (48%) span MORE THAN ONE fleet, up to four
+the first fleet in condbase order within those 197 is FshTrawl in 173
+```
+
+So the lookup returned several fleets' rows and `!duplicated(s$Bin)` kept whichever came first,
+overwhelmingly FshTrawl's. **Every other fleet's predicted CAAL was scored against FshTrawl's
+expectations.** That accounts for every observation, including the ones that made the earlier
+entry look structural:
+
+| observation | explanation |
+|---|---|
+| FshTrawl clean, 0 of 192, with the MOST in-band exposure (90 rows) | it wins the dedup and is compared against itself |
+| FshLL 12, FshPot 29, Srv 11 bad | compared against FshTrawl |
+| confined to 24.5-54.5 cm | the mid-length band is where several fleets sample the same bin |
+| confined to 2007+ | the years where multiple fleets carry CAAL |
+| Srv_ae1 clean | all 49 of its in-band rows are pre-2007 |
+| compensating pairs within a row, row sums exactly 1 | a different fleet's age composition at the same length |
+| the CAAL LIKELIHOOD matched to -0.0009 throughout | the likelihood reads the right rows; only the gate mispaired |
+
+`.g1_lencomp()` already keyed on `paste(lb$Fleet, lb$Yr)`; only the CAAL gate omitted it. Fixed:
+`predicted CAAL` **5.97e-02 -> 8.04e-06**, and the paired-cell count drops 5051 -> 4352 because
+the cross-fleet pickups are gone.
+
+**G1 is 24 of 24.** With the age-0 zeroing removed on the SS3 side (#19) and this key fixed, the
+GOA cod forward pass matches SS3 on every gate: the state, every fleet's selectivity, every
+fleet's length composition, the predicted CAAL, the survey index, the catch, and all five
+likelihood components at <= 0.0013 nats off the raw `Report.sso` rows.
+
+Lesson for the next entry in this file: three of this session's findings were the harness, not the
+model -- a `$` partial match, a phase read from an estimation-off directory, and this key. Check
+what the gate is pairing before concluding anything about the template.

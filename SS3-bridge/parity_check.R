@@ -196,11 +196,21 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
   minage <- dl$minage[1]
   offset <- if (is.null(dl$comp_offset)) 0 else dl$comp_offset[1]
   real   <- which(cd$Year > 0)
-  cb$key <- paste(cb$Yr, cb$Lbin_lo)
+  # Key on FLEET as well as year and length bin. Without the fleet, 197 of
+  # condbase's 408 (Yr, Lbin_lo) groups span more than one fleet -- up to four --
+  # and `!duplicated(s$Bin)` below then keeps whichever fleet comes first in
+  # condbase order, which is FshTrawl in 173 of those 197. So every other fleet's
+  # rows were scored against FshTrawl's expectations: FshTrawl came out clean
+  # (0 of 192) while FshLL, FshPot and Srv carried a spurious 5.97e-02, in the
+  # mid-length band and the years where several fleets sample the same bin. The
+  # CAAL LIKELIHOOD was never affected -- it reads the right rows -- which is why
+  # it matched to -0.0009 while this gate failed. .g1_lencomp already keys on
+  # fleet; only this one did not.
+  cb$key <- paste(cb$Fleet, cb$Yr, cb$Lbin_lo)
   sp     <- split(seq_len(nrow(cb)), cb$key)
   a <- b <- numeric(0)
   for (i in real) {
-    idx <- sp[[paste(cd$Year[i], cd$Length[i])]]
+    idx <- sp[[paste(cd$Fleet_code[i], cd$Year[i], cd$Length[i])]]
     if (is.null(idx)) next
     s <- cb[idx, ]
     s <- s[!duplicated(s$Bin), ]
