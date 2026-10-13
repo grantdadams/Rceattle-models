@@ -1,13 +1,280 @@
 # GOA Pacific cod, G3: where Rceattle's own optimum sits relative to SS3's
 
-**2026-09-26, second pass.** An adversarial review found the first version of this
-note wrong in several places; the numbers below are the corrected ones, and the
-review also led to a real defect in the ageing-error fleet split (see
-`shared-block-parameter-injection.md`). What changed and why is at the end.
+**2026-10-09: forward-pass parity holds; ESTIMATION PARITY IS NOT ESTABLISHED.**
+Everything from "The comparison is conditional" down is the SUPERSEDED earlier
+state — a 225-parameter conditional fit whose premises no longer hold, kept for
+the provenance of its numbers. Read this section instead.
 
-Run it with `Rscript Bridging/run_g3_goa.R fixsel` from the `GOA cod` folder.
+> **An earlier version of this section claimed "estimation parity reached, the
+> two optima agree to 0.048 nats". That claim was wrong and is retracted.** It
+> was measured on a fit that holds 55 of 60 `sel_dn6` entries — including base
+> selectivity parameters SS3 estimated — at SS3's injected values, and reported
+> it as "Rceattle's own optimum". Free them and Rceattle lands 10.28 nats
+> *below* SS3, not level with it. The two numbers and why neither is parity are
+> below. Three adversarial reviews found this; two found it independently.
+
+## Neither configuration compares the same parameter space
+
+The obstacle is structural, and naming it first makes the two fits legible.
+**SS3's time blocks REPLACE the base parameter; Rceattle's linkage ADDS to it.**
+Every blocked selectivity parameter in `Model19_1e.ctl` carries `Blk_Fxn = 2`,
+and SS3's own generated labels say so — `SizeSel_P_1_FshTrawl(1)_BLK2repl_1990`.
+Under *replace*, the base governs only the years no block covers. Under
+Rceattle's additive identity linkage the base enters every year, so the base and
+the block coefficients are confounded wherever the blocks tile the rest of the
+series — and block pattern 2 (FshTrawl, FshLL) covers 1990-2024 with no gap,
+leaving the base's own years 1977-1989, which is exactly where their deviations
+operate.
+
+The bridge reproduces SS3's *realised* selectivity exactly by setting each block
+coefficient to `SS3_value − base`, which is why the forward pass matches on all
+24 G1 gates. It does not reproduce SS3's *parameterisation*, and estimation
+compares parameterisations. So there are two fits and neither is parity:
+
+| | held base (the earlier headline) | freed base |
+|---|---|---|
+| objective | 1859.3075 | **1849.8913** |
+| free parameters | 322 | 336 |
+| free `sel_dn6` of 60 | 5 | 19 |
+| in SS3 units | 2074.9234 | **2065.5074** |
+| **vs SS3's 2075.7825** | **−0.8591** | **−10.2751** |
+| non-identifiable | 13 | 18 |
+| convergence status | FAIL | FAIL |
+
+Holding the bases makes the pin binding — freeing them gains **9.4162 nats**, so
+the 0.859 "agreement" sat inside a pin 11× larger. Freeing them buys 18
+non-identifiable directions instead, because base and block are confounded. The
+honest reading is that **Rceattle fits these data better than SS3 does** — at the
+freed-base optimum every data component improves (Length −4.83, CAAL −3.06,
+Survey −2.22, Catch −0.19, Recruitment −0.26) — but it does so in a
+parameterisation whose dimension is not comparable to SS3's, and in neither
+configuration is the Hessian invertible.
+
+### The held-base table, for the record
+
+Scored in SS3's units — SS3 writes likelihood *kernels* where Rceattle evaluates
+full densities, so each Rceattle row has its normalising constant removed. This
+is the arithmetic the retracted claim rested on; the constants below are correct
+and independently verified. What is wrong is calling the left column an optimum.
+
+| component | Rceattle | SS3 | diff |
+|---|---|---|---|
+| Length_comp | 1361.6157 | 1361.1100 | +0.5057 |
+| Age_comp (CAAL) | 727.4848 | 728.0110 | −0.5262 |
+| Survey | −5.4204 | −5.4940 | +0.0736 |
+| Catch | 1.6584 | 1.6470 | +0.0114 |
+| Recruitment | −17.0141 | −17.0211 | +0.0070 |
+| selectivity devs (`Parm_devs`) | 6.5246 | 6.5465 | −0.0219 |
+| prior, VonBert K | 0.0695 | 0.0722 | −0.0027 |
+| prior, L_at_Amax | 0.0013 | 0.0014 | −0.0001 |
+| prior, base M | 0.0036 | 0.0021 | +0.0015 |
+| prior, M 2014-16 block | **0.0000** | **0.8944** | **−0.8944** |
+| `Parm_softbounds` | **0.0000** | **0.0130** | **−0.0130** |
+| **total** | **2074.9234** | **2075.7825** | **−0.8591** |
+
+The two bolded rows are penalties SS3 charges and Rceattle has no counterpart
+for, and they are −0.9074 of the −0.8591, leaving +0.0483 across everything else.
+**That +0.0483 is not evidence of agreement**: it is what a fit pinned at SS3's
+own selectivity bases scores, and the pin is worth 9.4162 nats.
+
+Reported objectives are Rceattle 1859.30748417 (max|grad| 9.3e-04) and SS3
+2075.78246040 (its rows summed; the reported TOTAL rounds to 2075.78). The
+215.615941913 between them is density constants:
+
+```
+data-row constants (parity_check.R:.ss3_constants())   -166.273435527
+  Catch    134 scored rows   sum(log(Log_sd) + 0.5log2pi)   -265.5187971130
+  Survey    50 scored rows   50 * 0.5log2pi                   45.9469266602
+  Recruit   58 deviates      58 * 0.5log2pi                   53.2984349259
+linkage-prior constants                                 -49.369846800
+  63 sel devs at sd 0.2                                   -43.5014608915
+  growth K    at sd 0.03                                   -2.5876193641
+  growth Linf at sd 0.015                                  -3.2807665447
+M prior   log(0.41) + 0.5log2pi                            0.027340414
+TOTAL                                                  -215.615941913
+```
+
+**The constants are constants, not functions of the fit.**
+`.ss3_recdev_offset()` has two fit- or configuration-dependent terms — the
+deviates Rceattle penalises that SS3 leaves unestimated, charged at their current
+values, and `(n_rec − sd_offset_rec) log sigmaR` — and subtracting a quantity
+that moves with the fit would be circular. **Both are exactly zero here.** All 58
+of SS3's deviates carry `biasadjuster = 1` (10 `Init_age` 1967-76, 1 `Early`
+1977, 47 `Main` 1978-2024; the 15 `Fore` rows carry 0 and are not deviates), so
+`sd_offset_rec` = 58 = `n_rec` and `main_recdev` spans every year, leaving no
+unestimated deviate to charge. The Recruitment constant is therefore
+`58 × 0.5 log(2 pi)` = 53.2984349259 and nothing else. Measured identical at both
+the prior-on and headline fits. Catch and Survey read row counts and observation
+sd's only, never a parameter. **This is a property of THIS model's SS3
+configuration, not of the harness** — turn on SS3's bias-adjust ramp or shorten
+`main_recdev` and the figure silently becomes a function of the refitted
+`rec_dev`, so recompute it rather than reusing 53.2984.
+
+### Two premises the comparison rests on, neither stated before
+
+**1. SS3's catch likelihood is not a plain lognormal, and the bridge matches it
+by inflating the sd 10%.** `SS_objfunc.tpl:733` writes
+`0.5 ((log(1.1 obs) − log(pred + 0.1 obs)) / se)²`, where Rceattle writes a plain
+`dnorm(log(obs), log(pred), sd)`. The bridge sets `Log_sd` = 0.055 against SS3's
+`catch_se` = 0.05 on all three fleets, which matches the first derivative exactly
+but not the second. Measured at identical predictions the two forms differ by
+**2.4e-05** over 134 rows — immaterial against +0.0483, but it grows with the
+residuals, so it is a premise and not an identity.
+
+**2. `sd_offset = 1`** (`Model19_1e.ctl:302`). That is what puts
+`sd_offset · log(se)` in SS3's survey term and makes `sd_offset_rec` = 58. At
+`sd_offset = 0` the Survey constant would need `sum(log(SE))` added and the
+Recruitment constant `+58 log(0.44)` — a 142-nat error, silently.
+
+SS3 writing kernels only is confirmed from source for all five components
+(`SS_objfunc.tpl` lines 733, 132-134, 759/766, 1546, 917-941). `Parm_devs` is
+the subtle one: `parm_dev_like(i,2)` is hard-coded to 0.0 for
+`parm_dev_type == 1`, so the `log(se)` term is dropped *even though*
+`sd_offset = 1`, and the surviving comment in SS3's source no longer describes
+that. Kernel-only is what the code does, which is how it is treated here.
+
+### The one structural gap: SS3's prior on the heatwave M block
+
+SS3 applies `NatM`'s lognormal(−0.81, 0.41) prior to the block *replacement*
+value `NatM_uniform_Fem_GP_1_BLK4repl_2014`, i.e. to the block's absolute M.
+Rceattle's heatwave coefficient is a multiplicative log offset from a freely
+estimated base, `M(yr) = M_base · exp(beta · heatwave)`, so the equivalent prior
+is on `log M_base + beta` — a linear combination of two estimated parameters,
+which the linkage table's per-row priors cannot express. It is not a defect;
+it is a missing prior form. Recorded as `Estimation_Differences.md` #22.
+
+Its effect is visible and in the predicted direction: unpenalised, Rceattle's
+block M runs 1.9% above SS3's, which is why Rceattle buys +0.51 on the length
+comps while giving back −0.53 on CAAL.
+
+### Parameters, each at its own optimum
+
+| parameter | Rceattle | SS3 | diff |
+|---|---|---|---|
+| M base | 0.460606 | 0.456845 | +0.82% |
+| M 2014-16 block | 0.784543 | 0.769794 | +1.92% |
+| VonBert K | 0.207788 | 0.207996 | −0.10% |
+| L_at_Amax (Linf) | 99.460771 | 99.460800 | −3e-7% |
+| L_at_Amin (L1) | 0.001 | 4.93e-08 | **both at their lower bound** |
+| ln(R0) | 12.648522 | 12.619400 | +0.23% |
+| log q, Srv(4) | 0.457198 | 0.462348 | −0.0052 — **non-identifiable** |
+| log q, LLSrv(5) | 0.374093 | 0.378185 | −0.0041 — **non-identifiable** |
+| LLSrv q env coefficient | 0.459243 | 0.455372 | +0.85% |
+| 63 selectivity deviations | — | — | max 0.0133, cor 0.999944 |
+| 48 recruitment deviations | — | — | max 0.0275 after centring |
+| SSB 1977-2024 | — | — | max 1.36%, mean +0.41%, cor 0.999976 |
+
+Three qualifications the table needs:
+
+* **L1 is on a bound in BOTH models.** SS3's `L_at_Amin` is 4.92948e-08 with
+  status `LO`, the only parameter in its 330 that is not `OK`, and its
+  `warning.sso` flags it. Rceattle's lower bound is 1e-3. Length at age 1 moves
+  0.0009 cm between the two against a 5 cm length bin, so it is numerically
+  benign — but both implementations are pressing length-at-youngest-age to zero,
+  which is how a model with age-0 fish newly selected keeps them out of the
+  length comps. Parity is being measured in a degenerate corner of that
+  parameter.
+* **Both q's are flagged non-identifiable** by `check_estimability` at this
+  solution, so their ~1% agreement is agreement along a direction the Hessian
+  cannot resolve.
+* **The recruitment deviations are differently centred, by exactly σR²/2.**
+  `mean(rce − ss3)` = −0.09680035 against `0.44²/2` = 0.0968, agreeing to
+  3.5e-07 — Rceattle centres the deviations at `−bias_adjust_proc·σR²/2` where
+  SS3 reports them at zero mean. Removing that convention offset takes
+  max|diff| from 0.115390 to **0.027475**. Quote the centred number; the raw one
+  is 84% convention.
+
+The selectivity deviations compare on the **standardized** scale: SS3's reported
+`DEVmult` is the deviate divided by its `_dev_se` (0.2 for all five blocks),
+while Rceattle's `beta_linkage` is the log offset itself. The two penalties are
+the same object — `0.5 Σ (beta/0.2)²` = 6.524599 against `0.5 Σ DEVmult²` =
+6.546524, SS3's reported `Parm_devs` being 6.546530. Compared on the raw scale
+instead, the largest deviation reads 1.14 and means nothing.
+
+### How to reproduce
+
+From the `GOA cod` folder:
+
+```
+RCE_SS3_DIR="Data/goa_pcod_caal_bins_fixed_age0" \
+RCE_SS3_PHASE_DIR="Data/goa_pcod_caal_bins_fixed_age0_est" \
+RCE_SEL_PARITY=true RCE_FIX_LINKAGE=false RCE_SEL_DEV_ALL=true \
+RCE_INIT_PRIOR=false Rscript run_goa_cod.R
+```
+
+Add `RCE_SEL_FREE_BASE=true` for the freed-base fit. That flag keeps the
+intercept on the free-block linkage specs, which stops
+`map_linkage_adjuster()` masking the base `sel_dn6` and pins the `(Intercept)`
+row at 0 instead — the same contract the M heatwave linkage uses. The forward
+pass is identical either way (1912.2067 both), since a pinned intercept
+contributes nothing; only the map changes.
+
+`RCE_INIT_PRIOR=false` is not optional for this comparison, and it is a matched
+configuration rather than a knob turned for agreement. `Model19_1e.ctl:303-310`
+carries a 5th lambda row, `like_comp 18` (`initEQregime`) `value 0`, and
+`Report.sso` reports `InitEQ_Regime 0 0`. The regime parameter is still
+estimated: `SR_regime_BLK5add_1976` sits at phase 1, status OK, gradient 2e-07.
+So SS3 estimates the initial-level shift and charges nothing for it. Leaving
+Rceattle's normal(0, sigmaR/(1/M − 0.5)) prior on costs 4.13 nats SS3 does not
+pay and moves the optimum 7.5866 nats: with the prior ON the held-base total in
+SS3 units is **2082.9055, i.e. +7.12 against SS3**, not −0.86. (An earlier
+version of this line said "−42.6", which is not derivable from a 7.59-nat move —
+it was a transcription of the `Linkage-table priors` jnll row, −42.7744.)
+
+That `lambda = 0` row is **not** in the operational assessment. `Data/goa_pcod/`
+reads "4 changes to default Lambdas" with no `InitEQ_Regime` line, so lambda = 1
+and `Report.sso` reports `InitEQ_Regime 2.77603`. The bridge added the row. The
+consequence is large: the initial-level shift goes from −0.678228 (0.51·R0) in
+the assessment to −1.46651 (0.23·R0) here, and at the compared optimum the
+penalty SS3 would have paid is 15.84 nats. Rceattle tracks whichever
+configuration it is pointed at — prior off gives −1.457849 against SS3's
+−1.46651, prior on gives −0.771997 against the assessment's −0.678228 — which is
+the evidence that the prior form is right. But the comparison is against a
+variant of the assessment, not the assessment.
+
+### What is still open
+
+* **Parameter-space parity, which is now the whole problem.** The 322-vs-330 gap
+  is not 8 missing directions; it is **−18 base selectivity parameters pinned,
+  +10 redundant `Srv_ae1` block coefficients**. Neither configuration fixes it:
+  hold the bases and the pin is worth 9.4162 nats, free them and 18 directions
+  go non-identifiable. A comparable parameter space needs the additive-vs-replace
+  mismatch resolved — either a replace-semantics link, or restricting each
+  block's design column to the years no later block covers so the base keeps its
+  own years.
+* **#21's 10 duplicated coefficients are exactly flat**, measured: the held-base
+  Hessian has 9 eigenvalues at machine zero (min −1.675e-05, condition number
+  1.5e22), **all nine spanned purely by `beta_linkage`**, seven of them the
+  `s4p*` columns on fleet 10 (`Srv_ae1`). `Srv`/`Srv_ae1` share
+  `Selectivity_index = 4` so they share one `sel_dn6` block, but the linkage
+  table keys on `fleet`, so the shared block's columns are emitted twice and only
+  their sum enters the model. The individual offsets are not estimable
+  separately, which is why their reported values diverge by up to 20.89.
+* **Neither fit converges by Rceattle's own standard.** Both report
+  `status: FAIL` — `sdreport` fails (Hessian not invertible), so there is no
+  `sdrep` and no standard errors, plus `parameters_on_bounds` (L1) and
+  `estimability` (13 non-identifiable held-base, 18 freed-base). SS3's own
+  `max|grad|` is 1.5e-06 against Rceattle's 9.3e-04.
+* **The held-base fit is also start-dependent**, so even as a restricted
+  optimum it is not pinned: a 5% jitter of the same 322-parameter model reaches
+  1855.53, 3.78 nats below it. *(Measured by review; not re-run here.)*
+* **The comparison is against a variant of the assessment, twice over.**
+  Removing SS3's age-0 selectivity zeroing (#19) costs SS3 **23.80 nats** against
+  its own structure (2075.78 against `bins_fixed`'s 2051.98, at the same 330
+  parameters) and drives `L_at_Amin` to its lower bound; the `lambda = 0` change
+  is worth ~15.8 nats to SS3. Both are documented and defensible as *code
+  verification*. Neither supports a claim about reproducing the 2024 GOA Pcod
+  assessment.
+* **G2 has never been run at a valid point.** Its 83 is the gradient at the
+  original model's MLE, not this one's.
 
 ## The comparison is conditional, not a contest between two fits
+
+**SUPERSEDED 2026-10-09 — see above.** Two of this section's premises are no
+longer true: the selectivity linkage offsets now carry an N(0, 0.2) penalty
+matching SS3's `Parm_devs`, and both `SR_regime_BLK5add_1976` and
+`LnQ_base_LLSrv(5)_ENV_mult` are now expressible (as the `R_init` and `q`
+linkages respectively).
 
 Selectivity is held at SS3's fitted values, because Rceattle's 866 selectivity
 linkage offsets carry no penalty while SS3 penalises its `DEVmult`s

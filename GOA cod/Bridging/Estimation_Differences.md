@@ -1545,6 +1545,36 @@ fleet while believing the block is shared. The fix is for the linkage design to 
 sharing index rather than the fleet, as `build_map()` already does for the base block. Until
 then, do not share a `Selectivity_index` across fleets that carry a selectivity linkage.
 
+### Confirmed by the Hessian (2026-10-09): the duplicated coefficients are EXACTLY flat
+
+The earlier "non-invertible Hessian" was an inference. It is now a measurement. At the headline
+estimation-parity fit (322 free, max|grad| 9.28e-04) the Hessian has **9 non-positive
+eigenvalues**, min -1.675e-05, condition number 1.5e22, and **all nine are spanned purely by
+`beta_linkage`** -- no other block loads on them at all. Seven carry the `s4p*` columns on
+**fleet 10 (`Srv_ae1`)**, i.e. Selectivity_index 4's block columns emitted a second time:
+
+```
+ev -7.4e-15  s4p1_blk2006  s4p2_blk2006  s4p3_blk1996  s4p3_blk2006  s4p4_blk2006   (flt 10)
+ev  2.2e-14  s4p1_blk2006  s4p3_blk2006  s4p4_blk2006  s4p5_blk2006                 (flt 10)
+ev  3.9e-14  s4p1_blk2006  s4p2_blk2006  s4p3_blk2006  s4p4_blk2006  s4p5_blk2006   (flt 10)
+ev -6.6e-14  s4p1_blk2006  s4p4_blk2006  s4p5_blk2006                               (flt 10)
+ev -8.4e-14  s4p1_blk2006  s4p2_blk2006  s4p3_blk2006  s4p4_blk2006  s4p5_blk2006   (flt 10)
+ev  2.9e-12  s4p1_blk2006  s4p3_blk1996                                             (flt 10)
+ev  1.8e-09  s4p5_blk1996                                                           (flt 10)
+ev  5.2e-08  s1p4_blk1990                                                           (flt 1)
+ev  1.7e-07  s3p2_blk2017                                                           (flt 3)
+```
+
+Eigenvalues at 1e-15 are machine zero, not ill-conditioning: the objective is **exactly** flat
+along these directions, which is the signature of two coefficients entering only as their sum.
+That is what duplicating a shared block does. The remaining two are single-coefficient flats on
+fleets 1 and 3 -- block columns with no data to inform them, a separate and smaller issue.
+
+So what the defect costs is **identifiability, not fit**: the individual `Srv` / `Srv_ae1`
+offsets are not estimable separately, which is why their reported values diverge by up to 20.89
+and mean nothing individually. It also means the 10 surplus coefficients buy no fit, so they are
+not the explanation for any objective difference against SS3 -- see #24, which is.
+
 ### #20 RETRACTED (2026-10-08): the fleet -> ALK assignment is CORRECT
 
 The claim above -- that the fleet to ALK slot assignment does not follow SS3's sampling month --
@@ -1633,3 +1663,87 @@ likelihood components at <= 0.0013 nats off the raw `Report.sso` rows.
 Lesson for the next entry in this file: three of this session's findings were the harness, not the
 model -- a `$` partial match, a phase read from an estimation-off directory, and this key. Check
 what the gate is pairing before concluding anything about the template.
+
+## 22. SS3's prior on a time-block M applies to the block's ABSOLUTE M; Rceattle's applies to the offset 🟡
+
+SS3 carries the base parameter's prior over to its time-block replacement. Here
+`NatM_uniform_Fem_GP_1` has a lognormal(-0.81, 0.41) prior, and SS3 applies the same prior to
+`NatM_uniform_Fem_GP_1_BLK4repl_2014`, which is the 2014-16 block's M itself:
+
+```
+NatM_uniform_Fem_GP_1                0.456845  Log_Norm  -0.81  0.41  ->  0.002103
+NatM_uniform_Fem_GP_1_BLK4repl_2014  0.769794  Log_Norm  -0.81  0.41  ->  0.894428
+```
+
+Rceattle writes the same two M's as a base times a multiplicative log offset,
+`M(yr) = M_base * exp(beta * heatwave)`, which is what reproduces SS3's two values exactly on the
+forward pass. But the equivalent prior is then on `log M_base + beta`, a linear combination of two
+estimated parameters, and the linkage table's priors are per row. So Rceattle penalises the base
+(0.0036) and nothing on the block, where SS3 pays 0.894428.
+
+This is a missing prior form, not a defect: no Rceattle configuration expresses it while `M_base`
+is free. Its effect is in the direction the missing penalty predicts -- unpenalised, Rceattle's
+block M lands 1.92% above SS3's (0.784543 against 0.769794), and that is most of the remaining
+-0.859 nats between the two optima. See `../../SS3-bridge/GOA-estimation-parity.md`.
+
+**Do not chase it as a bug.** Either accept 0.89 nats against a 2075-nat objective, or give
+Rceattle a prior on a linkage CONTRAST rather than a coefficient, which is a package feature.
+
+## 23. SS3 reports a selectivity `DEVmult` STANDARDIZED; Rceattle's `beta_linkage` is the offset 🔵
+
+A harness note, recorded because comparing the two raw reads a 1.14 disagreement where there is
+none. SS3's `Size_DblN_*_DEVmult_YYYY` is the deviate divided by its `_dev_se`; Rceattle's
+corresponding `beta_linkage` row is the log offset itself. All five of this model's blocks have
+`_dev_se = 0.2`, matching the `prior_p2 = 0.2` the bridge sets, so `beta / 0.2` is the comparable
+quantity. On 63 deviations:
+
+```
+raw scale          max|diff| 1.141662   (meaningless)
+standardized       max|diff| 0.013312   cor 0.999944
+```
+
+The penalties confirm which scale is which: `0.5 sum((beta/0.2)^2)` = 6.524599 is Rceattle's
+reported dev kernel, and `0.5 sum(DEVmult^2)` = 6.546524 is SS3's reported `Parm_devs` of
+6.546530. Compare on the standardized scale, and cross-check against the two penalty rows.
+
+## 24. SS3's time blocks REPLACE the base parameter; Rceattle's linkage ADDS to it 🔴
+
+**This is why estimation parity is not reachable as the bridge is written**, and it is the single
+biggest open item on the GOA cod bridge.
+
+Every blocked selectivity parameter in `Model19_1e.ctl` carries `Blk_Fxn = 2`, and SS3's own
+generated labels say what that means: `SizeSel_P_1_FshTrawl(1)_BLK2repl_1990`. A **replace** block
+substitutes its own value for the block's years, so the base parameter governs only the years no
+block covers. Rceattle's selectivity linkage is additive on an identity link --
+`P_k(yr) = (sel_dn6_k + nat_off_k(yr)) * exp(log_off_k(yr))` -- so the base enters **every** year,
+blocked ones included.
+
+The bridge reproduces SS3's *realised* selectivity exactly by setting each block coefficient to
+`SS3_value - base`. That is why G1 is 24/24 and the forward pass matches to 0.0013 nats. It does
+not reproduce SS3's *parameterisation*, and estimation compares parameterisations. Block pattern 2
+(FshTrawl, FshLL) is `1990-2004, 2005-2006, 2007-2016, 2017-2024` -- it tiles 1990-2024 with no
+gap -- so those fleets' base parameters have only 1977-1989 to themselves, which is exactly where
+their deviations operate.
+
+**Measured both ways** (age-0 variant, `RCE_INIT_PRIOR=false`, 2026-10-09):
+
+| | held base | freed base (`RCE_SEL_FREE_BASE=true`) |
+|---|---|---|
+| objective | 1859.3075 | 1849.8913 |
+| free parameters | 322 | 336 |
+| free `sel_dn6` of 60 | 5 | 19 |
+| in SS3 kernel units | 2074.9234 | 2065.5074 |
+| vs SS3's 2075.7825 | −0.8591 | −10.2751 |
+| non-identifiable | 13 | 18 |
+| convergence | FAIL | FAIL |
+
+Held, the pin is binding and worth **9.4162 nats** -- an intercept-free linkage formula makes
+`map_linkage_adjuster()` mask the base, so SS3's estimated bases sit at their injected values.
+Freed, the base and the block coefficients are confounded and 18 directions go non-identifiable.
+Neither is a like-for-like comparison. The forward pass is identical either way (1912.2067), since
+the freed variant only keeps a `(Intercept)` row pinned at 0.
+
+**What a comparable parameter space needs:** either a replace-semantics link, or each block's
+design column restricted to the years no later block covers, so the base keeps its own years. That
+is an Rceattle linkage-grammar question, not a bridge one. Until it is answered, report the forward
+pass and do not report an estimation comparison.

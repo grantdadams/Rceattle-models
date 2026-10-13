@@ -251,6 +251,21 @@ cat(sprintf("\nSelectivity linkages: %d year columns (%d-%d)\n",
 # They compose as base * exp(log_off) + nat_off only because they never overlap:
 # devs are 1977-1989 and blocks start 1990 or 1996.
 SEL_PARITY <- identical(tolower(Sys.getenv("RCE_SEL_PARITY", "false")), "true")
+# Keep the intercept on the free-block specs, so the base sel_dn6 stays free.
+SEL_FREE_BASE <- identical(tolower(Sys.getenv("RCE_SEL_FREE_BASE", "false")), "true")
+# RCE_SEL_REPLACE reproduces SS3's REPLACE block semantics (Blk_Fxn = 2) inside
+# the existing linkage grammar, by making each parameter's year columns a
+# COMPLETE partition: one column per SS3 block plus one for the years no block
+# covers, no intercept. The base sel_dn6 is then masked at 0, so each
+# coefficient IS the realised value rather than an offset from a base. That is
+# what makes "SS3 fixed this block" mean the same thing in both models -- under
+# the additive default, fixing a block pins only its gap from the base, so the
+# realised value drifts whenever the base moves.
+SEL_REPLACE <- identical(tolower(Sys.getenv("RCE_SEL_REPLACE", "false")), "true")
+# (fleet, slot) pairs the partition covers, so the base can be zeroed for those
+# and only those -- a slot with no blocks keeps SS3's base value, and the -999
+# sentinels must survive because sel_dn6_ends reads them.
+sel_replace_slots <- character(0)
 
 # SS3's parameter table, for base values, phases and the BLK/DEVmult names.
 #
@@ -338,7 +353,10 @@ if (SEL_PARITY) {
         cod$env_data[[cn]] <- as.integer(cod$env_data$Year >= r[1, 1] &
                                          cod$env_data$Year <= r[1, 2])
         b_cols <- c(b_cols, cn)
-        b_init[[cn]] <- .ss3_P$value[[bn]] - base
+        # Replace semantics: the coefficient is the block's VALUE, because the
+        # masked base contributes 0. Additive: it is the gap from the base.
+        b_init[[cn]] <- if (SEL_REPLACE) .ss3_P$value[[bn]]
+                        else .ss3_P$value[[bn]] - base
         if (!is.finite(.ss3_P$phase[[bn]]) || .ss3_P$phase[[bn]] <= 0)
           b_held <- c(b_held, cn)
       }
@@ -352,11 +370,37 @@ if (SEL_PARITY) {
         d_init[[cn]] <- .ss3_P$value[[dn]] * DEV_SE
       }
 
+      # Replace semantics needs the years NO block covers to carry their own
+      # column, so the design is a complete partition of 1977-2024 and the base
+      # drops out entirely. Its coefficient is SS3's base parameter, estimated
+      # or fixed on that parameter's own phase.
+      if (SEL_REPLACE && length(b_cols)) {
+        covered <- Reduce(`|`, lapply(b_cols, function(z) cod$env_data[[z]] == 1L))
+        if (any(!covered)) {
+          cn <- sprintf("s%dp%d_pre", src, k)
+          cod$env_data[[cn]] <- as.integer(!covered)
+          b_cols <- c(cn, b_cols)
+          b_init[[cn]] <- base
+          if (!is.finite(.ss3_P$phase[[stem]]) || .ss3_P$phase[[stem]] <= 0)
+            b_held <- c(b_held, cn)
+        }
+        # Key on the SS3 source fleet, not the lead: fleets sharing a
+        # Selectivity_index share one sel_dn6 block (rule 10), so every member
+        # must see the same zeroed base.
+        sel_replace_slots <- c(sel_replace_slots, paste(k, src))
+      }
+
       # Held blocks need their own spec: est_phase is per spec, not per column.
       free_b <- setdiff(b_cols, b_held)
       if (length(free_b)) {
         specs[[length(specs) + 1L]] <- linkage_spec(
-          formula = stats::reformulate(c("0", free_b)),
+          # An intercept-free formula makes map_linkage_adjuster() mask the base
+          # sel_dn6 parameter, so SS3's estimated base is held at its injected
+          # value. RCE_SEL_FREE_BASE keeps the intercept, which leaves the base
+          # free and pins the (Intercept) row at 0 -- the same contract the M
+          # heatwave linkage uses. Needed to compare at SS3's parameter count.
+          formula = if (SEL_FREE_BASE) stats::reformulate(free_b)
+                    else stats::reformulate(c("0", free_b)),
           fleet = fleet_meta$ss3_num[grp], link = "identity",
           init = b_init[free_b])
         n_blk <- n_blk + length(free_b)
@@ -943,6 +987,12 @@ for (fi in active_sel) {
     if (stem %in% names(.ss3_P$value)) v[k] <- .ss3_P$value[[stem]]
   }
   v[!is.finite(v)] <- -999
+  # Under replace semantics the partition supplies every year, so the masked
+  # base must contribute nothing. Only partitioned slots are zeroed: a slot with
+  # no blocks keeps SS3's value, and a -999 end keeps its sentinel because
+  # fit_mod() reads sel_dn6[5:6] > -999 for sel_dn6_ends.
+  if (SEL_REPLACE) for (k in 1:6)
+    if (paste(k, fleet_meta$ss3_src[fi]) %in% sel_replace_slots) v[k] <- 0
   inits$sel_dn6[, fi, 1] <- v
   cat(sprintf("  sel_dn6[%s] base: %s\n", fleet_meta$name[fi],
               paste(signif(v, 6), collapse = " ")))

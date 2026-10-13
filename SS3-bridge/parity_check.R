@@ -320,6 +320,8 @@ parity_g1 <- function(fp, ss3_rep, tol = 1e-5) {
 # SS3's log(sigmaR) term is scaled by the bias-adjusted deviate count, and it
 # does not carry the deviates it leaves unestimated. Both are fixed given
 # sigmaR and the pinned values, so both belong in the constant.
+# Both terms are zero only where SS3's bias-adjust ramp is flat AND main_recdev
+# spans every year -- true for GOA cod, so recompute per model, never reuse.
 .ss3_recdev_offset <- function(fp, ss3_rep) {
   p <- ss3_rep$parameters
   sigR <- p$Value[p$Label == "SR_sigmaR"]

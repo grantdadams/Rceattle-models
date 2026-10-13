@@ -19,10 +19,14 @@
 #                  checkout, because recompiling one another session is using
 #                  breaks that session's runs.
 #   RCE_SS3_DIR    which SS3 run to read (default Data/goa_pcod_caal_lambda_on).
-#                  Use Data/goa_pcod_caal_bins_fixed to compare against the
-#                  numbers in ../SS3-bridge/GOA-estimation-parity.md; the two
-#                  SS3 runs differ, and mixing them is the easiest way to think
-#                  a number has moved when it has not.
+#                  Use Data/goa_pcod_caal_bins_fixed_age0 to compare against the
+#                  numbers in ../SS3-bridge/GOA-estimation-parity.md; the SS3
+#                  runs differ, and mixing them is the easiest way to think a
+#                  number has moved when it has not.
+#
+# For estimation parity against SS3, set all six variables listed at step 2b --
+# four of them change the model, and RCE_INIT_PRIOR=false is the one most easily
+# forgotten. The defaults here build the model, not the comparison.
 
 # ---- 1. Build the model ------------------------------------------------------
 # This prints a long injection log (selectivity bases, F columns, what SS3
@@ -63,24 +67,38 @@ parity <- parity_report(fp, ss3_rep,
 
 # ---- 2b. Free fit: let Rceattle find its own optimum -------------------------
 # Same data, same process specs, same SS3 pinning -- only estimateMode changes.
-# The map is KEPT on purpose: SS3's selectivity blocks and deviates stay at
-# SS3's values, which is why Rceattle estimates 225 parameters where SS3
-# estimates 330. Drop `map` to free them, but then the two are not comparable.
 #
-# DO NOT TRUST THIS BLOCK'S OBJECTIVE. It is a DIFFERENT MODEL from SS3, not a
-# bad stop: `ss3_map` leaves 869 of 873 `beta_linkage` coefficients free, where
-# SS3 estimates 103 selectivity block and dev parameters. Rceattle therefore
-# fits 1074 parameters against SS3's 330 -- 766 surplus directions -- and lands
-# at 1225.23, 715 nats below the 1940.10 that
-# ../SS3-bridge/GOA-estimation-parity.md calls "Rceattle's own optimum". That is
-# overfitting, and the max|grad| of 2.08 is those extra parameters still moving.
-# Measured 2026-10-08; see ../SS3-bridge/GOA-parameter-parity.md, "MEASURED
-# 2026-10-08", for the block-by-block count and what pinning them requires.
+# DO NOT READ THIS BLOCK'S OBJECTIVE AS PARITY WITH SS3. The forward pass in 2a
+# is bridged (24/24 gates, all five likelihood components within 0.0013 nats);
+# estimation is NOT, because the two models do not parameterise time-varying
+# selectivity the same way. SS3's blocks REPLACE the base parameter (Blk_Fxn = 2,
+# labels `..._BLK2repl_1990`); Rceattle's linkage ADDS to it. With the default
+# settings below, 55 of 60 sel_dn6 entries are held at SS3's values and the fit
+# is conditional on them (1859.3075, 322 free); add RCE_SEL_FREE_BASE=true and
+# the base goes free but 18 directions become non-identifiable, because base and
+# block are confounded wherever blocks tile the series (1849.8913, 336 free,
+# which is 10.28 nats BELOW SS3 in its own units). Neither is a like-for-like
+# comparison, and both report convergence FAIL with a non-invertible Hessian.
+# The numbers and what a comparable parameter space would require are in
+# ../SS3-bridge/GOA-estimation-parity.md, measured 2026-10-09.
 #
-# The forward pass in 2a is UNAFFECTED -- estimateMode = 3 builds without
-# optimising, so a free parameter sitting at SS3's injected value contributes
-# what SS3's value contributes. Its likelihood parity (max residual 0.0013 nats)
-# holds. Estimation parity does not, and will not until beta_linkage is mapped.
+#   RCE_SS3_DIR="Data/goa_pcod_caal_bins_fixed_age0"
+#   RCE_SS3_PHASE_DIR="Data/goa_pcod_caal_bins_fixed_age0_est"
+#   RCE_SEL_PARITY=true RCE_FIX_LINKAGE=false RCE_SEL_DEV_ALL=true
+#   RCE_INIT_PRIOR=false
+#
+# RCE_INIT_PRIOR=false is NOT optional for a comparison against SS3. The
+# bridge's ctl sets lambda = 0 on SS3's InitEQ_Regime, so SS3 estimates the
+# initial-level shift and charges nothing for it; leaving Rceattle's prior on
+# costs 4.13 nats SS3 does not pay and moves the optimum 7.59 nats. Note that
+# lambda row is the bridge's, not the 2024 assessment's, which penalises it.
+#
+# Without those settings this is a DIFFERENT MODEL from SS3 and its objective
+# means nothing against SS3's: unmapped, `beta_linkage` leaves far more
+# selectivity directions free than SS3 estimates and the fit overfits. The
+# forward pass in 2a is unaffected either way -- estimateMode = 3 builds
+# without optimising, so a free parameter sitting at SS3's injected value
+# contributes what SS3's value contributes.
 cod_fit <- Rceattle::fit_mod(
   data_list    = cod,
   inits        = inits,          # warm start from SS3's MLE
