@@ -1747,3 +1747,42 @@ the freed variant only keeps a `(Intercept)` row pinned at 0.
 design column restricted to the years no later block covers, so the base keeps its own years. That
 is an Rceattle linkage-grammar question, not a bridge one. Until it is answered, report the forward
 pass and do not report an estimation comparison.
+
+## 25. The bridge derived its map from a skeleton model built on defaults 🔴 FIXED
+
+**A bridge defect, not a package one**, and the last of the parameter-count gap.
+
+`build_params()` defaults both DoubleNormalSS3 ends to the -999 sentinel, and `build_map()`
+correctly fixes any end still sitting there. The bridge built `mod0` with `inits = NULL` purely
+to get the parameter skeleton, then took its map -- so both ends were held for every fleet before
+the real values were injected, and `Size_DblN_end_logit` for FshPot (-0.0304) and LLSrv (-0.5575),
+which SS3 estimates at phase 2, stayed held. That was exactly the 328-against-330 gap.
+
+Fixed by building the map from the injected values, `build_map(mod0$data_list, inits)`, which is
+`identical()` to a second full `fit_mod()` build and 100x cheaper. The forward pass is
+bit-identical (1912.206653 under both maps, run rather than assumed), and the two parameters land
+on SS3 with real curvature:
+
+| | injected (held) | fitted (free) | SS3 MLE | Hessian diag |
+|---|---|---|---|---|
+| `end_logit` FshPot | -0.0303671 | -0.0721853 | -0.072711 | 118.99 |
+| `end_logit` LLSrv | -0.557538 | -0.6035051 | -0.605724 | 52.86 |
+
+Their neighbours relaxed onto SS3 too (FshPot `descend_se` 4.00894 -> 4.04832 against 4.04946).
+Realised terminal-bin selectivity moves ~0.01.
+
+**The honest cost.** Total agreement got WORSE: the 328-parameter fit sat at -0.0012 in SS3 kernel
+units, the 330-parameter fit at -0.036, and Survey, Catch, Recruitment and SSB all degraded. The
+near-exact total was offsetting errors from holding two parameters SS3 estimated, not parity.
+-0.036 at a matched count is the number to quote.
+
+The general form is a package trap, filed as `TRAPS.md` "A map built from a SKELETON model freezes
+both double-normal ends before the real values land" -- reproducible on `make_test_data()` with no
+SS3 involved, 8 free parameters against 10.
+
+**Two measurement traps found alongside, both worth remembering.** `ss3.par` carries the objective
+at full precision but only for a run SS3 actually estimated -- the selectivity-fixed directory's
+par file is a leftover reading 2051.98, the pattern-10 total, not its own 2128.82. And summing
+`Report.sso`'s components overstates the total by +0.0036, because each prints to 6 significant
+figures; `Length_comp` at `1361.11` alone carries +/-0.005. Quote the parity net as -0.036 +/- 0.004
+and say the +/- is SS3's rounding, not model disagreement.

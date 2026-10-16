@@ -73,14 +73,16 @@ parity <- parity_report(fp, ss3_rep,
 # estimation is NOT, because the two models do not parameterise time-varying
 # selectivity the same way. SS3's blocks REPLACE the base parameter (Blk_Fxn = 2,
 # labels `..._BLK2repl_1990`); Rceattle's linkage ADDS to it. With the default
-# settings below, 55 of 60 sel_dn6 entries are held at SS3's values and the fit
-# is conditional on them (1859.3075, 322 free); add RCE_SEL_FREE_BASE=true and
-# the base goes free but 18 directions become non-identifiable, because base and
-# block are confounded wherever blocks tile the series (1849.8913, 336 free,
-# which is 10.28 nats BELOW SS3 in its own units). Neither is a like-for-like
-# comparison, and both report convergence FAIL with a non-invertible Hessian.
-# The numbers and what a comparable parameter space would require are in
-# ../SS3-bridge/GOA-estimation-parity.md, measured 2026-10-09.
+# settings below most sel_dn6 entries are held at SS3's values and the fit is
+# conditional on them; add RCE_SEL_FREE_BASE=true and the base goes free but
+# directions become non-identifiable, because base and block are confounded
+# wherever blocks tile the series. Neither is a like-for-like comparison, and
+# both report convergence FAIL with a non-invertible Hessian.
+#
+# Use compare_cod_models.R for the parity numbers rather than this block: under
+# RCE_SEL_REPLACE both sides estimate 330 parameters and the optima agree to
+# 0.036 nats net of two penalties SS3 charges that Rceattle cannot express.
+# See ../SS3-bridge/GOA-estimation-parity.md, measured 2026-10-15.
 #
 #   RCE_SS3_DIR="Data/goa_pcod_caal_bins_fixed_age0"
 #   RCE_SS3_PHASE_DIR="Data/goa_pcod_caal_bins_fixed_age0_est"

@@ -13,6 +13,55 @@ the provenance of its numbers. Read this section instead.
 > *below* SS3, not level with it. The two numbers and why neither is parity are
 > below. Three adversarial reviews found this; two found it independently.
 
+## 2026-10-15: matched at 330 free parameters, agreeing to 0.036 nats
+
+Run `compare_cod_models.R` from the `GOA cod` folder; it sets its own
+configuration. Both sides now estimate **330** parameters, matching category by
+category (F 134; recruitment deviations 48 + 10 `init_dev`; growth 5; M 2; q 3;
+stock-recruit 2; selectivity 126).
+
+| component, SS3 kernel units | Rceattle | SS3 | diff |
+|---|---|---|---|
+| Length_comp | 1361.0842 | 1361.1100 | −0.026 |
+| Age_comp (CAAL) | 728.0906 | 728.0110 | +0.080 |
+| Survey | −5.6343 | −5.4940 | −0.140 |
+| Recruitment | −16.9353 | −17.0211 | +0.086 |
+| Catch | 1.6252 | 1.6470 | −0.022 |
+| selectivity devs | 6.5298 | 6.5465 | −0.017 |
+| expressible priors | 0.0771 | 0.0756 | +0.001 |
+| **prior, M 2014-16 block** | **0.0000** | **0.8944** | **−0.894** |
+| **`Parm_softbounds`** | **0.0000** | **0.0130** | **−0.013** |
+
+Objectives: Rceattle 1859.221433 (max|grad| 9.4e-04), SS3 **2075.77885793** —
+read from `ss3.par`, not from summing `Report.sso`, whose 6-significant-figure
+components overstate the total by +0.0036. Net of the two penalties SS3 charges
+that Rceattle cannot express, **the optima agree to −0.036**, with an uncertainty
+of about ±0.004 that is SS3's report rounding rather than model disagreement.
+`Length_comp` prints as `1361.11`, so that row alone is known only to ±0.005.
+
+**What closed the last gap**, and the honest cost: the bridge derived its map
+from a skeleton model built with `inits = NULL`, where `build_params()` defaults
+both double-normal ends to the −999 sentinel, so `build_map()` held
+`Size_DblN_end_logit` for FshPot and LLSrv — two parameters SS3 estimates at
+phase 2. Building the map from the injected values instead frees them; they land
+within 5.3e-4 and 2.2e-3 of SS3's values with real curvature, and the forward
+pass is bit-identical. **But total agreement got worse, not better**: the
+previous 328-parameter fit sat at −0.0012, and four components (Survey, Catch,
+Recruitment, and SSB) degraded. That near-exact total was offsetting errors from
+holding two parameters SS3 estimated, not parity; −0.036 at a matched parameter
+count is the more honest number, and it is 1.7e-5 relative on a 2075-nat
+objective.
+
+**Still open.** Both fits report convergence `FAIL`: the Hessian is not
+positive-definite (5 negative eigenvalues, condition number 7.1e14) and six
+`beta_linkage` selectivity coefficients are genuinely rank-deficient. That
+predates this change and is unaffected by it. SS3's own `covar.sso` in this run
+carries no covariance rows, so there is no evidence its Hessian inverted either —
+do not frame this as Rceattle failing where SS3 succeeds. And nothing has
+simulated from Rceattle at SS3's parameters and refitted, so the two end
+parameters agreeing with SS3 is agreement with one point estimate, not
+demonstrated identifiability.
+
 ## Neither configuration compares the same parameter space
 
 The obstacle is structural, and naming it first makes the two fits legible.

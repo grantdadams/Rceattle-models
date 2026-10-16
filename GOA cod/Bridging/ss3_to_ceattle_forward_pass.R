@@ -1058,7 +1058,12 @@ if (!identical(.ss3_PHASE_DIR, SS3_DIR)) {
               basename(.ss3_PHASE_DIR), sum(.pp < 0, na.rm = TRUE),
               sum(.pp > 0, na.rm = TRUE)))
 }
-ss3_map <- ss3_fix_map(mod0$map, .ss3_rep_phase, inits, cod$fleet_control,
+# build_map() fixes any double-normal end still at SS3's -999 sentinel, so the
+# map must read the INJECTED values, not mod0's skeleton: FshPot's and LLSrv's
+# end_logit are real numbers here and stay estimated (330 free, as in SS3).
+ss3_map <- ss3_fix_map(Rceattle::build_map(mod0$data_list, inits,
+                                           random_rec = FALSE),
+                       .ss3_rep_phase, inits, cod$fleet_control,
                        years_hind, verbose = TRUE)
 
 # Hold the selectivity linkage coefficients at the values injected above.

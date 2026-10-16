@@ -102,12 +102,20 @@ d <- bind_rows(
   mutate(SSB_pct = 100 * (SSB - rS) / rS, R_pct = 100 * (R - rR) / rR,
          src = factor(src, levels = LAB))
 
+# `Report.sso` prints components to 6 significant figures, so the total it
+# implies is ~0.004 out -- a tenth of the gap measured here. `ss3.par`'s header
+# carries full precision, but only for a run SS3 actually estimated: the
+# selectivity-fixed run never was, so its par file is a leftover from the model
+# that wrote it (2051.98, the pattern-10 total) and its Report is the honest read.
+.ss3_par_obj <- function(d) as.numeric(sub(".*Objective function value = ([0-9.]+).*",
+                                           "\\1", readLines(file.path(d, "ss3.par"), 1L)))
 cat("\n=== objectives ===\n")
 print(data.frame(
   state = LAB,
-  objective = c(ss3_est$likelihoods_used["TOTAL", "values"], cod_fit$opt$objective,
+  objective = c(.ss3_par_obj(Sys.getenv("RCE_SS3_PHASE_DIR")), cod_fit$opt$objective,
                 ss3_fix$likelihoods_used["TOTAL", "values"], fp$quantities$jnll),
-  free = c(330L, length(cod_fit$obj$par), 330L, NA_integer_)), row.names = FALSE, digits = 10)
+  free = c(330L, length(cod_fit$obj$par), 330L, length(fp$obj$par))),
+  row.names = FALSE, digits = 12)
 cat("\n=== state, against each series' own SS3 reference (%) ===\n")
 print(as.data.frame(d %>% group_by(state = src) %>% summarise(
   SSB_mean = mean(SSB_pct), SSB_max_abs = max(abs(SSB_pct)),
