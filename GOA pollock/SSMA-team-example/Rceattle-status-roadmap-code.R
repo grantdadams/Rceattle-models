@@ -9,7 +9,7 @@
 # -----------------------------------------------------------------------------
 # https://github.com/grantdadams/Rceattle
 install.packages("pak")
-pak::pkg_install("grantdadams/Rceattle")
+pak::pkg_install("afsc-assessments/Rceattle@5.64.0")
 library(Rceattle)
 
 

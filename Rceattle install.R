@@ -18,4 +18,4 @@ pacman::p_load(dplyr,
                knitr,
                doParallel)
 devtools::install_github("kaskr/TMB_contrib_R/TMBhelper")
-devtools::install_github("grantdadams/Rceattle")
+devtools::install_github("afsc-assessments/Rceattle@5.64.0")
