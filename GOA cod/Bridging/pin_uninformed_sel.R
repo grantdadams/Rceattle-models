@@ -26,13 +26,21 @@
 #     at BOTH ends of its range. Below about -8 the plateau is on its floor --
 #     Srv pre-1996, FshPot pre-2017 and LLSrv realise 0.00 cm of plateau, and
 #     d(plateau)/d(top_logit) is 1.5e-03 cm per logit unit. Above about +5 it is
-#     against the `0.99 x_last` cap: on FshPot's 2017 block SS3's 6.74 and
-#     Rceattle's 13.79 both put peak2 within a centimetre of that cap, so the
-#     two describe the same curve. (Don't quote a plateau WIDTH in cm here
-#     without deriving `x_last` from the model: it is `xmid(nbins - 1)` on the
-#     POPULATION grid, and two reviewers read the dat's `104.5` differently --
-#     as the last midpoint or as the last lower edge. The conclusion is the same
-#     either way, the width is not.)
+#     against the `0.99 x_last` cap: FshPot's 2017 block realises a plateau of
+#     31.0 cm, 71.5 to 102.5, measured as the bins within 0.1% of the curve's
+#     maximum. peak2 is then within a centimetre of the cap, so SS3's 6.74 and
+#     Rceattle's 13.79 describe the same curve.
+#
+#     The coefficients never ADD, and that is the thing to check before doing
+#     arithmetic on them. Under RCE_SEL_REPLACE each parameter's year columns are
+#     a disjoint partition -- `s3p2_pre` is non-zero in 1977-2016 and
+#     `s3p2_blk2017` in 2017-2024, with no year carrying both -- and the base is
+#     masked at 0, so one column supplies each year's whole realised value. The
+#     2017 top_logit is therefore 6.74 on its own. Adding SS3's base (-11.28) to
+#     Rceattle's block coefficient gives -4.54 and the FLOOR branch, which is how
+#     two reviewers reached the opposite conclusion: correct arithmetic for an
+#     additive build, wrong for this one, and across year sets that do not
+#     overlap. `sel_dn6[, 3, 1]` reads 0 0 0 4.04822 -999 -0.0722.
 #
 # Both mechanisms are structural -- neither depends on where the data are. (An
 # earlier version of this header called FshPot's 2017 block a data-sparsity
