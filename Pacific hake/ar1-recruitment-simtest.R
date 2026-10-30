@@ -29,7 +29,7 @@ hake$index_data <- hake$index_data %>% dplyr::select(-Q_block)
 hake$projyr <- 2025 # Setting projection year to 2025, to minimize model array size and decrease runtime
 
 # Dirichlet-multinomial for the composition and diet data, with the N(0, 2)
-# prior on each log-scale weight that keeps them identifiable (04-mse.R, note 2).
+# prior on each log-scale weight that keeps them identifiable.
 hake$fleet_control$Comp_distribution <- "DirichletMultinomial"
 hake$Diet_distribution <- rep(1, hake$nspp)
 compFun <- build_composition(linkages = list(
@@ -48,19 +48,19 @@ hake$env_data$temp_anom <- hake$env_data$Hake - mean(hake$env_data$Hake)
 # 2. Base fits  ----
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 # - single-species model
-ss_run <- fit_mod(data_list = hake,
-                  compFun = compFun,
-                  estimateMode = "Estimate",
-                  msmMode = "SingleSpecies",
-                  random_rec = FALSE, # Don't run laplace approximation
-                  initMode = "NonEquilibrium",
-                  fit_control = fit_control(phase = TRUE, verbose = 1))
-summary(ss_run)
+model1_singleSpecies <- fit_mod(data_list = hake,
+                                compFun = compFun,
+                                estimateMode = "Estimate",
+                                msmMode = "SingleSpecies",
+                                random_rec = FALSE, # Don't run laplace approximation
+                                initMode = "NonEquilibrium",
+                                fit_control = fit_control(phase = TRUE, verbose = 1))
+summary(model1_singleSpecies)
 
 # - cannibalism only model
-cannibalism_model <- fit_mod(
+model2_cannibalism <- fit_mod(
     data_list = hake,
-    inits = ss_run$estimated_params, # Starting estimation from single-species MLEs for ease of optimization
+    inits = model1_singleSpecies$estimated_params, # Starting estimation from single-species MLEs for ease of optimization
     compFun    = compFun,
     M1Fun      = build_M1(M1_model = "sex_age_invariant"),
     msmMode    = "MSVPA",
@@ -72,12 +72,12 @@ cannibalism_model <- fit_mod(
     initMode   = "NonEquilibrium",
     estimateMode = "Estimate",
     fit_control = fit_control(phase = FALSE, verbose = 1))
-summary(cannibalism_model)
+summary(model2_cannibalism)
 
 # - cannibalism + predation from sablefish/arrowtooth model
-# using the cannibalism_model$map to keep prey size-preference parameters (gam_a / gam_b) fixed.
-inits <- cannibalism_model$estimated_params
-map   <- cannibalism_model$map
+# using the model2_cannibalism$map to keep prey size-preference parameters (gam_a / gam_b) fixed.
+inits <- model2_cannibalism$estimated_params
+map   <- model2_cannibalism$map
 inits$log_gam_a <- c(0, log(3.7), log(3.1))    # mean predator/prey weight ratio
 inits$log_gam_b <- c(0, log(1.83), log(1.120))
 
@@ -111,14 +111,15 @@ ms4_args <- list(
     random_rec = FALSE,
     initMode   = "NonEquilibrium")
 
-predation_model <- do.call(fit_mod, c(ms4_args, list(
+model3_predation <- do.call(fit_mod, c(ms4_args, list(
     data_list = hake,
     inits = inits,
     map = map,
     estimateMode = "Estimate",
     fit_control = fit_control(loopnum = 5, phase = TRUE, verbose = 1))))
-summary(predation_model)
-predation_model$quantities$vulnerability  # arrowtooth->hake, sablefish->hake
+summary(model3_predation)
+model3_predation$quantities$vulnerability  # arrowtooth->hake, sablefish->hake
+
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 # 3. The AR1 linkage on R0 ----
@@ -142,13 +143,17 @@ recFun_ar1 <- build_srr(
                           obs_sd_est = FALSE, # Assume known measurement error
                           init    = list(sigma = SIGMA_LATENT) # To estimate sigma, delete the `init` line
                           # priors = list(sigma = prior_lognormal(log(0.1), 0.5)) # Can use priors instead
-                          )))
+        )))
 
-# The number of parameters increases by 41, so the the previous model's MLEs/map cannot be
+# The number of parameters increases by 41, so the previous model's MLEs/map cannot be
 # passed as `inits` and `map` directly. Build the skeleton once without optimizing and
 # copy the previous model's estimates into the new parameter object.
+#
+# `random_rec = TRUE` is required when fitting a state-space linkage on R0.
+qar1_args <- utils::modifyList(ms4_args, list(random_rec = TRUE))
+
 skel <- do.call(fit_mod,
-                c(ms_args, list(
+                c(qar1_args, list(
                     data_list = hake,
                     inits = NULL,
                     recFun = recFun_ar1,
@@ -158,7 +163,7 @@ LINK_BLOCKS <- grep("linkage", names(skel$estimated_params), value = TRUE)
 
 inits_qar1 <- skel$estimated_params
 .carry <- setdiff(names(inits_qar1), LINK_BLOCKS)
-inits_qar1[.carry] <- predation_model$estimated_params[.carry]
+inits_qar1[.carry] <- model3_predation$estimated_params[.carry]
 
 # Same log_phi / diet_comp_weights edits as section 2, on the resized map.
 map_qar1 <- skel$map
@@ -171,30 +176,31 @@ map_qar1$mapList$diet_comp_weights[2:3] <- 2:3
 map_qar1$mapFactor$diet_comp_weights <- factor(map_qar1$mapList$diet_comp_weights)
 
 # Refit model with initial starting values.
-qar1_run <- do.call(fit_mod,
-                    c(ms4_args, list(
-                        data_list = hake,
-                        inits = inits_qar1,
-                        map = map_qar1,
-                        recFun = recFun_ar1,
-                        estimateMode = "Estimate",
-                        fit_control = fit_control(loopnum = 5, phase = FALSE, verbose = 1))))
+model4_Rar1 <- do.call(fit_mod,
+                       c(qar1_args, list(
+                           data_list = hake,
+                           inits = inits_qar1,
+                           map = map_qar1,
+                           recFun = recFun_ar1,
+                           estimateMode = "Estimate",
+                           fit_control = fit_control(loopnum = 5, phase = FALSE, verbose = 1))))
 
 # Look at model estimates
-qar1_run$quantities$beta_linkage_obs                       # effect size
-exp(qar1_run$estimated_params$log_sigma_linkage)           # fixed at 0.1
-tanh(qar1_run$estimated_params$trans_rho_linkage)          # AR1 correlation
-summary(qar1_run$sdrep, "report")["beta_linkage_obs", ]    # effect size +- SE
-qar1_run$quantities$jnll_comp["Linkage random effects", 1] # AR1 + observation log-likelihood
+model4_Rar1$quantities$beta_linkage_obs                       # effect size
+exp(model4_Rar1$estimated_params$log_sigma_linkage)           # fixed at 0.1
+tanh(model4_Rar1$estimated_params$trans_rho_linkage)          # AR1 correlation
+summary(model4_Rar1$sdrep, "report")["beta_linkage_obs", ]    # effect size +- SE
+model4_Rar1$quantities$jnll_comp["Linkage random effects", 1] # AR1 + observation log-likelihood
+model4_Rar1$quantities$R                                      # Recruitment
 
 # R0 is now year-varying: log R0_y = rec_pars[1, 1] + beta * x_y.
-plot(hake$env_data$Year, qar1_run$quantities$R0[1, seq_len(nrow(hake$env_data))],
+plot(hake$env_data$Year, model4_Rar1$quantities$R0[1, seq_len(nrow(hake$env_data))],
      type = "l", xlab = "Year", ylab = "Hake R0 (thousands of recruits)")
 
 # Compare differences in recruitment and SSB
-plot_recruitment(list(predation_model, qar1_run),
+plot_recruitment(list(model3_predation, model4_Rar1),
                  model_names = c("Base", "QAR1 on R0"), species = 1)
-plot_ssb(list(predation_model, qar1_run),
+plot_ssb(list(model3_predation, model4_Rar1),
          model_names = c("Base", "QAR1 on R0"), species = 1)
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
@@ -240,9 +246,9 @@ sim_one <- function(i) {
     inits_om$trans_rho_linkage  <- atanh(RHO_T)
     inits_om$log_obs_sd_linkage <- log(OBS_SD)
 
-    # Pin the latent. With every beta_linkage_re mapped out, fit_mod() leaves it
-    # off the `random` list altogether, so the OM evaluates at exactly the drawn
-    # state instead of the inner Laplace step's.
+    # Pin the latent and keep `random_rec = FALSE` (`ms4_args`) in the OM: with
+    # `beta_linkage_re` mapped out and `rec_dev` off the `random` list, `DebugBuild`
+    # evaluates at the exact drawn parameters instead of running an inner Laplace step.
     map_om <- map_qar1
     map_om$mapList$beta_linkage_re[] <- NA
     map_om$mapFactor$beta_linkage_re <- factor(map_om$mapList$beta_linkage_re)
@@ -257,12 +263,14 @@ sim_one <- function(i) {
     dat_sim <- sim_mod(om, simulate = TRUE, process = "recruitment")
     rec_dev_om <- attr(dat_sim, "process_sim")$rec_dev[1, seq_len(n_re)]
 
-    # The estimating model, latent free again and beta started at no effect
+    # The estimating model, latent free again, beta started at no effect, and
+    # `random_rec = TRUE` (`qar1_args`) so `rec_dev` and `beta_linkage_re` are
+    # integrated jointly in the Laplace approximation.
     inits_em <- inits_om
     inits_em$beta_linkage_re  <- rep(0, n_re)
     inits_em$beta_linkage_obs <- 0
 
-    em <- do.call(fit_mod, c(ms4_args, list(
+    em <- do.call(fit_mod, c(qar1_args, list(
         data_list = dat_sim, inits = inits_em, map = map_qar1,
         recFun = recFun_ar1,
         estimateMode = "Hindcast",
@@ -284,6 +292,7 @@ sim_one <- function(i) {
         covers     = !is.na(se) & abs(bh - BETA_T) < 1.96 * se,
         sigma_hat  = exp(em$estimated_params$log_sigma_linkage),
         rho_hat    = tanh(em$estimated_params$trans_rho_linkage),
+        r_sd_hat   = exp(em$estimated_params$R_log_sd[1]),
         # Regressing the log-recruitment the OM actually generated on the latent:
         # the signal in the data, whatever the estimator does with it.
         ols_slope  = unname(stats::coef(stats::lm(
@@ -300,12 +309,12 @@ sims <- do.call(rbind, lapply(seq_len(N_SIM), function(i)
 print(sims)
 with(sims, c(n          = nrow(sims),
              beta_true  = BETA_T,
-             mean_hat   = mean(beta_hat),
-             median_hat = median(beta_hat),
-             bias       = mean(beta_hat) - BETA_T,
-             rmse       = sqrt(mean((beta_hat - BETA_T)^2)),
-             coverage   = mean(covers),
-             mean_ols   = mean(ols_slope)))
+             mean_hat   = mean(beta_hat, na.rm = TRUE),
+             median_hat = median(beta_hat, na.rm = TRUE),
+             bias       = mean(beta_hat, na.rm = TRUE) - BETA_T,
+             rmse       = sqrt(mean((beta_hat - BETA_T)^2, na.rm = TRUE)),
+             coverage   = mean(covers, na.rm = TRUE),
+             mean_ols   = mean(ols_slope, na.rm = TRUE)))
 
 hist(sims$beta_hat, breaks = 12,
      xlab = expression(hat(beta)), main = "QAR1 effect size on R0")
